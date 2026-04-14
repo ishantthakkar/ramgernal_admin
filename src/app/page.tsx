@@ -1,65 +1,167 @@
+"use client";
+
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
+import styles from "./login.module.css";
+import { ArrowRight, ShieldCheck, ArrowLeft } from "lucide-react";
+
+const KeypadIcon = ({ size = 20, className = "" }: { size?: number; className?: string }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 28"
+    fill="currentColor"
+    className={className}
+  >
+    <circle cx="4" cy="4" r="2.5" />
+    <circle cx="12" cy="4" r="2.5" />
+    <circle cx="20" cy="4" r="2.5" />
+    <circle cx="4" cy="12" r="2.5" />
+    <circle cx="12" cy="12" r="2.5" />
+    <circle cx="20" cy="12" r="2.5" />
+    <circle cx="4" cy="20" r="2.5" />
+    <circle cx="12" cy="20" r="2.5" />
+    <circle cx="20" cy="20" r="2.5" />
+    <circle cx="12" cy="28" r="2.5" />
+  </svg>
+);
 
 export default function Home() {
+  const router = useRouter();
+  const [step, setStep] = useState<"login" | "otp">("login");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (value.length > 1) value = value.slice(-1);
+    if (!/^\d*$/.test(value)) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    if (value !== "" && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && otp[index] === "" && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+    <div className={styles.container}>
+      <div className={styles.systemStatus}>
+        <span className={styles.systemDot}></span>
+        SYSTEM ONLINE
+      </div>
+
+      <header className={styles.logoWrapper}>
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
+          src="/ram-logo.png"
+          alt="RAM General Supply"
+          width={280}
+          height={100}
+          className={styles.logo}
           priority
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+      </header>
+
+      <div className={styles.cardWrapper}>
+        <main className={styles.card}>
+          {step === "login" ? (
+            <>
+              <h1 className={styles.heading}>Enter Mobile Number</h1>
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Email Address</label>
+                <div className={styles.inputWrapper}>
+                  <KeypadIcon size={18} className={styles.inputIcon} />
+                  <input
+                    type="text"
+                    placeholder="65984 22357"
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+              <button className={styles.button} onClick={() => setStep("otp")}>
+                Send OTP <ArrowRight size={18} />
+              </button>
+            </>
+          ) : (
+            <>
+              <h1 className={styles.heading}>Verify User</h1>
+              <p className={styles.subHeading}>
+                Enter your OTP received on your registered mobile Number
+              </p>
+              <div className={styles.otpInputContainer}>
+                {otp.map((digit, i) => (
+                  <input
+                    key={i}
+                    ref={(el) => {
+                      inputRefs.current[i] = el;
+                    }}
+                    className={styles.otpBox}
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(i, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(i, e)}
+                    type="text"
+                    inputMode="numeric"
+                  />
+                ))}
+              </div>
+              <button className={styles.button} onClick={() => router.push("/dashboard")}>
+                Verify Mobile Number <ArrowRight size={18} />
+              </button>
+              <div className={styles.backLink} onClick={() => setStep("login")}>
+                <ArrowLeft size={16} /> Back to Login
+              </div>
+            </>
+          )}
+
+          {step === "login" && (
+            <footer className={styles.cardFooter}>
+              <div className={styles.statusItem}>
+                <span className={styles.statusDot}></span>
+                NETWORK SECURE
+              </div>
+              <div className={styles.divider}></div>
+              <div className={styles.statusItem}>
+                <ShieldCheck size={14} />
+                AES-256
+              </div>
+            </footer>
+          )}
+        </main>
+      </div>
+
+      {step === "otp" && (
+        <>
+          <div className={styles.stepIndicator}>
+            <div className={`${styles.stepSegment} ${styles.stepActive}`}></div>
+            <div className={styles.stepSegment}></div>
+            <div className={styles.stepSegment}></div>
+          </div>
+
+          <p className={styles.securityText}>
+            INDUSTRIAL GRADE SECURITY PROTOCOL ACTIVE
           </p>
+        </>
+      )}
+
+      <footer className={styles.pageFooter}>
+        <div className={styles.footerLinks}>
+          <a href="#" className={styles.footerLink}>Privacy Policy</a>
+          <a href="#" className={styles.footerLink}>Terms of Service</a>
+          <a href="#" className={styles.footerLink}>Support</a>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+        <p className={styles.copyright}>
+          © 2026 VOLTCORE INDUSTRIAL. ALL RIGHTS RESERVED.
+        </p>
+      </footer>
     </div>
   );
 }
