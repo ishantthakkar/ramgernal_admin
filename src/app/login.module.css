@@ -283,3 +283,33 @@
     display: none;
   }
 }
+
+.eyeIcon {
+  position: absolute;
+  right: 1.25rem;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.eyeIcon:hover {
+  color: #6b7280;
+}
+
+.forgotPassword {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #0076ce;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: right;
+  margin-top: 0.25rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.forgotPassword:hover {
+  opacity: 0.8;
+}
