@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import styles from "../dashboard.module.css";
+import styles from "../../dashboard.module.css";
 import { 
   Plus, 
   Users, 
@@ -16,9 +16,9 @@ import {
   Search
 } from "lucide-react";
 
-export default function UsersPage() {
+export default function ContractorsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("All Users");
+  const [activeTab, setActiveTab] = useState("Contractors");
   const [openActionId, setOpenActionId] = useState<string | null>(null);
 
   const summaryStats = [
@@ -27,46 +27,54 @@ export default function UsersPage() {
     { label: "Total Project Managers", value: "20", icon: Workflow, color: "#854d0e", bg: "#fef3c7" },
   ];
 
-  const users = [
+  const contractors = [
     {
       id: "#VC-92410",
-      name: "Robert Millhouse",
-      role: "SALESPERSON",
+      name: "Andrew Scoff",
       mobile: "+1 235 1254 2214",
-      status: "Active",
       email: "r.mill@gridtech.com",
-      avatar: "RM",
-      badgeClass: styles.badgeBlue,
+      company: "Xelectronics",
+      assignedProjects: "15",
+      completedInstallations: "14",
+      pendingInstallations: "10",
+      status: "Active",
+      avatar: "AS",
     },
     {
-      id: "#VC-92411",
-      name: "Sarah Chen",
-      role: "SALESPERSON",
+      id: "#VC-92410",
+      name: "Cliff Booth",
       mobile: "+1 235 1254 2214",
-      status: "Active",
       email: "s.chen@voltcore.io",
-      avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=100&h=100&auto=format&fit=crop",
-      badgeClass: styles.badgeOrange,
-    },
-    {
-      id: "#VC-92415",
-      name: "David Abrahams",
-      role: "CONTRACTOR",
-      mobile: "+1 235 1254 2214",
-      status: "Deactivated",
-      email: "david.a@independent.net",
-      avatar: "DA",
-      badgeClass: styles.badgeSlate,
-    },
-    {
-      id: "#VC-92420",
-      name: "Marcus Aurelius",
-      role: "PROJECT MANAGER",
-      mobile: "+1 235 1254 2214",
+      company: "Xelectronics",
+      assignedProjects: "20",
+      completedInstallations: "19",
+      pendingInstallations: "08",
       status: "Active",
-      email: "m.aurelius@gridtech.com",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=100&h=100&auto=format&fit=crop",
-      badgeClass: styles.badgeBlue,
+      avatar: "CB",
+    },
+    {
+      id: "#VC-92410",
+      name: "Mark Zyden",
+      mobile: "+1 235 1254 2214",
+      email: "s.chen@voltcore.io",
+      company: "Xelectronics",
+      assignedProjects: "24",
+      completedInstallations: "20",
+      pendingInstallations: "07",
+      status: "Inactive",
+      avatar: "MZ",
+    },
+    {
+      id: "#VC-92410",
+      name: "Halisen Morgot",
+      mobile: "+1 235 1254 2214",
+      email: "s.chen@voltcore.io",
+      company: "Xelectronics",
+      assignedProjects: "22",
+      completedInstallations: "19",
+      pendingInstallations: "05",
+      status: "Active",
+      avatar: "HM",
     },
   ];
 
@@ -135,71 +143,64 @@ export default function UsersPage() {
           <table className={styles.userTable}>
             <thead>
               <tr>
-                <th>User ID</th>
-                <th>User Details</th>
-                <th>Role</th>
-                <th>Mobile Number</th>
-                <th>Status</th>
-                <th>Email</th>
-                <th>Actions</th>
+                <th>USER ID</th>
+                <th>NAME</th>
+                <th>MOBILE NUMBER</th>
+                <th>EMAIL</th>
+                <th>COMPANY</th>
+                <th>ASSIGNED PROJECTS</th>
+                <th>COMPLETED INSTALLATIONS</th>
+                <th>PENDING INSTALLATIONS</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td style={{ fontWeight: 600, color: "#94a3b8" }}>{user.id}</td>
+              {contractors.map((contractor, index) => (
+                <tr key={index}>
+                  <td style={{ fontWeight: 600, color: "#94a3b8" }}>{contractor.id}</td>
                   <td>
                     <div className={styles.userDetails}>
                       <div className={styles.avatar} style={{ width: 36, height: 36, border: 'none', boxShadow: 'none' }}>
-                        {user.avatar.startsWith("http") ? (
-                          <Image 
-                            src={user.avatar} 
-                            alt={user.name} 
-                            width={36} 
-                            height={36} 
-                            className={styles.avatarImg}
-                          />
-                        ) : (
-                          <div style={{ 
-                            background: "#eff6ff", 
-                            color: "#1d4ed8", 
-                            width: "100%", 
-                            height: "100%", 
-                            display: "flex", 
-                            alignItems: "center", 
-                            justifyContent: "center", 
-                            fontWeight: 700, 
-                            fontSize: "0.8rem" 
-                          }}>
-                            {user.avatar}
-                          </div>
-                        )}
+                        <div style={{ 
+                          background: "#eff6ff", 
+                          color: "#1d4ed8", 
+                          width: "100%", 
+                          height: "100%", 
+                          display: "flex", 
+                          alignItems: "center", 
+                          justifyContent: "center", 
+                          fontWeight: 700, 
+                          fontSize: "0.8rem",
+                          borderRadius: "50%"
+                        }}>
+                          {contractor.avatar}
+                        </div>
                       </div>
-                      <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{user.name}</span>
+                      <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{contractor.name}</span>
                     </div>
                   </td>
-                  <td>
-                    <span className={`${styles.roleBadge} ${user.badgeClass}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobile}</td>
+                  <td style={{ fontWeight: 500, color: "#1e293b" }}>{contractor.mobile}</td>
+                  <td style={{ color: "#64748b" }}>{contractor.email}</td>
+                  <td style={{ fontWeight: 500, color: "#1e293b" }}>{contractor.company}</td>
+                  <td style={{ fontWeight: 600, color: "#1e293b" }}>{contractor.assignedProjects}</td>
+                  <td style={{ fontWeight: 600, color: "#1e293b" }}>{contractor.completedInstallations}</td>
+                  <td style={{ fontWeight: 600, color: "#1e293b" }}>{contractor.pendingInstallations}</td>
                   <td>
                     <div className={styles.statusCell}>
-                      <span className={user.status === "Active" ? styles.statusDotActive : styles.statusDotInactive}></span>
-                      {user.status}
+                      <span className={contractor.status === "Active" ? styles.statusDotActive : styles.statusDotInactive}></span>
+                      {contractor.status}
                     </div>
                   </td>
-                  <td style={{ color: "#64748b" }}>{user.email}</td>
                   <td style={{ overflow: "visible" }}>
                     <div onClick={(e) => {
                       e.stopPropagation();
-                      setOpenActionId(openActionId === user.id ? null : user.id);
+                      setOpenActionId(openActionId === contractor.id + index ? null : contractor.id + index);
                     }}>
                       <MoreVertical size={18} color="#94a3b8" cursor="pointer" />
                     </div>
                     
-                    {openActionId === user.id && (
+                    {openActionId === contractor.id + index && (
                       <div className={styles.actionDropdown}>
                         <div className={styles.dropdownItem}>Edit</div>
                         <div className={styles.dropdownDivider}></div>

@@ -29,7 +29,6 @@ export default function DashboardLayout({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const navItems = [
-    { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
     { name: "Users", icon: Users, path: "/dashboard/users" },
     { name: "Customers", icon: Handshake, path: "/dashboard/customers" },
     { name: "Workflow", icon: Workflow, path: "/dashboard/workflow" },
@@ -53,11 +52,22 @@ export default function DashboardLayout({
         </div>
 
         <nav className={styles.nav}>
+          {/* Dashboard - First Item */}
+          <Link 
+            href="/dashboard"
+            className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navActive : ""}`}
+            title={isSidebarCollapsed ? "Dashboard" : ""}
+          >
+            <LayoutDashboard size={22} strokeWidth={2.5} />
+            {!isSidebarCollapsed && <span>Dashboard</span>}
+          </Link>
+          
+          {/* Other Nav Items */}
           {navItems.map((item) => (
             <Link 
               key={item.name} 
               href={item.path}
-              className={`${styles.navItem} ${pathname === item.path ? styles.navActive : ""}`}
+              className={`${styles.navItem} ${pathname === item.path || (item.path === "/dashboard/users" && pathname.startsWith("/dashboard/users")) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
             >
               <item.icon size={22} strokeWidth={2.5} />

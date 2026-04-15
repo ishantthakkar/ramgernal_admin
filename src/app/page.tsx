@@ -30,8 +30,8 @@ export default function Home() {
 
       <div className={styles.cardWrapper}>
         <main className={styles.card}>
-          <h1 className={styles.heading}>Enter Mobile Number</h1>
-          
+          <h1 className={styles.heading}>Enter Email Id</h1>
+
           <div className={styles.formGroup}>
             <label className={styles.label}>Email Address</label>
             <div className={styles.inputWrapper}>
@@ -45,7 +45,7 @@ export default function Home() {
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>Access Password</label>
+            <label className={styles.label}>Password</label>
             <div className={styles.inputWrapper}>
               <Lock size={18} className={styles.inputIcon} />
               <input
@@ -53,41 +53,29 @@ export default function Home() {
                 placeholder="••••••••••••"
                 className={styles.input}
               />
-              <div 
-                className={styles.eyeIcon} 
+              <div
+                className={styles.eyeIcon}
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </div>
             </div>
-            <div className={styles.forgotPassword}>
-              FORGOT PASSWORD?
-            </div>
           </div>
+
 
           <button className={styles.button} onClick={() => router.push("/dashboard")}>
             Login <ArrowRight size={18} />
           </button>
 
-          <footer className={styles.cardFooter}>
-            <div className={styles.statusItem}>
-              <span className={styles.statusDot}></span>
-              NETWORK SECURE
-            </div>
-            <div className={styles.divider}></div>
-            <div className={styles.statusItem}>
-              <ShieldCheck size={14} />
-              AES-256
-            </div>
-          </footer>
+
         </main>
       </div>
 
       <footer className={styles.pageFooter}>
         <div className={styles.footerLinks}>
-          <a href="#" className={styles.footerLink}>Privacy Policy</a>
-          <a href="#" className={styles.footerLink}>Terms of Service</a>
-          <a href="#" className={styles.footerLink}>Support</a>
+          <a href="#" className={styles.footerLink}>SECURITY PROTOCOLS</a>
+          <a href="#" className={styles.footerLink}>SYSTEM STATUS</a>
+          <a href="#" className={styles.footerLink}>PRIVACY POLICY</a>
         </div>
         <p className={styles.copyright}>
           © 2026 VOLTCORE INDUSTRIAL. ALL RIGHTS RESERVED.
