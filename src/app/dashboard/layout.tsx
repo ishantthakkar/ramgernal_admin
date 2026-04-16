@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 import { 
   LayoutDashboard, 
@@ -25,8 +25,22 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-
+  const router = useRouter();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) {
+      router.push("/");
+    } else {
+      setIsAuthChecking(false);
+    }
+  }, [router]);
+
+  if (isAuthChecking) {
+    return null; // or a loading spinner
+  }
 
   const navItems = [
     { name: "Users", icon: Users, path: "/dashboard/users" },
@@ -94,6 +108,18 @@ export default function DashboardLayout({
               </div>
             )}
           </div>
+          
+          <button 
+            className={`${styles.navItem} ${styles.logoutBtn}`}
+            onClick={() => {
+              localStorage.removeItem("auth_token");
+              router.push("/");
+            }}
+            title={isSidebarCollapsed ? "Logout" : ""}
+          >
+            <LogOut size={22} strokeWidth={2.5} color="#f87171" className={styles.logoutIcon} />
+            {!isSidebarCollapsed && <span>Logout System</span>}
+          </button>
         </div>
       </aside>
 
@@ -104,14 +130,6 @@ export default function DashboardLayout({
           <div className={styles.navLeft}>
             <div className={styles.sidebarToggle} onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
               <PanelLeft size={22} />
-            </div>
-            <div className={styles.searchBar}>
-              <Search size={18} color="#94a3b8" />
-              <input 
-                type="text" 
-                placeholder="Search industrial assets, leads, or projects..." 
-                className={styles.searchInput}
-              />
             </div>
           </div>
 

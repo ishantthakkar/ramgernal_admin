@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/proxy/:path*',
+        destination: 'https://ramgeneral-api.onrender.com/api/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

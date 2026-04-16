@@ -1,13 +1,13 @@
 "use client";
 
 import styles from "./dashboard.module.css";
-import { 
-  BarChart3, 
-  Handshake, 
-  ClipboardList, 
-  ShieldCheck, 
-  Workflow, 
-  Search, 
+import {
+  BarChart3,
+  Handshake,
+  ClipboardList,
+  ShieldCheck,
+  Workflow,
+  Search,
   MoreVertical,
   UserPlus,
   FileText
@@ -15,27 +15,27 @@ import {
 
 export default function DashboardPage() {
   const largeStats = [
-    { 
-      label: "Total Leads", 
-      value: "1,482", 
-      icon: BarChart3, 
-      iconColor: "#0076ce", 
-      iconBg: "#eff6ff" 
+    {
+      label: "Total Active Leads",
+      value: "1,482",
+      icon: BarChart3,
+      iconColor: "#0076ce",
+      iconBg: "#eff6ff"
     },
-    { 
-      label: "Total Customers", 
-      value: "429", 
-      icon: Handshake, 
-      iconColor: "#854d0e", 
-      iconBg: "#fef3c7" 
+    {
+      label: "Total Customers",
+      value: "429",
+      icon: Handshake,
+      iconColor: "#854d0e",
+      iconBg: "#fef3c7"
     },
   ];
 
   const smallStats = [
-    { label: "Total Surveys", value: "24", icon: ClipboardList, color: "#ef4444" },
-    { label: "Approved Surveys", value: "18", icon: ShieldCheck, color: "#0076ce" },
-    { label: "Total Installations", value: "64", icon: Workflow, color: "#1e293b" },
-    { label: "Total Inspections", value: "12", icon: Search, color: "#1e293b" },
+    { label: "Submitted Surveys", value: "24", icon: ClipboardList, color: "#ef4444" },
+    { label: "Completed Installations", value: "18", icon: ShieldCheck, color: "#0076ce" },
+    { label: "Completed Inspections", value: "64", icon: Workflow, color: "#1e293b" },
+    { label: "Active Services", value: "12", icon: Search, color: "#1e293b" },
   ];
 
   const recentActivities = [
@@ -69,8 +69,8 @@ export default function DashboardPage() {
         <div className={styles.overviewGrid}>
           {largeStats.map((stat, i) => (
             <div key={i} className={styles.largeCard}>
-              <div 
-                className={styles.largeCardIcon} 
+              <div
+                className={styles.largeCardIcon}
                 style={{ backgroundColor: stat.iconBg, color: stat.iconColor }}
               >
                 <stat.icon size={28} />
@@ -105,8 +105,8 @@ export default function DashboardPage() {
           {recentActivities.map((activity) => (
             <div key={activity.id} className={styles.activityRow}>
               <div className={styles.activityInfo}>
-                <div 
-                  className={styles.activityIcon} 
+                <div
+                  className={styles.activityIcon}
                   style={{ backgroundColor: activity.iconBg, color: activity.iconColor }}
                 >
                   <activity.icon size={20} />

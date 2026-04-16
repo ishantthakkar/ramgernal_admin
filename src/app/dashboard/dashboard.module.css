@@ -178,6 +178,24 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 
+.logoutBtn {
+  margin-top: 1rem;
+  transition: all 0.2s ease;
+}
+
+.logoutBtn:hover {
+  background: #fee2e2 !important;
+}
+
+.logoutBtn:hover span {
+  color: #ef4444 !important;
+}
+
+.logoutBtn:hover svg {
+  color: #ef4444 !important;
+  transform: translateX(-2px);
+}
+
 .navActive::after {
   content: "";
   position: absolute;
@@ -634,9 +652,20 @@
   text-transform: uppercase;
 }
 
-.badgeBlue { background: #eff6ff; color: #1d4ed8; }
-.badgeOrange { background: #fff7ed; color: #c2410c; }
-.badgeSlate { background: #f8fafc; color: #475569; }
+.badgeBlue {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.badgeOrange {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.badgeSlate {
+  background: #f8fafc;
+  color: #475569;
+}
 
 .statusCell {
   display: flex;
@@ -645,8 +674,19 @@
   font-weight: 600;
 }
 
-.statusDotActive { width: 8px; height: 8px; background: #10b981; border-radius: 50%; }
-.statusDotInactive { width: 8px; height: 8px; background: #94a3b8; border-radius: 50%; }
+.statusDotActive {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+}
+
+.statusDotInactive {
+  width: 8px;
+  height: 8px;
+  background: #94a3b8;
+  border-radius: 50%;
+}
 
 .tableFooter {
   display: flex;
@@ -726,7 +766,8 @@
   letter-spacing: 0.05em;
 }
 
-.formInput, .formSelect {
+.formInput,
+.formSelect {
   background: #eef1f4;
   border: 1px solid transparent;
   padding: 0.875rem 1.25rem;
@@ -742,7 +783,8 @@
   color: #94a3b8;
 }
 
-.formInput:focus, .formSelect:focus {
+.formInput:focus,
+.formSelect:focus {
   background: #ffffff;
   border-color: #0076ce;
   box-shadow: 0 0 0 4px rgba(0, 118, 206, 0.1);
@@ -997,6 +1039,7 @@
   .overviewGrid {
     grid-template-columns: 1fr 1fr;
   }
+
   .smallStatsGrid {
     grid-column: span 2;
   }
@@ -1006,6 +1049,7 @@
   .overviewGrid {
     grid-template-columns: 1fr;
   }
+
   .smallStatsGrid {
     grid-column: span 1;
   }
