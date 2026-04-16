@@ -96,7 +96,7 @@ export default function UsersPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>Users</h1>
-        <button className={styles.addBtn} onClick={() => router.push("/dashboard/users/add")}>
+        <button className={styles.addBtn} onClick={() => router.push("/users/add")}>
           <Plus size={20} /> Add User
         </button>
       </div>
@@ -254,7 +254,7 @@ export default function UsersPage() {
                       </>
                     )}
 
-                    <td style={{ overflow: "visible" }}>
+                    <td style={{ overflow: "visible", position: "relative" }}>
                       <div onClick={(e) => {
                         e.stopPropagation();
                         setOpenActionId(openActionId === user._id ? null : user._id);
@@ -263,10 +263,10 @@ export default function UsersPage() {
                       </div>
                       
                       {openActionId === user._id && (
-                        <div className={styles.actionDropdown}>
-                          <div className={styles.dropdownItem} onClick={() => router.push(`/dashboard/users/edit/${user._id}`)}>Edit</div>
+                        <div className={styles.actionDropdown} style={{ top: "80%", right: "1.5rem", transform: "none", borderRadius: "20px", boxShadow: "0 15px 40px rgba(0,0,0,0.12)" }}>
+                          <div className={styles.dropdownItem} style={{ padding: "1.25rem 2rem" }} onClick={() => router.push(`/users/edit/${user._id}`)}>Edit</div>
                           <div className={styles.dropdownDivider}></div>
-                          <div className={styles.dropdownItem}>View</div>
+                          <div className={styles.dropdownItem} style={{ padding: "1.25rem 2rem" }}>View</div>
                         </div>
                       )}
                     </td>

@@ -1,0 +1,161 @@
+.editPage {
+  display: flex;
+  flex-direction: column;
+}
+
+.titleArea {
+  margin-bottom: 2.5rem;
+}
+
+.profileTitle {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1e293b;
+  font-family: var(--font-outfit), sans-serif;
+}
+
+.formSection {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+}
+
+.sectionHeading {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 2.5rem;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem 2.5rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formGroup label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.formInput, .formSelect {
+  background: #e2e8f0;
+  border: 1px solid transparent;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #475569;
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.formInput::placeholder {
+  color: #94a3b8;
+}
+
+.formInput:focus, .formSelect:focus {
+  background: #ffffff;
+  border-color: #0076ce;
+  box-shadow: 0 0 0 4px rgba(0, 118, 206, 0.1);
+}
+
+.activitiesSection {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+}
+
+.actionFooter {
+  background: #f1f5f9;
+  padding: 2.5rem;
+  border-radius: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.cancelBtn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #4b5563;
+  padding: 1rem 2.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  background: #f8fafc;
+}
+
+.saveBtn {
+  background: #0076ce;
+  color: #ffffff;
+  padding: 1rem 3rem;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.saveBtn:hover {
+  background: #006bbd;
+}
+
+.activityTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.activityTable th {
+  text-align: left;
+  padding: 1rem 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.activityTable td {
+  padding: 1.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.iconBox {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+}

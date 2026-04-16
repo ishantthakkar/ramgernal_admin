@@ -43,11 +43,12 @@ export default function DashboardLayout({
   }
 
   const navItems = [
-    { name: "Users", icon: Users, path: "/dashboard/users" },
-    { name: "Customers", icon: Handshake, path: "/dashboard/customers" },
-    { name: "Workflow", icon: Workflow, path: "/dashboard/workflow" },
-    { name: "Roles & Permissions", icon: ShieldCheck, path: "/dashboard/roles" },
-    { name: "Audit Logs", icon: FileSearch, path: "/dashboard/audit" },
+    { name: "Users", icon: Users, path: "/users" },
+    { name: "Leads", icon: Search, path: "/leads" },
+    { name: "Customers", icon: Handshake, path: "/customers" },
+    { name: "Workflow", icon: Workflow, path: "/workflow" },
+    { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles" },
+    { name: "Audit Logs", icon: FileSearch, path: "/audit" },
   ];
 
   return (
@@ -81,7 +82,7 @@ export default function DashboardLayout({
             <Link 
               key={item.name} 
               href={item.path}
-              className={`${styles.navItem} ${pathname === item.path || (item.path === "/dashboard/users" && pathname.startsWith("/dashboard/users")) ? styles.navActive : ""}`}
+              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
             >
               <item.icon size={22} strokeWidth={2.5} />
@@ -91,24 +92,6 @@ export default function DashboardLayout({
         </nav>
 
         <div className={styles.sidebarFooter}>
-          <div className={styles.sidebarUser}>
-            <div className={styles.avatar} style={{ width: 40, height: 40, border: 'none', boxShadow: 'none', flexShrink: 0 }}>
-              <Image 
-                src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=100&h=100&auto=format&fit=crop" 
-                alt="User" 
-                width={40} 
-                height={40}
-                className={styles.avatarImg}
-              />
-            </div>
-            {!isSidebarCollapsed && (
-              <div className={styles.userInfoSidebar}>
-                <div className={styles.sidebarUserName}>Alex Sterling</div>
-                <div className={styles.sidebarUserRole}>System Admin</div>
-              </div>
-            )}
-          </div>
-          
           <button 
             className={`${styles.navItem} ${styles.logoutBtn}`}
             onClick={() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import styles from "./dashboard.module.css";
+import styles from "../dashboard.module.css";
 import {
   BarChart3,
   Handshake,

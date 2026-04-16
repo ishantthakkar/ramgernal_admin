@@ -1,25 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import styles from "../../../dashboard.module.css";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import styles from "../../dashboard.module.css";
 import { 
   UserPlus, 
   ShieldCheck, 
   X, 
-  ChevronDown,
-  Loader2,
-  Save
+  ChevronDown 
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 
-export default function EditUserPage() {
+export default function AddUserPage() {
   const router = useRouter();
-  const params = useParams();
-  const id = params.id as string;
-  
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -29,30 +23,6 @@ export default function EditUserPage() {
     userRole: "sales_person",
     status: "active"
   });
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const response = await adminApi.getUserById(id);
-        const user = response.user || response.data || response;
-        setFormData({
-          fullName: user.fullName || "",
-          company: user.company || "",
-          email: user.email || "",
-          mobileNumber: user.mobileNumber || "",
-          userRole: user.userRole || "sales_person",
-          status: user.status || "active"
-        });
-      } catch (err: any) {
-        alert(err.message || "Failed to fetch user details.");
-        router.push("/dashboard/users");
-      } finally {
-        setFetching(false);
-      }
-    };
-
-    if (id) fetchUser();
-  }, [id, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -64,34 +34,25 @@ export default function EditUserPage() {
     setLoading(true);
 
     try {
-      // Using "id" to match your backend requirement
-      await adminApi.updateUser({ ...formData, id: id });
-      router.push("/dashboard/users");
+      await adminApi.createUser(formData);
+      router.push("/users");
     } catch (err: any) {
-      alert(err.message || "Failed to update user. Please try again.");
+      alert(err.message || "Failed to create user. Please try again.");
     } finally {
       setLoading(false);
     }
   };
-
-  if (fetching) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
-      </div>
-    );
-  }
 
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span> 
         TEAM MANAGEMENT <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span> 
-        <span style={{ color: "#0076ce" }}>EDIT USER</span>
+        <span style={{ color: "#0076ce" }}>ADD USER</span>
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Adjust User Profile</h1>
+        <h1 className={styles.welcomeText}>Register New User</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -101,7 +62,7 @@ export default function EditUserPage() {
             <UserPlus size={22} color="#0076ce" /> Profile Information
           </div>
           <p className={styles.sectionSubtitle}>
-            Update the primary identification details for this user account.
+            Enter the primary identification details for the new user account.
           </p>
 
           <div className={styles.formGrid}>
@@ -162,7 +123,7 @@ export default function EditUserPage() {
             <ShieldCheck size={22} color="#0076ce" /> Access & Permissions
           </div>
           <p className={styles.sectionSubtitle}>
-            Modify the user's role and current system status.
+            Define the user's role and initial system status.
           </p>
 
           <div className={styles.formGrid}>
@@ -207,13 +168,13 @@ export default function EditUserPage() {
           <button 
             type="button" 
             className={styles.cancelBtn}
-            onClick={() => router.push("/dashboard/users")}
+            onClick={() => router.push("/users")}
             disabled={loading}
           >
             <X size={20} /> Cancel
           </button>
           <button type="submit" className={styles.createBtn} disabled={loading}>
-            {loading ? "Updating..." : <><Save size={20} /> Save Changes</>}
+            {loading ? "Creating..." : <><UserPlus size={20} /> Create User</>}
           </button>
         </div>
       </form>

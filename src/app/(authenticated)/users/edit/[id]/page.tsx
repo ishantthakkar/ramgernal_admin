@@ -1,20 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import styles from "../../dashboard.module.css";
-import { 
-  UserPlus, 
-  ShieldCheck, 
-  X, 
-  ChevronDown 
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import styles from "../../../dashboard.module.css";
+import {
+  UserPlus,
+  ShieldCheck,
+  X,
+  ChevronDown,
+  Loader2,
+  Save
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 
-export default function AddUserPage() {
+export default function EditUserPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+
   const [loading, setLoading] = useState(false);
-  
+  const [fetching, setFetching] = useState(true);
+
   const [formData, setFormData] = useState({
     fullName: "",
     company: "",
@@ -23,6 +29,30 @@ export default function AddUserPage() {
     userRole: "sales_person",
     status: "active"
   });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await adminApi.getUserById(id);
+        const user = response.user || response.data || response;
+        setFormData({
+          fullName: user.fullName || "",
+          company: user.company || "",
+          email: user.email || "",
+          mobileNumber: user.mobileNumber || "",
+          userRole: user.userRole || "sales_person",
+          status: user.status || "active"
+        });
+      } catch (err: any) {
+        alert(err.message || "Failed to fetch user details.");
+        router.push("/dashboard/users");
+      } finally {
+        setFetching(false);
+      }
+    };
+
+    if (id) fetchUser();
+  }, [id, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -34,25 +64,35 @@ export default function AddUserPage() {
     setLoading(true);
 
     try {
-      await adminApi.createUser(formData);
-      router.push("/dashboard/users");
+      // Using "id" to match your backend requirement
+      await adminApi.updateUser({ ...formData, id: id });
+      router.push("/users");
     } catch (err: any) {
-      alert(err.message || "Failed to create user. Please try again.");
+      alert(err.message || "Failed to update user. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
+        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span> 
-        TEAM MANAGEMENT <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span> 
-        <span style={{ color: "#0076ce" }}>ADD USER</span>
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>USERS</span> 
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        <span style={{ color: "#0076ce" }}>EDIT USER</span>
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Register New User</h1>
+        <h1 className={styles.welcomeText}>Adjust User Profile</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -62,7 +102,7 @@ export default function AddUserPage() {
             <UserPlus size={22} color="#0076ce" /> Profile Information
           </div>
           <p className={styles.sectionSubtitle}>
-            Enter the primary identification details for the new user account.
+            Update the primary identification details for this user account.
           </p>
 
           <div className={styles.formGrid}>
@@ -73,6 +113,7 @@ export default function AddUserPage() {
                 type="text" 
                 placeholder="e.g. Marcus Aurelius" 
                 className={styles.formInput} 
+                style={{ background: "#eef1f4" }}
                 value={formData.fullName}
                 onChange={handleChange}
                 required
@@ -85,6 +126,7 @@ export default function AddUserPage() {
                 type="text" 
                 placeholder="Industrial Corp Ltd." 
                 className={styles.formInput} 
+                style={{ background: "#eef1f4" }}
                 value={formData.company}
                 onChange={handleChange}
                 required
@@ -97,6 +139,7 @@ export default function AddUserPage() {
                 type="email" 
                 placeholder="m.aurelius@voltcore.com" 
                 className={styles.formInput} 
+                style={{ background: "#eef1f4" }}
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -109,6 +152,7 @@ export default function AddUserPage() {
                 type="text" 
                 placeholder="+1 (555) 000-0000" 
                 className={styles.formInput} 
+                style={{ background: "#eef1f4" }}
                 value={formData.mobileNumber}
                 onChange={handleChange}
                 required
@@ -123,7 +167,7 @@ export default function AddUserPage() {
             <ShieldCheck size={22} color="#0076ce" /> Access & Permissions
           </div>
           <p className={styles.sectionSubtitle}>
-            Define the user's role and initial system status.
+            Modify the user's role and current system status.
           </p>
 
           <div className={styles.formGrid}>
@@ -133,6 +177,7 @@ export default function AddUserPage() {
                 <select 
                   name="userRole"
                   className={styles.formSelect} 
+                  style={{ background: "#eef1f4" }}
                   value={formData.userRole}
                   onChange={handleChange}
                 >
@@ -150,6 +195,7 @@ export default function AddUserPage() {
                 <select 
                   name="status"
                   className={styles.formSelect} 
+                  style={{ background: "#eef1f4" }}
                   value={formData.status}
                   onChange={handleChange}
                 >
@@ -164,17 +210,18 @@ export default function AddUserPage() {
         </section>
 
         {/* Action Footer */}
-        <div className={styles.actionFooter}>
+        <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem" }}>
           <button 
             type="button" 
             className={styles.cancelBtn}
-            onClick={() => router.push("/dashboard/users")}
+            onClick={() => router.push("/users")}
             disabled={loading}
+            style={{ padding: "0.875rem 2.5rem" }}
           >
             <X size={20} /> Cancel
           </button>
-          <button type="submit" className={styles.createBtn} disabled={loading}>
-            {loading ? "Creating..." : <><UserPlus size={20} /> Create User</>}
+          <button type="submit" className={styles.createBtn} disabled={loading} style={{ padding: "0.875rem 3rem" }}>
+            {loading ? "Updating..." : <><Save size={20} /> Save Changes</>}
           </button>
         </div>
       </form>
