@@ -1,0 +1,154 @@
+/* Reusing many styles from dashboard/leads but tailored for 'Add' form */
+
+.leadsAddPage {
+  display: flex;
+  flex-direction: column;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.pageHeader {
+  margin-bottom: 2.5rem;
+}
+
+.welcomeText {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1e293b;
+  font-family: var(--font-outfit), sans-serif;
+}
+
+.formSection {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  padding: 2.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sectionSubtitle {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 2.5rem;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem 3rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formGroup label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.formInput,
+.formSelect {
+  background: #eef1f4;
+  border: 1px solid transparent;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 500;
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+  appearance: none;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  background: #ffffff;
+  border-color: #0076ce;
+  box-shadow: 0 0 0 4px rgba(0, 118, 206, 0.1);
+}
+
+.formInput::placeholder {
+  color: #94a3b8;
+}
+
+.actionFooter {
+  background: #f1f5f9;
+  padding: 1.5rem 2.5rem;
+  border-radius: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.cancelBtn {
+  background: #ffffff;
+  color: #4b5563;
+  padding: 0.75rem 1.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1.5px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.createBtn {
+  background: #0076ce;
+  color: #ffffff;
+  padding: 0.75rem 2.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.createBtn:hover {
+  background: #005696;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 118, 206, 0.2);
+}
+
+.createBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

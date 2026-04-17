@@ -82,7 +82,7 @@ export default function DashboardLayout({
             <Link 
               key={item.name} 
               href={item.path}
-              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
+              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads" || item.path === "/customers") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
             >
               <item.icon size={22} strokeWidth={2.5} />

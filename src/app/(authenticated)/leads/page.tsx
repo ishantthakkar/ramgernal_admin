@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./leads.module.css";
 import dashboardStyles from "../dashboard.module.css";
@@ -10,28 +10,56 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Calendar,
-  MoreVertical
+  MoreVertical,
+  Plus,
+  Loader2
 } from "lucide-react";
+import { adminApi } from "@/lib/api";
 
 export default function LeadsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("Active Leads");
-  const [openActionId, setOpenActionId] = useState<number | null>(null);
+  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const fetchLeads = async () => {
+    setLoading(true);
+    try {
+      const response = await adminApi.getLeads();
+      setLeads(response.leads || []);
+    } catch (err) {
+      console.error("Failed to fetch leads:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeads();
+  }, []);
 
   const stats = [
-    { label: "Total", value: "1,284" },
-    { label: "New", value: "42" },
-    { label: "In Progress", value: "156" },
-    { label: "Converted", value: "200" },
-    { label: "Closed", value: "156" },
+    { label: "Total", value: leads.length.toString() },
+    { label: "New", value: leads.filter(l => l.status === "New").length.toString() },
+    { label: "Active", value: leads.filter(l => l.status === "Active" || l.status === "New").length.toString() },
+    { label: "In Progress", value: leads.filter(l => l.status === "In Progress").length.toString() },
+    { label: "Closed", value: leads.filter(l => l.status === "Closed").length.toString() },
   ];
 
-  const leads = [
-    { id: "#VC-9281", name: "Robert Millhouse", mobile: "+1 235 1254 2214", company: "Nexus Grid Systems", status: "Active", salesPerson: "Jay Desai", lastActivity: "2h ago" },
-    { id: "#VC-9282", name: "Sarah Chen", mobile: "+1 235 1254 2214", company: "Nexus Grid Systems", status: "Active", salesPerson: "Jay Desai", lastActivity: "2h ago" },
-    { id: "#VC-9283", name: "David Abrahams", mobile: "+1 235 1254 2214", company: "Nexus Grid Systems", status: "Deactivated", salesPerson: "Jay Desai", lastActivity: "2h ago" },
-    { id: "#VC-9284", name: "Marcus Aurelius", mobile: "+1 235 1254 2214", company: "Nexus Grid Systems", status: "Active", salesPerson: "Jay Desai", lastActivity: "2h ago" },
-  ];
+  // Pagination Logic
+  const totalPages = Math.ceil(leads.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLeads = leads.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (pageNum: number) => {
+    if (pageNum > 0 && pageNum <= totalPages) {
+      setCurrentPage(pageNum);
+    }
+  };
 
   return (
     <div className={styles.leadsPage} onClick={() => setOpenActionId(null)}>
@@ -40,7 +68,12 @@ export default function LeadsPage() {
         <span style={{ color: "#0076ce" }}>LEADS</span>
       </div>
 
-      <h1 className={styles.directoryTitle}>Leads Directory</h1>
+      <div className={styles.leadsHeader}>
+        <h1 className={styles.directoryTitle}>Leads Directory</h1>
+        <button className={styles.addBtn} onClick={() => router.push("/leads/add")}>
+          <Plus size={20} /> Add Lead
+        </button>
+      </div>
 
       {/* Stats Grid */}
       <div className={styles.leadsStatsGrid}>
@@ -93,64 +126,100 @@ export default function LeadsPage() {
             </tr>
           </thead>
           <tbody>
-            {leads.map((lead, idx) => (
-              <tr key={idx}>
-                <td className={styles.idCell}>{lead.id}</td>
-                <td className={styles.nameCell}>{lead.name}</td>
-                <td>{lead.mobile}</td>
-                <td>{lead.company}</td>
-                <td>
-                  <div className={styles.statusIndicator}>
-                    <div className={lead.status === "Active" ? styles.dotActive : styles.dotDeactivated}></div>
-                    {lead.status}
+            {loading ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: "center", padding: "4rem" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", color: "#94a3b8" }}>
+                    <Loader2 size={32} className={styles.spinner} />
+                    <span style={{ fontWeight: 600 }}>Loading active leads...</span>
                   </div>
-                </td>
-                <td>{lead.salesPerson}</td>
-                <td>{lead.lastActivity}</td>
-                <td style={{ overflow: "visible", position: "relative" }}>
-                  <div onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenActionId(openActionId === idx ? null : idx);
-                  }}>
-                    <MoreVertical size={18} color="#94a3b8" cursor="pointer" />
-                  </div>
-                  
-                  {openActionId === idx && (
-                    <div className={styles.leadsActionDropdown}>
-                      <div 
-                        className={styles.leadsDropdownItem}
-                        onClick={() => router.push(`/leads/${lead.id.replace('#', '')}/edit`)}
-                      >
-                        Edit
-                      </div>
-                      <div className={styles.leadsDropdownDivider}></div>
-                      <div 
-                        className={styles.leadsDropdownItem}
-                        onClick={() => router.push(`/leads/${lead.id.replace('#', '')}`)}
-                      >
-                        View
-                      </div>
-                    </div>
-                  )}
                 </td>
               </tr>
-            ))}
+            ) : leads.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                  No leads found.
+                </td>
+              </tr>
+            ) : (
+              currentLeads.map((lead, idx) => {
+                const globalIndex = indexOfFirstItem + idx;
+                return (
+                  <tr key={lead.id || idx}>
+                    <td className={styles.idCell}>#{globalIndex + 1}</td>
+                    <td className={styles.nameCell}>{lead.name}</td>
+                    <td>{lead.mobileNumber || "N/A"}</td>
+                    <td>{lead.company}</td>
+                    <td>
+                      <div className={styles.statusIndicator}>
+                        <div className={lead.status === "Active" || lead.status === "New" ? styles.dotActive : styles.dotDeactivated}></div>
+                        {lead.status}
+                      </div>
+                    </td>
+                    <td>{lead.salesPerson}</td>
+                    <td>{lead.lastActivity ? new Date(lead.lastActivity).toLocaleDateString() : "N/A"}</td>
+                    <td style={{ overflow: "visible", position: "relative" }}>
+                      <div onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenActionId(openActionId === lead.id ? null : lead.id);
+                      }}>
+                        <MoreVertical size={18} color="#94a3b8" cursor="pointer" />
+                      </div>
+                      
+                      {openActionId === lead.id && (
+                        <div className={styles.leadsActionDropdown}>
+                          <div 
+                            className={styles.leadsDropdownItem}
+                            onClick={() => router.push(`/leads/${lead.id}/edit`)}
+                          >
+                            Edit
+                          </div>
+                          <div className={styles.leadsDropdownDivider}></div>
+                          <div 
+                            className={styles.leadsDropdownItem}
+                            onClick={() => router.push(`/leads/${lead.id}`)}
+                          >
+                            View
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
 
         {/* Pagination */}
         <div className={styles.paginationWrapper}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing 1 to 4 of 1,284 entries
+            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, leads.length)} of {leads.length} entries
           </div>
           <div className={dashboardStyles.pagination}>
-            <div className={dashboardStyles.pageBtn}><ChevronLeft size={18} /></div>
-            <div className={`${dashboardStyles.pageBtn} ${dashboardStyles.pageActive}`}>1</div>
-            <div className={dashboardStyles.pageBtn}>2</div>
-            <div className={dashboardStyles.pageBtn}>3</div>
-            <div className={dashboardStyles.pageBtn}>...</div>
-            <div className={dashboardStyles.pageBtn}>128</div>
-            <div className={dashboardStyles.pageBtn}><ChevronRight size={18} /></div>
+            <div 
+              className={`${dashboardStyles.pageBtn} ${currentPage === 1 ? dashboardStyles.disabled : ""}`}
+              onClick={() => handlePageChange(currentPage - 1)}
+            >
+              <ChevronLeft size={18} />
+            </div>
+            
+            {[...Array(totalPages)].map((_, i) => (
+              <div 
+                key={i} 
+                className={`${dashboardStyles.pageBtn} ${currentPage === i + 1 ? dashboardStyles.pageActive : ""}`}
+                onClick={() => handlePageChange(i + 1)}
+              >
+                {i + 1}
+              </div>
+            ))}
+            
+            <div 
+              className={`${dashboardStyles.pageBtn} ${currentPage === totalPages ? dashboardStyles.disabled : ""}`}
+              onClick={() => handlePageChange(currentPage + 1)}
+            >
+              <ChevronRight size={18} />
+            </div>
           </div>
         </div>
       </div>

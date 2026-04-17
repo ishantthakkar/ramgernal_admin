@@ -55,4 +55,18 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify(userData),
   }),
+  createLead: (leadData: any) => apiRequest("/admin/leads", {
+    method: "POST",
+    body: JSON.stringify(leadData),
+  }),
+  getLeads: () => apiRequest("/admin/leads", {
+    method: "GET",
+  }),
+  getLeadById: (id: string) => apiRequest(`/admin/leads/${id}`, {
+    method: "GET",
+  }),
+  updateLead: (id: string, leadData: any) => apiRequest(`/admin/leads/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(leadData),
+  }),
 };
