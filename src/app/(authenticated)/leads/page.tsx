@@ -70,9 +70,6 @@ export default function LeadsPage() {
 
       <div className={styles.leadsHeader}>
         <h1 className={styles.directoryTitle}>Leads Directory</h1>
-        <button className={styles.addBtn} onClick={() => router.push("/leads/add")}>
-          <Plus size={20} /> Add Lead
-        </button>
       </div>
 
       {/* Stats Grid */}
@@ -163,7 +160,7 @@ export default function LeadsPage() {
                         e.stopPropagation();
                         setOpenActionId(openActionId === lead.id ? null : lead.id);
                       }}>
-                        <MoreVertical size={18} color="#94a3b8" cursor="pointer" />
+                        <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
                       </div>
                       
                       {openActionId === lead.id && (

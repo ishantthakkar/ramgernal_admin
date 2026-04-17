@@ -6,6 +6,7 @@ import Image from "next/image";
 import styles from "./login.module.css";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { authApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export default function Home() {
   const router = useRouter();
@@ -41,13 +42,15 @@ export default function Home() {
 
       if (token) {
         localStorage.setItem("auth_token", token);
+        toast.success("Login successful! Welcome back.");
         router.push("/dashboard");
       } else {
         const keys = Object.keys(response).join(", ");
-        alert(`Logged in, but couldn't find token. \nResponse keys found: ${keys}`);
+        toast.error(`Authentication error: Token not found.`);
+        console.warn(`Response keys found: ${keys}`);
       }
     } catch (err: any) {
-      alert(err.message || "Invalid credentials. Please try again.");
+      toast.error(err.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -115,7 +118,7 @@ export default function Home() {
             onClick={handleLogin}
             disabled={loading}
           >
-            {loading ? "Processing..." : <>Login <ArrowRight size={18} /></>}
+            {loading ? "Login..." : <>Login <ArrowRight size={18} /></>}
           </button>
 
 

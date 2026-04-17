@@ -16,6 +16,7 @@ import {
   Briefcase
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export default function AddLeadPage() {
   const router = useRouter();
@@ -47,9 +48,10 @@ export default function AddLeadPage() {
         lastActivity: new Date().toISOString()
       };
       await adminApi.createLead(payload);
+      toast.success("Lead created successfully!");
       router.push("/leads");
     } catch (err: any) {
-      alert(err.message || "Failed to create lead. Please check your data.");
+      toast.error(err.message || "Failed to create lead. Please check your data.");
     } finally {
       setLoading(false);
     }

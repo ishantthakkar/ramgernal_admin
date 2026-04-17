@@ -10,6 +10,7 @@ import {
   ChevronDown 
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export default function AddUserPage() {
   const router = useRouter();
@@ -35,9 +36,10 @@ export default function AddUserPage() {
 
     try {
       await adminApi.createUser(formData);
+      toast.success("User created successfully!");
       router.push("/users");
     } catch (err: any) {
-      alert(err.message || "Failed to create user. Please try again.");
+      toast.error(err.message || "Failed to create user. Please try again.");
     } finally {
       setLoading(false);
     }

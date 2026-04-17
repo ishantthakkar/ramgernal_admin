@@ -13,6 +13,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export default function EditLeadPage() {
   const router = useRouter();
@@ -63,9 +64,10 @@ export default function EditLeadPage() {
     setSaving(true);
     try {
       await adminApi.updateLead(id, formData);
+      toast.success("Lead updated successfully!");
       router.push("/leads");
     } catch (err: any) {
-      alert(err.message || "Failed to update lead.");
+      toast.error(err.message || "Failed to update lead.");
     } finally {
       setSaving(false);
     }
@@ -229,7 +231,7 @@ export default function EditLeadPage() {
       <div className={styles.actionFooter}>
         <button 
           className={styles.cancelBtn}
-          onClick={() => router.push(`/leads/${id}`)}
+          onClick={() => router.push("/leads")}
         >
           <X size={18} /> Cancel
         </button>

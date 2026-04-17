@@ -62,10 +62,6 @@ export default function CustomersPage() {
       {/* Header */}
       <div className={styles.header}>
         <h1 className={styles.title}>Costumers</h1>
-        <button className={styles.addBtn}>
-          <UserPlus size={20} />
-          Add Costumer
-        </button>
       </div>
 
       {/* Table Card */}

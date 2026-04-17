@@ -12,6 +12,7 @@ import {
   Save
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export default function EditUserPage() {
   const router = useRouter();
@@ -44,8 +45,8 @@ export default function EditUserPage() {
           status: user.status || "active"
         });
       } catch (err: any) {
-        alert(err.message || "Failed to fetch user details.");
-        router.push("/dashboard/users");
+        toast.error(err.message || "Failed to fetch user details.");
+        router.push("/users");
       } finally {
         setFetching(false);
       }
@@ -66,9 +67,10 @@ export default function EditUserPage() {
     try {
       // Using "id" to match your backend requirement
       await adminApi.updateUser({ ...formData, id: id });
+      toast.success("User profile updated!");
       router.push("/users");
     } catch (err: any) {
-      alert(err.message || "Failed to update user. Please try again.");
+      toast.error(err.message || "Failed to update user. Please try again.");
     } finally {
       setLoading(false);
     }

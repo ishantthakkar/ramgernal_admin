@@ -5,19 +5,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Handshake, 
-  Workflow, 
-  ShieldCheck, 
+import {
+  LayoutDashboard,
+  Users,
+  Handshake,
+  Workflow,
+  ShieldCheck,
   FileSearch,
-  Settings, 
-  LogOut, 
-  Search, 
-  Bell, 
-  PanelLeft, 
+  Settings,
+  LogOut,
+  Search,
+  Bell,
+  PanelLeft,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function DashboardLayout({
   children,
@@ -56,11 +57,11 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.sidebarCollapsed : ""}`}>
         <div className={styles.logoArea}>
-          <Image 
-            src="/ram-logo.png" 
-            alt="RAM" 
-            width={isSidebarCollapsed ? 40 : 180} 
-            height={60} 
+          <Image
+            src="/ram-logo.png"
+            alt="RAM"
+            width={isSidebarCollapsed ? 40 : 180}
+            height={60}
             className={styles.logoImg}
             priority
           />
@@ -68,7 +69,7 @@ export default function DashboardLayout({
 
         <nav className={styles.nav}>
           {/* Dashboard - First Item */}
-          <Link 
+          <Link
             href="/dashboard"
             className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navActive : ""}`}
             title={isSidebarCollapsed ? "Dashboard" : ""}
@@ -76,11 +77,11 @@ export default function DashboardLayout({
             <LayoutDashboard size={22} strokeWidth={2.5} />
             {!isSidebarCollapsed && <span>Dashboard</span>}
           </Link>
-          
+
           {/* Other Nav Items */}
           {navItems.map((item) => (
-            <Link 
-              key={item.name} 
+            <Link
+              key={item.name}
               href={item.path}
               className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads" || item.path === "/customers") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
@@ -92,10 +93,11 @@ export default function DashboardLayout({
         </nav>
 
         <div className={styles.sidebarFooter}>
-          <button 
+          <button
             className={`${styles.navItem} ${styles.logoutBtn}`}
             onClick={() => {
               localStorage.removeItem("auth_token");
+              toast.success("Logout successful. See you soon!");
               router.push("/");
             }}
             title={isSidebarCollapsed ? "Logout" : ""}
@@ -131,10 +133,10 @@ export default function DashboardLayout({
                 <div className={styles.userRole}>HEAD OF OPERATIONS</div>
               </div>
               <div className={styles.avatar}>
-                <Image 
-                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=100&h=100&auto=format&fit=crop" 
-                  alt="Admin" 
-                  width={40} 
+                <Image
+                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=100&h=100&auto=format&fit=crop"
+                  alt="Admin"
+                  width={40}
                   height={40}
                   className={styles.avatarImg}
                 />
