@@ -17,6 +17,7 @@ import {
   Search,
   Bell,
   PanelLeft,
+  Wallet,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -48,6 +49,7 @@ export default function DashboardLayout({
     { name: "Leads", icon: Search, path: "/leads" },
     { name: "Customers", icon: Handshake, path: "/customers" },
     { name: "Workflow", icon: Workflow, path: "/workflow" },
+    { name: "Commissions", icon: Wallet, path: "/commissions" },
     { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles" },
     { name: "Audit Logs", icon: FileSearch, path: "/audit" },
   ];
@@ -83,7 +85,7 @@ export default function DashboardLayout({
             <Link
               key={item.name}
               href={item.path}
-              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads" || item.path === "/customers") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
+              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads" || item.path === "/customers" || item.path === "/workflow" || item.path === "/commissions" || item.path === "/roles" || item.path === "/audit") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
             >
               <item.icon size={22} strokeWidth={2.5} />
