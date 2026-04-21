@@ -733,6 +733,24 @@
   color: #ffffff;
 }
 
+.assignBtn {
+  background: #ffffff;
+  border: 1px solid #0076ce;
+  color: #0076ce;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.assignBtn:hover {
+  background: #0076ce;
+  color: #ffffff;
+}
+
 /* Form Styles */
 .formSection {
   background: #ffffff;

@@ -16,8 +16,13 @@ import {
   Loader2,
   Calendar,
   User,
-  MapPin
+  MapPin,
+  UserPlus,
+  X
 } from "lucide-react";
+import { toast } from "react-toastify";
+import { adminApi } from "@/lib/api";
+import modalStyles from "./assign-modal.module.css";
 
 // Mock data for workflow items
 const MOCK_SURVEYS = [
@@ -61,6 +66,13 @@ export default function WorkflowPage() {
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>(MOCK_SURVEYS);
+  
+  // Assignment Modal State
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignType, setAssignType] = useState<"Contractor" | "Project Manager">("Contractor");
+  const [targetRecord, setTargetRecord] = useState<any>(null);
+  const [availableStaff, setAvailableStaff] = useState<any[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
     // Simulate loading
@@ -74,6 +86,40 @@ export default function WorkflowPage() {
     }, 500);
   }, [activeTab]);
 
+  const openAssignModal = async (type: "Contractor" | "Project Manager", record: any) => {
+    setAssignType(type);
+    setTargetRecord(record);
+    setShowAssignModal(true);
+    setModalLoading(true);
+    setAvailableStaff([]);
+
+    try {
+      // Role name must match exactly what's allowed in the backend
+      const roleToFetch = type === "Project Manager" ? "project_manager" : "contractor";
+      const response = await adminApi.getUserList(roleToFetch);
+      const staff = response.users || response.data || response;
+      setAvailableStaff(Array.isArray(staff) ? staff : []);
+    } catch (err) {
+      console.error("Failed to fetch staff:", err);
+      toast.error(`Could not load ${type} list.`);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleAssignStaff = (staff: any) => {
+    // This is where you would call the API to update the record
+    toast.success(`${staff.fullName} successfully assigned as ${assignType} for ${targetRecord.customerName}.`);
+    setShowAssignModal(false);
+    
+    // Optimistic update for UI if needed
+    setData(prev => prev.map(item => 
+      item._id === targetRecord._id 
+        ? { ...item, [assignType === "Contractor" ? 'contractor' : 'projectManager']: staff.fullName }
+        : item
+    ));
+  };
+
   const summaryStats = [
     { label: "Total Surveys", value: "124", icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
     { label: "Total Installations", value: "45", icon: Hammer, color: "#475569", bg: "#f1f5f9" },
@@ -82,7 +128,10 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Survey") {
-      return ["ID", "Customer", "Company", "Salesperson", "Contractor", "Project Manager", "Survey Status", "Installation Status", "Inspection Status", "Actions"];
+      return ["ID", "Customer", "Company", "Salesperson", "Contractor", "Project Manager", 
+        <div key="assign-contractor">Assign <br/> Contractor</div>, 
+        <div key="assign-pm">Assign <br/> PM</div>, 
+        "Survey Status", "Installation Status", "Inspection Status", "Actions"];
     }
     
     const commonPrefix = ["ID", "Customer Details", "Property Address"];
@@ -170,13 +219,13 @@ export default function WorkflowPage() {
           <table className={styles.userTable}>
             <thead>
               <tr>
-                {getHeaders().map(header => <th key={header}>{header}</th>)}
+                {getHeaders().map((header, idx) => <th key={typeof header === 'string' ? header : idx}>{header}</th>)}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem" }}>
+                  <td colSpan={12} style={{ textAlign: "center", padding: "4rem" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", color: "#94a3b8" }}>
                       <Loader2 size={32} className={styles.spinner} />
                       <span style={{ fontWeight: 600 }}>Fetching workflow data...</span>
@@ -185,14 +234,14 @@ export default function WorkflowPage() {
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                  <td colSpan={12} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
                     No {activeTab.toLowerCase()}s found.
                   </td>
                 </tr>
               ) : (
                 data.map((item, index) => (
                   <tr key={item._id || index}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>#{item._id.toUpperCase()}</td>
+                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
                     
                     {activeTab === "Survey" ? (
                       <>
@@ -221,6 +270,30 @@ export default function WorkflowPage() {
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesperson}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.contractor}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
+                        <td>
+                          <button 
+                            className={styles.assignBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAssignModal("Contractor", item);
+                            }}
+                            style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                          >
+                            <UserPlus size={14} /> Assign
+                          </button>
+                        </td>
+                        <td>
+                          <button 
+                            className={styles.assignBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openAssignModal("Project Manager", item);
+                            }}
+                            style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                          >
+                            <UserPlus size={14} /> Assign
+                          </button>
+                        </td>
                         <td>
                           <div className={styles.statusCell}>
                             <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.surveyStatus).color }}></span>
@@ -343,6 +416,58 @@ export default function WorkflowPage() {
           </div>
         </div>
       </div>
+
+      {/* Assignment Modal */}
+      {showAssignModal && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowAssignModal(false)}>
+          <div className={modalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={modalStyles.modalHeader}>
+              <h3>Assign {assignType}</h3>
+              <button className={modalStyles.closeBtn} onClick={() => setShowAssignModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className={modalStyles.modalBody}>
+              {modalLoading ? (
+                <div className={modalStyles.modalLoading}>
+                  <Loader2 size={40} className={modalStyles.spinner} />
+                  <p>Fetching available {assignType.toLowerCase()}s...</p>
+                </div>
+              ) : availableStaff.length === 0 ? (
+                <div className={modalStyles.emptyState}>
+                  <p>No {assignType.toLowerCase()}s found in the system.</p>
+                </div>
+              ) : (
+                <div className={modalStyles.staffList}>
+                  {availableStaff.map((staff) => (
+                    <div 
+                      key={staff._id} 
+                      className={modalStyles.staffItem}
+                    >
+                      <div className={modalStyles.staffLeft}>
+                        <div className={modalStyles.staffAvatar}>
+                          {staff.fullName?.charAt(0) || "U"}
+                        </div>
+                        <div className={modalStyles.staffInfo}>
+                          <span className={modalStyles.staffName}>{staff.fullName}</span>
+                          <span className={modalStyles.staffRole}>{staff.userRole || assignType}</span>
+                        </div>
+                      </div>
+                      <button 
+                        className={modalStyles.modalAssignBtn}
+                        onClick={() => handleAssignStaff(staff)}
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

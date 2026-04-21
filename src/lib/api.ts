@@ -38,35 +38,41 @@ export const authApi = {
 };
 
 export const adminApi = {
-  createUser: (userData: any) => apiRequest("/admin/user-create", {
+  createUser: (userData: any) => apiRequest("/user/user-create", {
     method: "POST",
     body: JSON.stringify(userData),
   }),
   getUserList: (role?: string) => {
     const query = role ? `?userRole=${role}` : "";
-    return apiRequest(`/admin/user-list${query}`, {
+    return apiRequest(`/user/user-list${query}`, {
       method: "GET",
     });
   },
-  getUserById: (id: string) => apiRequest(`/admin/user/${id}`, {
+  getUserById: (id: string) => apiRequest(`/user/user/${id}`, {
     method: "GET",
   }),
-  updateUser: (userData: any) => apiRequest(`/admin/user-create`, {
+  updateUser: (userData: any) => apiRequest(`/user/user-create`, {
     method: "POST",
     body: JSON.stringify(userData),
   }),
-  createLead: (leadData: any) => apiRequest("/admin/leads", {
+  createLead: (leadData: any) => apiRequest("/leads", {
     method: "POST",
     body: JSON.stringify(leadData),
   }),
-  getLeads: () => apiRequest("/admin/leads", {
+  getLeads: () => apiRequest("/leads", {
     method: "GET",
   }),
-  getLeadById: (id: string) => apiRequest(`/admin/leads/${id}`, {
+  getLeadById: (id: string) => apiRequest(`/leads/${id}`, {
     method: "GET",
   }),
-  updateLead: (id: string, leadData: any) => apiRequest(`/admin/leads/${id}`, {
+  updateLead: (id: string, leadData: any) => apiRequest(`/leads/${id}`, {
     method: "PUT",
     body: JSON.stringify(leadData),
+  }),
+  convertLead: (id: string) => apiRequest(`/leads/${id}/convert`, {
+    method: "POST",
+  }),
+  getCustomers: () => apiRequest("/admin/customers-list", {
+    method: "GET",
   }),
 };

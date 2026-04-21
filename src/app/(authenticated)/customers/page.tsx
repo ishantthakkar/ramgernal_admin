@@ -1,67 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./customers.module.css";
 import { 
   UserPlus, 
   Filter, 
   MoreVertical, 
   ChevronLeft, 
-  ChevronRight 
+  ChevronRight,
+  Loader2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import dashboardStyles from "../dashboard.module.css";
+import { adminApi } from "@/lib/api";
 
 export default function CustomersPage() {
   const router = useRouter();
   const [activePage, setActivePage] = useState(1);
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [openActionId, setOpenActionId] = useState<number | null>(null);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const customers = [
-    { 
-      id: "#VC-92410", 
-      name: "Robert Millhouse", 
-      mobile: "+1 235 1254 2214", 
-      email: "r.mill@gridtech.com", 
-      company: "GridTech Solutions", 
-      status: "Active" 
-    },
-    { 
-      id: "#VC-92411", 
-      name: "Sarah Chen", 
-      mobile: "+1 235 1254 2214", 
-      email: "s.chen@voltcore.io", 
-      company: "GridTech Solutions", 
-      status: "Active" 
-    },
-    { 
-      id: "#VC-92415", 
-      name: "David Abrahams", 
-      mobile: "+1 235 1254 2214", 
-      email: "david.a@independent.net", 
-      company: "GridTech Solutions", 
-      status: "Deactivated" 
-    },
-    { 
-      id: "#VC-92420", 
-      name: "Marcus Aurelius", 
-      mobile: "+1 235 1254 2214", 
-      email: "m.aurelius@gridtech.com", 
-      company: "GridTech Solutions", 
-      status: "Active" 
-    },
-  ];
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await adminApi.getCustomers();
+        const data = response.customers || response.data || response;
+        setCustomers(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to fetch customers:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCustomers();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", flex: 1, minHeight: "400px", alignItems: "center", justifyContent: "center" }}>
+        <Loader2 size={40} className={dashboardStyles.spinner} style={{ color: "#64748b" }} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.customersPage} onClick={() => setOpenActionId(null)}>
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
-        <span style={{ color: "#0076ce" }}>COSTUMERS</span>
+        <span style={{ color: "#0076ce" }}>CUSTOMERS</span>
       </div>
 
       {/* Header */}
       <div className={styles.header}>
-        <h1 className={styles.title}>Costumers</h1>
+        <h1 className={styles.title}>Customers</h1>
       </div>
 
       {/* Table Card */}
@@ -73,7 +65,7 @@ export default function CustomersPage() {
             Filters
           </div>
           <div className={styles.showingCount}>
-            Showing <span>1-10</span> of 1,284 users
+            Showing <span>{customers.length}</span> customers
           </div>
         </div>
 
@@ -83,7 +75,7 @@ export default function CustomersPage() {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>COSTUMER NAME</th>
+                <th>CUSTOMER NAME</th>
                 <th>MOBILE NUMBER</th>
                 <th>EMAIL</th>
                 <th>COMPANY</th>
@@ -92,47 +84,55 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer, index) => (
-                <tr key={index}>
-                  <td className={styles.idCell}>{customer.id}</td>
-                  <td className={styles.nameCell}>{customer.name}</td>
-                  <td>{customer.mobile}</td>
-                  <td>{customer.email}</td>
-                  <td>{customer.company}</td>
-                  <td>
-                    <div className={styles.statusIndicator}>
-                      <div className={customer.status === "Active" ? styles.dotActive : styles.dotDeactivated}></div>
-                      {customer.status}
-                    </div>
-                  </td>
-                  <td className={styles.actionsCell} style={{ textAlign: "right", position: "relative", overflow: "visible" }}>
-                    <div onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenActionId(openActionId === customer.id ? null : customer.id);
-                    }}>
-                      <MoreVertical size={20} style={{ cursor: "pointer" }} />
-                    </div>
-
-                    {openActionId === customer.id && (
-                      <div className={styles.actionDropdown}>
-                        <div 
-                          className={styles.dropdownItem}
-                          onClick={() => router.push(`/customers/${customer.id.replace('#', '')}/edit`)}
-                        >
-                          Edit
-                        </div>
-                        <div className={styles.dropdownDivider}></div>
-                        <div 
-                          className={styles.dropdownItem}
-                          onClick={() => router.push(`/customers/${customer.id.replace('#', '')}`)}
-                        >
-                          View
-                        </div>
-                      </div>
-                    )}
+              {customers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>
+                    No customers found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                customers.map((customer, index) => (
+                  <tr key={customer._id || index}>
+                    <td className={styles.idCell}>{index + 1}</td>
+                    <td className={styles.nameCell}>{customer.name}</td>
+                    <td>{customer.mobileNumber || "N/A"}</td>
+                    <td>{customer.email}</td>
+                    <td>{customer.company}</td>
+                    <td>
+                      <div className={styles.statusIndicator}>
+                        <div className={customer.status?.toLowerCase() === "active" ? styles.dotActive : styles.dotDeactivated}></div>
+                        {customer.status || "N/A"}
+                      </div>
+                    </td>
+                    <td className={styles.actionsCell} style={{ textAlign: "right", position: "relative", overflow: "visible" }}>
+                      <div onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenActionId(openActionId === index ? null : index);
+                      }}>
+                        <MoreVertical size={20} style={{ cursor: "pointer" }} />
+                      </div>
+
+                      {openActionId === index && (
+                        <div className={styles.actionDropdown}>
+                          <div 
+                            className={styles.dropdownItem}
+                            onClick={() => router.push(`/customers/${customer._id}/edit`)}
+                          >
+                            Edit
+                          </div>
+                          <div className={styles.dropdownDivider}></div>
+                          <div 
+                            className={styles.dropdownItem}
+                            onClick={() => router.push(`/customers/${customer._id}`)}
+                          >
+                            View
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -140,36 +140,28 @@ export default function CustomersPage() {
         {/* Footer */}
         <div className={styles.tableFooter}>
           <div className={styles.entriesInfo}>
-            Showing 1 to 4 of 1,284 entries
+            Showing {customers.length} entries
           </div>
           <div className={styles.pagination}>
-            <div className={styles.pageNav}><ChevronLeft size={18} /></div>
             <div 
-              className={`${styles.pageBtn} ${activePage === 1 ? styles.pageActive : ""}`}
-              onClick={() => setActivePage(1)}
+              className={styles.pageNav} 
+              style={{ opacity: activePage === 1 ? 0.5 : 1, cursor: activePage === 1 ? "not-allowed" : "pointer" }}
+              onClick={() => activePage > 1 && setActivePage(activePage - 1)}
             >
-              1
+              <ChevronLeft size={18} />
             </div>
+            
+            <div className={`${styles.pageBtn} ${styles.pageActive}`}>
+              {activePage}
+            </div>
+
             <div 
-              className={`${styles.pageBtn} ${activePage === 2 ? styles.pageActive : ""}`}
-              onClick={() => setActivePage(2)}
+              className={styles.pageNav}
+              style={{ opacity: 1, cursor: "pointer" }}
+              onClick={() => setActivePage(activePage + 1)}
             >
-              2
+              <ChevronRight size={18} />
             </div>
-            <div 
-              className={`${styles.pageBtn} ${activePage === 3 ? styles.pageActive : ""}`}
-              onClick={() => setActivePage(3)}
-            >
-              3
-            </div>
-            <div className={styles.pageDots}>...</div>
-            <div 
-              className={`${styles.pageBtn} ${activePage === 128 ? styles.pageActive : ""}`}
-              onClick={() => setActivePage(128)}
-            >
-              128
-            </div>
-            <div className={styles.pageNav}><ChevronRight size={18} /></div>
           </div>
         </div>
       </div>

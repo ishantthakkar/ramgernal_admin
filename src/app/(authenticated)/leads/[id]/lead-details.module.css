@@ -53,6 +53,24 @@
   background: #004a82;
 }
 
+.convertBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .infoSection {
   background: #ffffff;
   border-radius: 16px;

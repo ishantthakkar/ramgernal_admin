@@ -1,0 +1,181 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+}
+
+.modalContent {
+  background: #ffffff;
+  width: 90%;
+  max-width: 500px;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  animation: modalFadeUp 0.3s ease-out;
+}
+
+@keyframes modalFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+}
+
+.modalHeader h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.closeBtn {
+  color: #94a3b8;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  border-radius: 50%;
+}
+
+.closeBtn:hover {
+  color: #ef4444;
+  background: #fee2e2;
+}
+
+.modalBody {
+  padding: 1.5rem 2rem;
+  max-height: 450px;
+  overflow-y: auto;
+}
+
+.staffList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.staffItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  transition: all 0.2s;
+  background: #ffffff;
+}
+
+.staffItem:hover {
+  border-color: #0076ce;
+  background: #f0f9ff;
+  box-shadow: 0 4px 12px rgba(0, 118, 206, 0.08);
+}
+
+.staffLeft {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.modalAssignBtn {
+  background: #0076ce;
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modalAssignBtn:hover {
+  background: #005a9e;
+  transform: scale(1.05);
+}
+
+.staffAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #1d4ed8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.staffInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.staffName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.staffRole {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.modalLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1.25rem;
+  color: #64748b;
+}
+
+.spinner {
+  animation: rotate 1s linear infinite;
+  color: #0076ce;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.emptyState {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+}

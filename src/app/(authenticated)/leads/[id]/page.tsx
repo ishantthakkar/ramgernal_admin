@@ -15,6 +15,7 @@ import {
   Loader2
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export default function LeadDetailsPage() {
   const params = useParams();
@@ -22,6 +23,7 @@ export default function LeadDetailsPage() {
   const id = params.id as string;
   const [lead, setLead] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     const fetchLead = async () => {
@@ -36,6 +38,21 @@ export default function LeadDetailsPage() {
     };
     fetchLead();
   }, [id]);
+
+  const handleConvert = async () => {
+    if (!window.confirm("Are you sure you want to convert this lead to a customer?")) return;
+    
+    setConverting(true);
+    try {
+      await adminApi.convertLead(id);
+      toast.success("Lead converted to customer successfully!");
+      router.push("/customers");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to convert lead. Please try again.");
+    } finally {
+      setConverting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -72,8 +89,13 @@ export default function LeadDetailsPage() {
           <h1 className={styles.profileTitle}>Lead Profile: {lead.name}</h1>
           <span className={styles.statusBadge}>{lead.status?.toUpperCase()}</span>
         </div>
-        <button className={styles.convertBtn}>
-          <RefreshCw size={18} /> Convert to Customer
+        <button 
+          className={styles.convertBtn} 
+          onClick={handleConvert}
+          disabled={converting}
+        >
+          {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />} 
+          {converting ? "Converting..." : "Convert to Customer"}
         </button>
       </div>
 
