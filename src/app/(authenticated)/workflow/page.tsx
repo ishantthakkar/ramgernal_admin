@@ -31,8 +31,8 @@ const MOCK_SURVEYS = [
     customerName: "John Doe", 
     company: "Sunwell Solar",
     salesperson: "Alice Smith", 
-    contractor: "Mike Miller",
-    projectManager: "Sarah Connor",
+    contractor: "",
+    projectManager: "",
     surveyStatus: "Completed", 
     installationStatus: "In Progress",
     inspectionStatus: "Not Started",
@@ -49,6 +49,18 @@ const MOCK_SURVEYS = [
     installationStatus: "Not Started",
     inspectionStatus: "Not Started",
     date: "2024-04-19" 
+  },
+  { 
+    _id: "S003", 
+    customerName: "Marcus Aurelius", 
+    company: "Rome Renewables",
+    salesperson: "Alice Smith", 
+    contractor: "",
+    projectManager: "",
+    surveyStatus: "Pending", 
+    installationStatus: "Not Started",
+    inspectionStatus: "Not Started",
+    date: "2024-04-21" 
   },
 ];
 
@@ -128,9 +140,9 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Survey") {
-      return ["ID", "Customer", "Company", "Salesperson", "Contractor", "Project Manager", 
-        <div key="assign-contractor">Assign <br/> Contractor</div>, 
-        <div key="assign-pm">Assign <br/> PM</div>, 
+      return ["ID", "Customer", "Company", "Salesperson", 
+        <div key="contractor">Contractor</div>, 
+        <div key="pm">Project Manager</div>, 
         "Survey Status", "Installation Status", "Inspection Status", "Actions"];
     }
     
@@ -225,7 +237,7 @@ export default function WorkflowPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={12} style={{ textAlign: "center", padding: "4rem" }}>
+                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", color: "#94a3b8" }}>
                       <Loader2 size={32} className={styles.spinner} />
                       <span style={{ fontWeight: 600 }}>Fetching workflow data...</span>
@@ -234,7 +246,7 @@ export default function WorkflowPage() {
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={12} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
                     No {activeTab.toLowerCase()}s found.
                   </td>
                 </tr>
@@ -266,33 +278,45 @@ export default function WorkflowPage() {
                             <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</span>
                           </div>
                         </td>
-                        <td style={{ color: "#64748b", fontWeight: 500 }}>{item.company}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesperson}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.contractor}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
                         <td>
-                          <button 
-                            className={styles.assignBtn}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openAssignModal("Contractor", item);
-                            }}
-                            style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
-                          >
-                            <UserPlus size={14} /> Assign
-                          </button>
+                          {item.contractor ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
+                              <User size={14} color="#94a3b8" />
+                              {item.contractor}
+                            </div>
+                          ) : (
+                            <button 
+                              className={styles.assignBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAssignModal("Contractor", item);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                            >
+                              <UserPlus size={14} /> Assign
+                            </button>
+                          )}
                         </td>
                         <td>
-                          <button 
-                            className={styles.assignBtn}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openAssignModal("Project Manager", item);
-                            }}
-                            style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
-                          >
-                            <UserPlus size={14} /> Assign
-                          </button>
+                          {item.projectManager ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
+                              <User size={14} color="#94a3b8" />
+                              {item.projectManager}
+                            </div>
+                          ) : (
+                            <button 
+                              className={styles.assignBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAssignModal("Project Manager", item);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                            >
+                              <UserPlus size={14} /> Assign
+                            </button>
+                          )}
                         </td>
                         <td>
                           <div className={styles.statusCell}>
