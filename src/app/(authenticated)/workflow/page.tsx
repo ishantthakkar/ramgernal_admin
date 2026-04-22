@@ -65,16 +65,109 @@ const MOCK_SURVEYS = [
 ];
 
 const MOCK_INSTALLATIONS = [
-  { _id: "I001", customerName: "Robert Paulson", propertyAddress: "789 Oak Rd, Capital City", contractor: "Mike Miller", status: "in-progress", date: "2024-04-21" },
+  { 
+    _id: "inst_1", 
+    displayId: "VC-92410",
+    customerName: "Andrew Scoff", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Not Started" 
+  },
+  { 
+    _id: "inst_2", 
+    displayId: "VC-92410",
+    customerName: "Cliff Booth", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "In Process" 
+  },
+  { 
+    _id: "inst_3", 
+    displayId: "VC-92410",
+    customerName: "Mark Zyden", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Completed" 
+  },
+  { 
+    _id: "inst_4", 
+    displayId: "VC-92410",
+    customerName: "Halisen Margot", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Verified" 
+  },
+  { 
+    _id: "inst_5", 
+    displayId: "VC-92410",
+    customerName: "Halisen Margot", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Reopened" 
+  },
 ];
 
 const MOCK_INSPECTIONS = [
-  { _id: "N001", customerName: "Sarah Connor", propertyAddress: "101 Pine Ln, Tech City", inspector: "Sarah Connor", status: "pending", date: "2024-04-22" },
+  { 
+    _id: "insp_1", 
+    customerName: "Andrew Scoff", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Not Started" 
+  },
+  { 
+    _id: "insp_2", 
+    customerName: "Cliff Booth", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "In Process" 
+  },
+  { 
+    _id: "insp_3", 
+    customerName: "Mark Zyden", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Completed" 
+  },
+  { 
+    _id: "insp_4", 
+    customerName: "Halisen Margot", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Verified" 
+  },
+  { 
+    _id: "insp_5", 
+    customerName: "Halisen Margot", 
+    company: "Xelectronics", 
+    salesPerson: "Jack Hclison", 
+    contractor: "Methew Zynd", 
+    projectManager: "Medison Cly", 
+    status: "Reopened" 
+  },
 ];
 
 export default function WorkflowPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("Survey");
+  const [activeTab, setActiveTab] = useState("surveys");
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>(MOCK_SURVEYS);
@@ -84,18 +177,48 @@ export default function WorkflowPage() {
   const [assignType, setAssignType] = useState<"Contractor" | "Project Manager">("Contractor");
   const [targetRecord, setTargetRecord] = useState<any>(null);
   const [availableStaff, setAvailableStaff] = useState<any[]>([]);
+  const [projectManagers, setProjectManagers] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
 
-  useEffect(() => {
-    // Simulate loading
+  const fetchWorkflowData = async () => {
     setLoading(true);
-    setData([]); // Clear data to avoid rendering old data with new tab logic
-    setTimeout(() => {
-      if (activeTab === "Survey") setData(MOCK_SURVEYS);
-      else if (activeTab === "Installation") setData(MOCK_INSTALLATIONS);
-      else if (activeTab === "Inspection") setData(MOCK_INSPECTIONS);
+    setData([]);
+    try {
+      // Always fetch project managers if we're on surveys tab for mapping
+      if (activeTab === "surveys") {
+        const pmResponse = await adminApi.getUserList("project_manager");
+        const pmList = pmResponse.users || pmResponse.data || pmResponse;
+        setProjectManagers(Array.isArray(pmList) ? pmList : []);
+
+        const response = await adminApi.getCustomers();
+        const customers = response.customers || response.data || [];
+        
+        // Normalize API data to match component expectations
+        const normalizedData = customers.map((c: any) => ({
+          _id: c.id,
+          customerName: c.name,
+          company: c.company,
+          salesperson: c.salesPerson || "Unassigned",
+          projectManager: c.assignedTo || "", // assignedTo contains the PM ID
+          surveyStatus: c.status || "Pending",
+          date: c.convertedDate || c.createdDate
+        }));
+        
+        setData(normalizedData);
+      } else if (activeTab === "Installations") {
+        setData(MOCK_INSTALLATIONS);
+      } else if (activeTab === "Inspections") {
+        setData(MOCK_INSPECTIONS);
+      }
+    } catch (err) {
+      console.error("Failed to fetch workflow data:", err);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkflowData();
   }, [activeTab]);
 
   const openAssignModal = async (type: "Contractor" | "Project Manager", record: any) => {
@@ -119,55 +242,61 @@ export default function WorkflowPage() {
     }
   };
 
-  const handleAssignStaff = (staff: any) => {
-    // This is where you would call the API to update the record
-    toast.success(`${staff.fullName} successfully assigned as ${assignType} for ${targetRecord.customerName}.`);
-    setShowAssignModal(false);
-    
-    // Optimistic update for UI if needed
-    setData(prev => prev.map(item => 
-      item._id === targetRecord._id 
-        ? { ...item, [assignType === "Contractor" ? 'contractor' : 'projectManager']: staff.fullName }
-        : item
-    ));
+  const handleAssignStaff = async (staff: any) => {
+    if (assignType !== "Project Manager") {
+      toast.info("Only Project Manager assignment is currently supported with the live API.");
+      return;
+    }
+
+    try {
+      setModalLoading(true);
+      const response = await adminApi.assignProjectManager(targetRecord._id, staff._id);
+      toast.success(response.message || "Assigned successfully.");
+      setShowAssignModal(false);
+      
+      // Refresh the list to show the new assignment
+      fetchWorkflowData();
+    } catch (err: any) {
+      console.error("Assignment error:", err);
+      toast.error(err.message || "Failed to assign Project Manager.");
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const summaryStats = [
-    { label: "Total Surveys", value: "124", icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
-    { label: "Total Installations", value: "45", icon: Hammer, color: "#475569", bg: "#f1f5f9" },
-    { label: "Total Inspections", value: "32", icon: SearchIcon, color: "#854d0e", bg: "#fef3c7" },
+    { label: "Total Surveys", value: activeTab === "surveys" ? data.length.toString() : "124", icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
+    { label: "Total Installations", value: activeTab === "Installations" ? data.length.toString() : "45", icon: Hammer, color: "#475569", bg: "#f1f5f9" },
+    { label: "Total Inspections", value: activeTab === "Inspections" ? data.length.toString() : "32", icon: SearchIcon, color: "#854d0e", bg: "#fef3c7" },
   ];
 
   const getHeaders = () => {
-    if (activeTab === "Survey") {
-      return ["ID", "Customer", "Company", "Salesperson", 
-        <div key="contractor">Contractor</div>, 
-        <div key="pm">Project Manager</div>, 
-        "Survey Status", "Installation Status", "Inspection Status", "Actions"];
+    if (activeTab === "surveys") {
+      return ["sr number", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "ACTIONS"];
     }
     
-    const commonPrefix = ["ID", "Customer Details", "Property Address"];
-    const commonSuffix = ["Date", "Status", "Actions"];
+    if (activeTab === "Installations") {
+      return ["USER ID", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
+    }
     
-    if (activeTab === "Installation") {
-      return [...commonPrefix, "Contractor", ...commonSuffix];
+    if (activeTab === "Inspections") {
+      return ["USER ID", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
     }
-    if (activeTab === "Inspection") {
-      return [...commonPrefix, "Inspector", ...commonSuffix];
-    }
-    return commonPrefix;
+    return [];
   };
 
   const getStatusStyle = (status: string) => {
     if (!status) return { color: "#64748b", bg: "#f8fafc" };
     switch (status.toLowerCase()) {
-      case "completed": 
-      case "verified": return { color: "#10b981", bg: "#ecfdf5" };
+      case "completed": return { color: "#94a3b8", bg: "#f1f5f9" };
+      case "verified": return { color: "#3b82f6", bg: "#eff6ff" };
       case "pending": 
-      case "not started": return { color: "#94a3b8", bg: "#f1f5f9" };
+      case "not started": return { color: "#ef4444", bg: "#fef2f2" };
       case "in progress": 
-      case "in-progress": return { color: "#3b82f6", bg: "#eff6ff" };
-      case "reopened": return { color: "#ef4444", bg: "#fef2f2" };
+      case "in-process":
+      case "in process": return { color: "#10b981", bg: "#ecfdf5" };
+      case "reopened": return { color: "#fbbf24", bg: "#fffbeb" };
+      case "new": return { color: "#8b5cf6", bg: "#f5f3ff" }; // Purple for new
       default: return { color: "#64748b", bg: "#f8fafc" };
     }
   };
@@ -203,7 +332,7 @@ export default function WorkflowPage() {
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <div className={styles.tabs}>
-            {["Survey", "Installation", "Inspection"].map((tab) => (
+            {["surveys", "Installations", "Inspections"].map((tab) => (
               <div 
                 key={tab} 
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
@@ -219,10 +348,10 @@ export default function WorkflowPage() {
             </div>
             <div className={styles.searchUsers}>
               <SearchIcon size={16} color="#94a3b8" />
-              <input type="text" placeholder={`Search ${activeTab}s`} className={styles.searchInputSmall} />
+              <input type="text" placeholder="Search Users" className={styles.searchInputSmall} />
             </div>
             <div style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 500 }}>
-              Showing {data.length} {activeTab.toLowerCase()}s
+              Showing {data.length} {activeTab}
             </div>
           </div>
         </div>
@@ -252,60 +381,22 @@ export default function WorkflowPage() {
                 </tr>
               ) : (
                 data.map((item, index) => (
-                  <tr key={item._id || index}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
-                    
-                    {activeTab === "Survey" ? (
+                  <tr key={item._id || `${activeTab}-${index}`}>
+                    {activeTab === "surveys" ? (
                       <>
+                        <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td>
-                          <div className={styles.userDetails}>
-                            <div className={styles.avatar} style={{ width: 32, height: 32, border: 'none', boxShadow: 'none' }}>
-                              <div style={{ 
-                                background: "#eff6ff", 
-                                color: "#1d4ed8", 
-                                width: "100%", 
-                                height: "100%", 
-                                display: "flex", 
-                                alignItems: "center", 
-                                justifyContent: "center", 
-                                fontWeight: 700, 
-                                fontSize: "0.75rem",
-                                borderRadius: "50%"
-                              }}>
-                                {item.customerName?.charAt(0) || "C"}
-                              </div>
-                            </div>
-                            <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</span>
-                          </div>
+                          <span style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</span>
                         </td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesperson}</td>
                         <td>
-                          {item.contractor ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
-                              <User size={14} color="#94a3b8" />
-                              {item.contractor}
-                            </div>
-                          ) : (
-                            <button 
-                              className={styles.assignBtn}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAssignModal("Contractor", item);
-                              }}
-                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
-                            >
-                              <UserPlus size={14} /> Assign
-                            </button>
-                          )}
-                        </td>
-                        <td>
                           {item.projectManager ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
                               <User size={14} color="#94a3b8" />
-                              {item.projectManager}
+                              {projectManagers.find(pm => pm._id === item.projectManager)?.fullName || "Unknown PM"}
                             </div>
-                          ) : (
+                          ) : item.surveyStatus?.toLowerCase() === "completed" ? (
                             <button 
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -316,90 +407,53 @@ export default function WorkflowPage() {
                             >
                               <UserPlus size={14} /> Assign
                             </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontStyle: "italic" }}>Awaiting Completion</span>
                           )}
                         </td>
                         <td>
                           <div className={styles.statusCell}>
                             <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.surveyStatus).color }}></span>
-                            <span style={{ color: getStatusStyle(item.surveyStatus).color, fontWeight: 600 }}>{item.surveyStatus || "N/A"}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className={styles.statusCell}>
-                            <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.installationStatus).color }}></span>
-                            <span style={{ color: getStatusStyle(item.installationStatus).color, fontWeight: 600 }}>{item.installationStatus || "N/A"}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className={styles.statusCell}>
-                            <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.inspectionStatus).color }}></span>
-                            <span style={{ color: getStatusStyle(item.inspectionStatus).color, fontWeight: 600 }}>{item.inspectionStatus || "N/A"}</span>
+                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>{item.surveyStatus || "N/A"}</span>
                           </div>
                         </td>
                       </>
-                    ) : (
+                    ) : activeTab === "Installations" ? (
                       <>
-                        <td>
-                          <div className={styles.userDetails}>
-                            <div className={styles.avatar} style={{ width: 36, height: 36, border: 'none', boxShadow: 'none' }}>
-                              <div style={{ 
-                                background: "#eff6ff", 
-                                color: "#1d4ed8", 
-                                width: "100%", 
-                                height: "100%", 
-                                display: "flex", 
-                                alignItems: "center", 
-                                justifyContent: "center", 
-                                fontWeight: 700, 
-                                fontSize: "0.8rem",
-                                borderRadius: "50%"
-                              }}>
-                                {item.customerName?.charAt(0) || "C"}
-                              </div>
-                            </div>
-                            <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#64748b" }}>
-                            <MapPin size={14} />
-                            <span>{item.propertyAddress}</span>
-                          </div>
-                        </td>
-                        
-                        {activeTab === "Installation" && (
-                          <td>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 500 }}>
-                              <User size={14} color="#94a3b8" />
-                              {item.contractor}
-                            </div>
-                          </td>
-                        )}
-                        
-                        {activeTab === "Inspection" && (
-                          <td>
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 500 }}>
-                              <User size={14} color="#94a3b8" />
-                              {item.inspector}
-                            </div>
-                          </td>
-                        )}
-
-                        <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#64748b" }}>
-                            <Calendar size={14} />
-                            {item.date}
-                          </div>
-                        </td>
-
+                        <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.contractor}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
                         <td>
                           <div className={styles.statusCell}>
                             <span 
                               className={styles.statusDotActive} 
                               style={{ backgroundColor: getStatusStyle(item.status).color }}
                             ></span>
-                            <span style={{ color: getStatusStyle(item.status).color, fontWeight: 600 }}>
-                              {(item.status?.charAt(0).toUpperCase() + item.status?.slice(1)) || "N/A"}
+                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
+                              {item.status}
+                            </span>
+                          </div>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.contractor}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
+                        <td>
+                          <div className={styles.statusCell}>
+                            <span 
+                              className={styles.statusDotActive} 
+                              style={{ backgroundColor: getStatusStyle(item.status).color }}
+                            ></span>
+                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
+                              {item.status || "N/A"}
                             </span>
                           </div>
                         </td>
@@ -431,7 +485,7 @@ export default function WorkflowPage() {
 
         <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {data.length} results
+            Showing {data.length} {activeTab}
           </div>
           <div className={styles.pagination}>
             <div className={styles.pageBtn}><ChevronLeft size={18} /></div>

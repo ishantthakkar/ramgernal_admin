@@ -70,20 +70,20 @@ export default function UsersPage() {
   ];
 
   const getHeaders = () => {
-    const commonPrefix = ["User ID", "User Details"];
+    const commonPrefix = ["Sr Number", "Name"];
     const commonSuffix = ["Status", "Actions"];
     
     if (activeTab === "All Users") {
-      return [...commonPrefix, "Role", "Mobile Number", "Status", "Email", "Actions"];
+      return [...commonPrefix, "Role", "Mobile Number", "Email", "Status", "Actions"];
     }
     if (activeTab === "Sales Person") {
-      return [...commonPrefix, "Mobile", "Active Leads", "Customers", "Closed Leads", ...commonSuffix];
+      return [...commonPrefix, "Mobile Number", "Active Leads", "Customers", "Closed Leads", ...commonSuffix];
     }
     if (activeTab === "Contractors") {
-      return [...commonPrefix, "Mobile", "Assigned Projects", "Comp. Installations", "Pend. Installations", ...commonSuffix];
+      return [...commonPrefix, "Mobile Number", "Assigned Projects", "Comp. Installations", "Pend. Installations", ...commonSuffix];
     }
     if (activeTab === "Project Manager") {
-      return [...commonPrefix, "Mobile", "Pend. Inspections", "Comp. Inspections", ...commonSuffix];
+      return [...commonPrefix, "Mobile Number", "Pend. Inspections", "Comp. Inspections", ...commonSuffix];
     }
     return commonPrefix;
   };
@@ -169,25 +169,9 @@ export default function UsersPage() {
               ) : (
                 users.map((user, index) => (
                   <tr key={user._id || index}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>#{user._id?.slice(-5).toUpperCase() || "N/A"}</td>
+                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
                     <td>
                       <div className={styles.userDetails}>
-                        <div className={styles.avatar} style={{ width: 36, height: 36, border: 'none', boxShadow: 'none' }}>
-                          <div style={{ 
-                            background: "#eff6ff", 
-                            color: "#1d4ed8", 
-                            width: "100%", 
-                            height: "100%", 
-                            display: "flex", 
-                            alignItems: "center", 
-                            justifyContent: "center", 
-                            fontWeight: 700, 
-                            fontSize: "0.8rem",
-                            borderRadius: "50%"
-                          }}>
-                            {user.fullName?.charAt(0) || "U"}
-                          </div>
-                        </div>
                         <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{user.fullName}</span>
                       </div>
                     </td>
@@ -200,13 +184,13 @@ export default function UsersPage() {
                           </span>
                         </td>
                         <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobileNumber}</td>
+                        <td style={{ color: "#64748b" }}>{user.email}</td>
                         <td>
                           <div className={styles.statusCell}>
                             <span className={user.status === "active" ? styles.statusDotActive : styles.statusDotInactive}></span>
                             {user.status?.charAt(0).toUpperCase() + user.status?.slice(1)}
                           </div>
                         </td>
-                        <td style={{ color: "#64748b" }}>{user.email}</td>
                       </>
                     )}
 
@@ -266,7 +250,7 @@ export default function UsersPage() {
                         <div className={styles.actionDropdown}>
                           <div className={styles.dropdownItem} onClick={() => router.push(`/users/edit/${user._id}`)}>Edit</div>
                           <div className={styles.dropdownDivider}></div>
-                          <div className={styles.dropdownItem}>View</div>
+                          <div className={styles.dropdownItem} onClick={() => router.push(`/users/view/${user._id}`)}>View</div>
                         </div>
                       )}
                     </td>

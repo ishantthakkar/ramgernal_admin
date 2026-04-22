@@ -74,8 +74,8 @@ export default function CustomersPage() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>CUSTOMER NAME</th>
+                <th>sr number</th>
+                <th>NAME</th>
                 <th>MOBILE NUMBER</th>
                 <th>EMAIL</th>
                 <th>COMPANY</th>

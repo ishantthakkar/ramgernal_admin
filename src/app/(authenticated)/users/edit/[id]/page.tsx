@@ -62,6 +62,14 @@ export default function EditUserPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Basic Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -87,14 +95,14 @@ export default function EditUserPage() {
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>USERS</span> 
-        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>USERS</span>
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>EDIT USER</span>
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Adjust User Profile</h1>
+        <h1 className={styles.welcomeText}>Edit User Profile</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -109,12 +117,12 @@ export default function EditUserPage() {
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
-              <label>Full Name</label>
-              <input 
+              <label>Name</label>
+              <input
                 name="fullName"
-                type="text" 
-                placeholder="e.g. Marcus Aurelius" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="e.g. Marcus Aurelius"
+                className={styles.formInput}
                 style={{ background: "#eef1f4" }}
                 value={formData.fullName}
                 onChange={handleChange}
@@ -122,25 +130,25 @@ export default function EditUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Company</label>
-              <input 
-                name="company"
-                type="text" 
-                placeholder="Industrial Corp Ltd." 
-                className={styles.formInput} 
+              <label>Mobile Number</label>
+              <input
+                name="mobileNumber"
+                type="text"
+                placeholder="+1 (555) 000-0000"
+                className={styles.formInput}
                 style={{ background: "#eef1f4" }}
-                value={formData.company}
+                value={formData.mobileNumber}
                 onChange={handleChange}
                 required
               />
             </div>
             <div className={styles.formGroup}>
               <label>Email Address</label>
-              <input 
+              <input
                 name="email"
-                type="email" 
-                placeholder="m.aurelius@voltcore.com" 
-                className={styles.formInput} 
+                type="email"
+                placeholder="m.aurelius@voltcore.com"
+                className={styles.formInput}
                 style={{ background: "#eef1f4" }}
                 value={formData.email}
                 onChange={handleChange}
@@ -148,14 +156,14 @@ export default function EditUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Mobile Number</label>
-              <input 
-                name="mobileNumber"
-                type="text" 
-                placeholder="+1 (555) 000-0000" 
-                className={styles.formInput} 
+              <label>Company</label>
+              <input
+                name="company"
+                type="text"
+                placeholder="Industrial Corp Ltd."
+                className={styles.formInput}
                 style={{ background: "#eef1f4" }}
-                value={formData.mobileNumber}
+                value={formData.company}
                 onChange={handleChange}
                 required
               />
@@ -176,9 +184,9 @@ export default function EditUserPage() {
             <div className={styles.formGroup}>
               <label>User Role</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   name="userRole"
-                  className={styles.formSelect} 
+                  className={styles.formSelect}
                   style={{ background: "#eef1f4" }}
                   value={formData.userRole}
                   onChange={handleChange}
@@ -192,18 +200,17 @@ export default function EditUserPage() {
               </div>
             </div>
             <div className={styles.formGroup}>
-              <label>Account Status</label>
+              <label>Status</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   name="status"
-                  className={styles.formSelect} 
+                  className={styles.formSelect}
                   style={{ background: "#eef1f4" }}
                   value={formData.status}
                   onChange={handleChange}
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
                 </select>
                 <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
               </div>
@@ -213,8 +220,8 @@ export default function EditUserPage() {
 
         {/* Action Footer */}
         <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem" }}>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={styles.cancelBtn}
             onClick={() => router.push("/users")}
             disabled={loading}

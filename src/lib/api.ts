@@ -48,7 +48,7 @@ export const adminApi = {
       method: "GET",
     });
   },
-  getUserById: (id: string) => apiRequest(`/user/user/${id}`, {
+  getUserById: (id: string) => apiRequest(`/user/${id}`, {
     method: "GET",
   }),
   updateUser: (userData: any) => apiRequest(`/user/user-create`, {
@@ -72,7 +72,14 @@ export const adminApi = {
   convertLead: (id: string) => apiRequest(`/leads/${id}/convert`, {
     method: "POST",
   }),
-  getCustomers: () => apiRequest("/admin/customers-list", {
+  getCustomers: () => apiRequest("/customer/customers-list", {
+    method: "GET",
+  }),
+  assignProjectManager: (surveyId: string, staffId: string) => apiRequest(`/surveys/${surveyId}/assign`, {
+    method: "POST",
+    body: JSON.stringify({ assignedTo: staffId }),
+  }),
+  getCustomerWorkflowDetails: (id: string) => apiRequest(`/customer/${id}`, {
     method: "GET",
   }),
 };

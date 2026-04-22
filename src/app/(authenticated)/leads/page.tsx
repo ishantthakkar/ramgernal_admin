@@ -112,12 +112,12 @@ export default function LeadsPage() {
         <table className={styles.leadsTable}>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>sr number</th>
               <th>NAME</th>
               <th>MOBILE NUMBER</th>
               <th>COMPANY</th>
-              <th>STATUS</th>
               <th>SALES PERSON</th>
+              <th>STATUS</th>
               <th>LAST ACTIVITY</th>
               <th>ACTIONS</th>
             </tr>
@@ -143,17 +143,17 @@ export default function LeadsPage() {
                 const globalIndex = indexOfFirstItem + idx;
                 return (
                   <tr key={lead.id || idx}>
-                    <td className={styles.idCell}>#{globalIndex + 1}</td>
+                    <td className={styles.idCell}>{globalIndex + 1}</td>
                     <td className={styles.nameCell}>{lead.name}</td>
                     <td>{lead.mobileNumber || "N/A"}</td>
                     <td>{lead.company}</td>
+                    <td>{lead.salesPerson}</td>
                     <td>
                       <div className={styles.statusIndicator}>
                         <div className={lead.status === "Active" || lead.status === "New" ? styles.dotActive : styles.dotDeactivated}></div>
                         {lead.status}
                       </div>
                     </td>
-                    <td>{lead.salesPerson}</td>
                     <td>{lead.lastActivity ? new Date(lead.lastActivity).toLocaleDateString() : "N/A"}</td>
                     <td style={{ overflow: "visible", position: "relative" }}>
                       <div onClick={(e) => {

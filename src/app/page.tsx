@@ -58,10 +58,7 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.systemStatus}>
-        <span className={styles.systemDot}></span>
-        SYSTEM ONLINE
-      </div>
+
 
       <header className={styles.logoWrapper}>
         <Image
@@ -125,16 +122,7 @@ export default function Home() {
         </main>
       </div>
 
-      <footer className={styles.pageFooter}>
-        <div className={styles.footerLinks}>
-          <a href="#" className={styles.footerLink}>SECURITY PROTOCOLS</a>
-          <a href="#" className={styles.footerLink}>SYSTEM STATUS</a>
-          <a href="#" className={styles.footerLink}>PRIVACY POLICY</a>
-        </div>
-        <p className={styles.copyright}>
-          © 2026 VOLTCORE INDUSTRIAL. ALL RIGHTS RESERVED.
-        </p>
-      </footer>
+
     </div>
   );
 }
