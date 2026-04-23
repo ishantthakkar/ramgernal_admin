@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import styles from "./customer-edit.module.css";
 import dashboardStyles from "../../../dashboard.module.css";
-import { 
-  X, 
+import {
+  X,
   FileText,
   ChevronDown
 } from "lucide-react";
@@ -38,9 +38,9 @@ export default function EditCustomerPage() {
     <div className={styles.editPage}>
       {/* Breadcrumb */}
       <div className={dashboardStyles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/customers")}>COSTUMER</span> 
-        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/customers")}>COSTUMER</span>
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>EDIT COSTUMER</span>
       </div>
 
@@ -54,44 +54,44 @@ export default function EditCustomerPage() {
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label>Full Name</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="fullName"
-              className={styles.formInput} 
-              placeholder="e.g. Marcus Aurelius" 
+              className={styles.formInput}
+              placeholder="e.g. Marcus Aurelius"
               value={formData.fullName}
               onChange={handleChange}
             />
           </div>
           <div className={styles.formGroup}>
             <label>Company</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="company"
-              className={styles.formInput} 
-              placeholder="Industrial Corp Ltd." 
+              className={styles.formInput}
+              placeholder="Industrial Corp Ltd."
               value={formData.company}
               onChange={handleChange}
             />
           </div>
           <div className={styles.formGroup}>
             <label>Email Address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               name="email"
-              className={styles.formInput} 
-              placeholder="m.aurelius@voltcore.com" 
+              className={styles.formInput}
+              placeholder="m.aurelius@voltcore.com"
               value={formData.email}
               onChange={handleChange}
             />
           </div>
           <div className={styles.formGroup}>
             <label>Mobile Number</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="mobile"
-              className={styles.formInput} 
-              placeholder="+1 (555) 000-0000" 
+              className={styles.formInput}
+              placeholder="+1 (555) 000-0000"
               value={formData.mobile}
               onChange={handleChange}
             />
@@ -106,7 +106,7 @@ export default function EditCustomerPage() {
           <div className={styles.formGroup}>
             <label>User Role</label>
             <div style={{ position: "relative" }}>
-              <select 
+              <select
                 name="role"
                 className={styles.formSelect}
                 value={formData.role}
@@ -120,9 +120,9 @@ export default function EditCustomerPage() {
             </div>
           </div>
           <div className={styles.formGroup}>
-            <label>Account Status</label>
+            <label>Status</label>
             <div style={{ position: "relative" }}>
-              <select 
+              <select
                 name="status"
                 className={styles.formSelect}
                 value={formData.status}
@@ -179,13 +179,13 @@ export default function EditCustomerPage() {
 
       {/* Action Footer */}
       <div className={styles.actionFooter}>
-        <button 
+        <button
           className={styles.cancelBtn}
           onClick={() => router.push(`/customers/${id}`)}
         >
           <X size={18} /> Cancel
         </button>
-        <button 
+        <button
           className={styles.saveBtn}
           onClick={handleSave}
         >

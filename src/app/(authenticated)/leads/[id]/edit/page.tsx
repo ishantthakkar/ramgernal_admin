@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import styles from "./leads-edit.module.css";
 import dashboardStyles from "../../../dashboard.module.css";
-import { 
-  X, 
-  Save, 
+import {
+  X,
+  Save,
   FileText,
   MoreVertical,
   Loader2,
@@ -76,9 +76,9 @@ export default function EditLeadPage() {
   return (
     <div className={styles.editPage}>
       <div className={dashboardStyles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>LEADS</span> 
-        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>LEADS</span>
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>EDIT LEAD</span>
       </div>
 
@@ -92,55 +92,55 @@ export default function EditLeadPage() {
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label>Name</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="name"
-              className={styles.formInput} 
-              placeholder="e.g. Marcus Aurelius" 
+              className={styles.formInput}
+              placeholder="e.g. Marcus Aurelius"
               value={formData.name}
               onChange={handleChange}
             />
           </div>
           <div className={styles.formGroup}>
             <label>Company</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="company"
-              className={styles.formInput} 
-              placeholder="Industrial Corp Ltd." 
+              className={styles.formInput}
+              placeholder="Industrial Corp Ltd."
               value={formData.company}
               onChange={handleChange}
             />
           </div>
           <div className={styles.formGroup}>
             <label>Email Address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               name="email"
-              className={styles.formInput} 
-              placeholder="m.aurelius@voltcore.com" 
+              className={styles.formInput}
+              placeholder="m.aurelius@voltcore.com"
               value={formData.email}
               onChange={handleChange}
             />
           </div>
           <div className={styles.formGroup}>
             <label>Mobile Number</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="mobileNumber"
-              className={styles.formInput} 
-              placeholder="+1 (555) 000-0000" 
+              className={styles.formInput}
+              placeholder="+1 (555) 000-0000"
               value={formData.mobileNumber}
               onChange={handleChange}
             />
           </div>
           <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
             <label>Office Address</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               name="address"
-              className={styles.formInput} 
-              placeholder="e.g. 8802 Grid Lane, Sector 7, Chicago" 
+              className={styles.formInput}
+              placeholder="e.g. 8802 Grid Lane, Sector 7, Chicago"
               value={formData.address}
               onChange={handleChange}
             />
@@ -155,7 +155,7 @@ export default function EditLeadPage() {
           <div className={styles.formGroup}>
             <label>Salesperson</label>
             <div style={{ position: "relative" }}>
-              <select 
+              <select
                 name="salesPerson"
                 className={styles.formSelect}
                 value={formData.salesPerson}
@@ -169,9 +169,9 @@ export default function EditLeadPage() {
             </div>
           </div>
           <div className={styles.formGroup}>
-            <label>Account Status</label>
+            <label>Status</label>
             <div style={{ position: "relative" }}>
-              <select 
+              <select
                 name="status"
                 className={styles.formSelect}
                 value={formData.status}
@@ -229,13 +229,13 @@ export default function EditLeadPage() {
 
       {/* Action Footer */}
       <div className={styles.actionFooter}>
-        <button 
+        <button
           className={styles.cancelBtn}
           onClick={() => router.push("/leads")}
         >
           <X size={18} /> Cancel
         </button>
-        <button 
+        <button
           className={styles.saveBtn}
           onClick={handleSave}
           disabled={saving}

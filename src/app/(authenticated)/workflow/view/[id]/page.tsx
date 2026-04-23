@@ -15,7 +15,8 @@ import {
   Mail,
   MapPin,
   Image as ImageIcon,
-  ChevronRight
+  ChevronRight,
+  Download
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -115,98 +116,108 @@ export default function WorkflowViewPage() {
         </div>
       </div>
 
-      {/* Survey Information */}
-      {surveys && surveys.length > 0 ? (
-        surveys.map((survey: any, index: number) => (
-          <div key={survey._id} className={styles.formSection} style={{ marginTop: "2rem" }}>
-            <div className={styles.sectionTitle}>
-              <ClipboardCheck size={22} color="#10b981" /> Survey Details {surveys.length > 1 ? `#${index + 1}` : ""}
-            </div>
-            <p className={styles.sectionSubtitle}>Technical specifications and physical survey data.</p>
-
-            <div className={styles.formGrid} style={{ marginTop: "1.5rem" }}>
-              <div className={styles.formGroup}>
-                <label>Area / Location</label>
-                <div className={styles.formInput} style={{ background: "#f0fdf4", color: "#065f46", fontWeight: 600, border: "1px solid #d1fae5" }}>
-                  {survey.area}
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Height (Inches)</label>
-                <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", border: "1px solid #e2e8f0" }}>
-                  {survey.heightInInches}"
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Existing Fixture Type</label>
-                <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", border: "1px solid #e2e8f0" }}>
-                  {survey.existingFixtureType === "Other" ? survey.otherFixtureType : survey.existingFixtureType}
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Proposed Fixture</label>
-                <div className={styles.formInput} style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 600, border: "1px solid #dbeafe" }}>
-                  {survey.proposedFixture}
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Current Bulbs / Qty</label>
-                <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", border: "1px solid #e2e8f0" }}>
-                  {survey.existingBulbs} bulbs / {survey.existingQuantity} fixtures
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Proposed Quantity</label>
-                <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", border: "1px solid #e2e8f0" }}>
-                  {survey.proposedQuantity} Units
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Price Per Unit</label>
-                <div className={styles.formInput} style={{ background: "#f8fafc", color: "#10b981", fontWeight: 700, border: "1px solid #e2e8f0" }}>
-                  ${survey.pricePerUnit}
-                </div>
-              </div>
-              <div className={styles.formGroup}>
-                <label>Total Price</label>
-                <div className={styles.formInput} style={{ background: "#059669", color: "#ffffff", fontWeight: 700, border: "none" }}>
-                  ${survey.totalPrice}
-                </div>
-              </div>
-            </div>
-
-            {/* Note Section */}
-            {survey.note && (
-              <div className={styles.formGroup} style={{ marginTop: "1.5rem" }}>
-                <label>Survey Notes</label>
-                <div className={styles.formInput} style={{ minHeight: "80px", background: "#fffbeb", color: "#92400e", border: "1px solid #fef3c7" }}>
-                  {survey.note}
-                </div>
-              </div>
-            )}
-
-            {/* Images Section */}
-            {survey.images && survey.images.length > 0 && (
-              <div style={{ marginTop: "1.5rem" }}>
-                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "#64748b", marginBottom: "0.75rem" }}>
-                  <ImageIcon size={16} /> Attached Images
-                </label>
-                <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-                  {survey.images.map((img: string, idx: number) => (
-                    <div key={idx} style={{ position: "relative", width: "120px", height: "120px", borderRadius: "12px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                      <img src={img} alt={`Survey ${idx}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ))
-      ) : (
-        <div className={styles.formSection} style={{ textAlign: "center", padding: "3rem" }}>
-          <p style={{ color: "#94a3b8", fontWeight: 500 }}>No survey records found for this customer.</p>
+      {/* Survey Information Table */}
+      <div className={styles.formSection} style={{ marginTop: "2rem" }}>
+        <div className={styles.sectionTitle}>
+          <ClipboardCheck size={22} color="#10b981" /> Survey History
         </div>
-      )}
+
+        {surveys && surveys.length > 0 ? (
+          <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+            <table className={styles.userTable}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th>Area / Location</th>
+                  <th>Existing Fixture</th>
+                  <th>Proposed Fixture</th>
+                  <th>Qty (E / P)</th>
+                  <th>Price / Unit</th>
+                  <th>Total Price</th>
+                  <th>Status</th>
+                  <th>Images</th>
+                </tr>
+              </thead>
+              <tbody>
+                {surveys.map((survey: any) => (
+                  <tr key={survey._id}>
+                    <td style={{ fontWeight: 600, color: "#1e293b" }}>{survey.area}</td>
+                    <td style={{ color: "#64748b" }}>
+                      {survey.existingFixtureType === "Other" ? survey.otherFixtureType : survey.existingFixtureType}
+                    </td>
+                    <td style={{ color: "#0076ce", fontWeight: 600 }}>{survey.proposedFixture}</td>
+                    <td>
+                      <span style={{ color: "#ef4444", fontWeight: 600 }}>{survey.existingQuantity}</span>
+                      <span style={{ margin: "0 0.4rem", color: "#cbd5e1" }}>/</span>
+                      <span style={{ color: "#10b981", fontWeight: 600 }}>{survey.proposedQuantity}</span>
+                    </td>
+                    <td style={{ color: "#64748b" }}>${survey.pricePerUnit}</td>
+                    <td style={{ fontWeight: 700, color: "#1e293b" }}>${survey.totalPrice}</td>
+                    <td>
+                      <span style={{ 
+                        padding: "0.25rem 0.6rem", 
+                        borderRadius: "6px", 
+                        fontSize: "0.75rem", 
+                        fontWeight: 700,
+                        background: "#f0fdf4",
+                        color: "#166534",
+                        textTransform: "uppercase"
+                      }}>
+                        {survey.status || "Completed"}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        {survey.images && survey.images.length > 0 ? (
+                          survey.images.slice(0, 1).map((img: string, idx: number) => (
+                            <div key={idx} style={{ position: "relative" }}>
+                              <div style={{ width: "45px", height: "45px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                                <img src={img} alt="Survey" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              </div>
+                              <a 
+                                href={img} 
+                                download 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{ 
+                                  position: "absolute", 
+                                  bottom: "-4px", 
+                                  right: "-4px", 
+                                  background: "#ffffff", 
+                                  borderRadius: "50%", 
+                                  padding: "4px",
+                                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                  display: "flex",
+                                  color: "#0076ce"
+                                }}
+                              >
+                                <Download size={12} />
+                              </a>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ width: "45px", height: "45px", borderRadius: "8px", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <ImageIcon size={18} color="#cbd5e1" />
+                          </div>
+                        )}
+                        {survey.images && survey.images.length > 1 && (
+                          <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600 }}>
+                            +{survey.images.length - 1} photos
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
+            <p style={{ color: "#94a3b8", fontWeight: 500 }}>No survey records found for this customer.</p>
+          </div>
+        )}
+      </div>
+
 
       <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
         <button

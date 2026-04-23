@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
-import { 
-  UserPlus, 
-  ShieldCheck, 
-  X, 
-  ChevronDown 
+import {
+  UserPlus,
+  ShieldCheck,
+  X,
+  ChevronDown
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -15,7 +15,7 @@ import { toast } from "react-toastify";
 export default function AddUserPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     fullName: "",
     company: "",
@@ -48,8 +48,8 @@ export default function AddUserPage() {
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span> 
-        TEAM MANAGEMENT <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span> 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span>
+        TEAM MANAGEMENT <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span>
         <span style={{ color: "#0076ce" }}>ADD USER</span>
       </div>
 
@@ -70,11 +70,11 @@ export default function AddUserPage() {
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>Full Name</label>
-              <input 
+              <input
                 name="fullName"
-                type="text" 
-                placeholder="e.g. Marcus Aurelius" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="e.g. Marcus Aurelius"
+                className={styles.formInput}
                 value={formData.fullName}
                 onChange={handleChange}
                 required
@@ -82,11 +82,11 @@ export default function AddUserPage() {
             </div>
             <div className={styles.formGroup}>
               <label>Company</label>
-              <input 
+              <input
                 name="company"
-                type="text" 
-                placeholder="Industrial Corp Ltd." 
-                className={styles.formInput} 
+                type="text"
+                placeholder="Industrial Corp Ltd."
+                className={styles.formInput}
                 value={formData.company}
                 onChange={handleChange}
                 required
@@ -94,11 +94,11 @@ export default function AddUserPage() {
             </div>
             <div className={styles.formGroup}>
               <label>Email Address</label>
-              <input 
+              <input
                 name="email"
-                type="email" 
-                placeholder="m.aurelius@voltcore.com" 
-                className={styles.formInput} 
+                type="email"
+                placeholder="m.aurelius@voltcore.com"
+                className={styles.formInput}
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -106,11 +106,11 @@ export default function AddUserPage() {
             </div>
             <div className={styles.formGroup}>
               <label>Mobile Number</label>
-              <input 
+              <input
                 name="mobileNumber"
-                type="text" 
-                placeholder="+1 (555) 000-0000" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="+1 (555) 000-0000"
+                className={styles.formInput}
                 value={formData.mobileNumber}
                 onChange={handleChange}
                 required
@@ -132,9 +132,9 @@ export default function AddUserPage() {
             <div className={styles.formGroup}>
               <label>User Role</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   name="userRole"
-                  className={styles.formSelect} 
+                  className={styles.formSelect}
                   value={formData.userRole}
                   onChange={handleChange}
                 >
@@ -147,11 +147,11 @@ export default function AddUserPage() {
               </div>
             </div>
             <div className={styles.formGroup}>
-              <label>Account Status</label>
+              <label>Status</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   name="status"
-                  className={styles.formSelect} 
+                  className={styles.formSelect}
                   value={formData.status}
                   onChange={handleChange}
                 >
@@ -167,8 +167,8 @@ export default function AddUserPage() {
 
         {/* Action Footer */}
         <div className={styles.actionFooter}>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={styles.cancelBtn}
             onClick={() => router.push("/users")}
             disabled={loading}

@@ -179,12 +179,17 @@ export default function WorkflowPage() {
   const [availableStaff, setAvailableStaff] = useState<any[]>([]);
   const [projectManagers, setProjectManagers] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
+  const [counts, setCounts] = useState({
+    surveys: 0,
+    installations: 0,
+    inspections: 0
+  });
 
   const fetchWorkflowData = async () => {
     setLoading(true);
     setData([]);
     try {
-      // Always fetch project managers if we're on surveys tab for mapping
+      // 1. Fetch Surveys / Project Managers
       if (activeTab === "surveys") {
         const pmResponse = await adminApi.getUserList("project_manager");
         const pmList = pmResponse.users || pmResponse.data || pmResponse;
@@ -193,21 +198,44 @@ export default function WorkflowPage() {
         const response = await adminApi.getCustomers();
         const customers = response.customers || response.data || [];
         
-        // Normalize API data to match component expectations
+        // Update Survey Count dynamically from API
+        const totalSurveys = response.count || response.total || customers.length;
+        setCounts(prev => ({ ...prev, surveys: totalSurveys }));
+
         const normalizedData = customers.map((c: any) => ({
           _id: c.id,
           customerName: c.name,
           company: c.company,
           salesperson: c.salesPerson || "Unassigned",
-          projectManager: c.assignedTo || "", // assignedTo contains the PM ID
+          projectManager: c.assignedTo || "",
           surveyStatus: c.status || "Pending",
           date: c.convertedDate || c.createdDate
-        }));
-        
+        })).filter((item: any) => item.surveyStatus?.toLowerCase() === "completed");
         setData(normalizedData);
+
+      // 2. Fetch Installations
       } else if (activeTab === "Installations") {
-        setData(MOCK_INSTALLATIONS);
+        const response = await adminApi.getInstallations();
+        const installations = response.installations || response.data || (Array.isArray(response) ? response : []);
+        
+        // Update Installation Count dynamically from API
+        const totalInst = response.count || response.total || installations.length;
+        setCounts(prev => ({ ...prev, installations: totalInst }));
+
+        const normalizedData = installations.map((inst: any) => ({
+          _id: inst._id || inst.id,
+          customerName: inst.customerName || (inst.customer?.name),
+          company: inst.company || (inst.customer?.company),
+          salesPerson: inst.salesPerson || (inst.customer?.salesPerson) || "Unassigned",
+          contractor: inst.contractor?.fullName || inst.contractor || "Unassigned",
+          projectManager: inst.projectManager?.fullName || inst.projectManager || "Unassigned",
+          status: inst.status || "Pending"
+        }));
+        setData(normalizedData);
+
+      // 3. Fetch Inspections (Static/Mock for now)
       } else if (activeTab === "Inspections") {
+        setCounts(prev => ({ ...prev, inspections: MOCK_INSPECTIONS.length }));
         setData(MOCK_INSPECTIONS);
       }
     } catch (err) {
@@ -220,6 +248,27 @@ export default function WorkflowPage() {
   useEffect(() => {
     fetchWorkflowData();
   }, [activeTab]);
+
+  // Initial fetch for all counts to keep stats dynamic
+  useEffect(() => {
+    const fetchAllCounts = async () => {
+      try {
+        const [surveys, inst] = await Promise.all([
+          adminApi.getCustomers(),
+          adminApi.getInstallations()
+        ]);
+        
+        setCounts({
+          surveys: surveys.count || surveys.total || (surveys.customers?.length || 0),
+          installations: inst.count || inst.total || (inst.installations?.length || 0),
+          inspections: MOCK_INSPECTIONS.length
+        });
+      } catch (err) {
+        console.warn("Failed to fetch initial counts:", err);
+      }
+    };
+    fetchAllCounts();
+  }, []);
 
   const openAssignModal = async (type: "Contractor" | "Project Manager", record: any) => {
     setAssignType(type);
@@ -265,9 +314,9 @@ export default function WorkflowPage() {
   };
 
   const summaryStats = [
-    { label: "Total Surveys", value: activeTab === "surveys" ? data.length.toString() : "124", icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
-    { label: "Total Installations", value: activeTab === "Installations" ? data.length.toString() : "45", icon: Hammer, color: "#475569", bg: "#f1f5f9" },
-    { label: "Total Inspections", value: activeTab === "Inspections" ? data.length.toString() : "32", icon: SearchIcon, color: "#854d0e", bg: "#fef3c7" },
+    { label: "Total Surveys", value: counts.surveys.toLocaleString(), icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
+    { label: "Total Installations", value: counts.installations.toLocaleString(), icon: Hammer, color: "#475569", bg: "#f1f5f9" },
+    { label: "Total Inspections", value: counts.inspections.toLocaleString(), icon: SearchIcon, color: "#854d0e", bg: "#fef3c7" },
   ];
 
   const getHeaders = () => {

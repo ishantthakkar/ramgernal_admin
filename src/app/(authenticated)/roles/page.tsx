@@ -40,11 +40,26 @@ const MODULES = [
 const ACTIONS = ["View", "Create", "Edit", "Approve/Reject", "Assign", "Start", "Submit"];
 
 export default function RolesPermissionsPage() {
-  const [activeRole, setActiveRole] = useState("Sales Manager");
+  const [activeRole, setActiveRole] = useState("Super admin");
   const [loading, setLoading] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
 
-  // Mock roles list
-  const roles = ["Administrator", "Sales Manager", "Sales Person", "Contractor", "Project Manager"];
+  // More complex roles state
+  const [roles, setRoles] = useState([
+    { name: "Super admin", isSystem: true },
+    { name: "Admin", isSystem: true },
+    { name: "Project Manager", isSystem: true },
+    { name: "Sales Manager", isSystem: true },
+  ]);
+
+  // Permissions state: { [roleName]: { [moduleId]: boolean[] } }
+  const [permissions, setPermissions] = useState<Record<string, Record<string, boolean[]>>>({
+    "Super admin": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map(() => true) }), {}),
+    "Admin": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map((_, i) => i < 5) }), {}),
+    "Project Manager": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map((_, i) => i === 0 || i === 4) }), {}),
+    "Sales Manager": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map((_, i) => i === 0) }), {}),
+  });
 
   const handleSave = () => {
     setLoading(true);
@@ -54,15 +69,78 @@ export default function RolesPermissionsPage() {
     }, 800);
   };
 
+  const togglePermission = (moduleId: string, actionIdx: number) => {
+    if (activeRole === "Super admin") {
+      toast.warning("Super admin permissions are system-protected and cannot be modified.");
+      return;
+    }
+
+    setPermissions(prev => {
+      const rolePerms = prev[activeRole] || MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map(() => false) }), {});
+      const modulePerms = [...(rolePerms[moduleId] || ACTIONS.map(() => false))];
+      modulePerms[actionIdx] = !modulePerms[actionIdx];
+      
+      return {
+        ...prev,
+        [activeRole]: {
+          ...rolePerms,
+          [moduleId]: modulePerms
+        }
+      };
+    });
+  };
+
+  const handleCreateRole = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleName.trim()) return;
+    
+    if (roles.some(r => r.name.toLowerCase() === newRoleName.toLowerCase())) {
+      toast.error("Role already exists.");
+      return;
+    }
+
+    const newRole = { name: newRoleName, isSystem: false };
+    setRoles([...roles, newRole]);
+    setPermissions(prev => ({
+      ...prev,
+      [newRoleName]: MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map(() => false) }), {})
+    }));
+    setActiveRole(newRoleName);
+    setNewRoleName("");
+    setShowCreateModal(false);
+    toast.success(`${newRoleName} role created! You can now configure its permissions.`);
+  };
+
+  const handleDeleteRole = (e: React.MouseEvent, roleName: string) => {
+    e.stopPropagation();
+    if (roles.find(r => r.name === roleName)?.isSystem) {
+      toast.error("System roles cannot be deleted.");
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete the "${roleName}" role?`)) return;
+
+    setRoles(prev => prev.filter(r => r.name !== roleName));
+    setPermissions(prev => {
+      const { [roleName]: removed, ...rest } = prev;
+      return rest;
+    });
+
+    if (activeRole === roleName) {
+      setActiveRole("Super admin");
+    }
+    toast.success(`${roleName} role deleted successfully.`);
+  };
+
   return (
-    <div className={styles.usersPage}>
+    <div className={styles.usersPage} onClick={() => setShowCreateModal(false)}>
       <div className={styles.breadcrumb}>
         ADMIN <span>/</span> ROLES & PERMISSIONS
       </div>
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>Access Control Management</h1>
-        <button className={styles.addBtn}>
+        <button className={styles.addBtn} onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); }}>
           <Plus size={20} /> Create New Role
         </button>
       </div>
@@ -76,20 +154,36 @@ export default function RolesPermissionsPage() {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {roles.map((role) => (
               <div 
-                key={role}
-                onClick={() => setActiveRole(role)}
+                key={role.name}
+                onClick={() => setActiveRole(role.name)}
                 style={{ 
                   padding: '1.25rem 1.5rem',
                   cursor: 'pointer',
-                  borderLeft: activeRole === role ? '4px solid #0076ce' : '4px solid transparent',
-                  background: activeRole === role ? '#eff6ff' : 'transparent',
-                  color: activeRole === role ? '#1d4ed8' : '#64748b',
-                  fontWeight: activeRole === role ? 700 : 500,
+                  borderLeft: activeRole === role.name ? '4px solid #0076ce' : '4px solid transparent',
+                  background: activeRole === role.name ? '#eff6ff' : 'transparent',
+                  color: activeRole === role.name ? '#1d4ed8' : '#64748b',
+                  fontWeight: activeRole === role.name ? 700 : 500,
                   transition: 'all 0.2s',
-                  fontSize: '0.95rem'
+                  fontSize: '0.95rem',
+                  display: 'flex',
+                  justifyContent: 'space-between'
                 }}
               >
-                {role}
+                <span style={{ 
+                  color: activeRole === role.name ? '#1d4ed8' : '#64748b',
+                  fontWeight: activeRole === role.name ? 700 : 500,
+                  fontSize: '0.95rem'
+                }}>
+                  {role.name}
+                </span>
+                {role.isSystem ? null : (
+                  <Trash2 
+                    size={16} 
+                    className={styles.deleteIcon} 
+                    onClick={(e) => handleDeleteRole(e, role.name)} 
+                    style={{ color: '#ef4444', opacity: 0.7, padding: '2px' }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -147,14 +241,14 @@ export default function RolesPermissionsPage() {
                       </div>
                     </td>
                     {ACTIONS.map((action, idx) => {
-                      // Some logic to show checked/unchecked for demo
-                      const isChecked = activeRole === "Administrator" || 
-                        (activeRole === "Sales Manager" && (module.id !== "audit" || action === "View")) ||
-                        (activeRole === "Contractor" && (module.id === "installation" || module.id === "projects") && (action === "View" || action === "Submit" || action === "Start"));
+                      const isChecked = permissions[activeRole]?.[module.id]?.[idx] || false;
 
                       return (
                         <td key={action} style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', cursor: 'pointer' }}>
+                          <div 
+                            onClick={() => togglePermission(module.id, idx)}
+                            style={{ display: 'inline-flex', cursor: activeRole === "Super admin" ? 'not-allowed' : 'pointer' }}
+                          >
                             {isChecked ? (
                               <CheckCircle2 size={22} color="#10b981" />
                             ) : (
@@ -172,10 +266,52 @@ export default function RolesPermissionsPage() {
           
           <div style={{ padding: '1.5rem', background: '#fffef3', borderTop: '1px solid #fef3c7', fontSize: '0.85rem', color: '#854d0e', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
              <ShieldCheck size={18} />
-             <span><strong>Note:</strong> Changes to system roles affect all users assigned to that role immediately. Use caution when modifying Administrator permissions.</span>
+             <span><strong>Note:</strong> 
+               {activeRole === "Super admin" 
+                 ? " Super admin permissions are system-locked for security." 
+                 : ` Changes to ${activeRole} permissions affect all users with this role immediately.`
+               }
+             </span>
           </div>
         </div>
       </div>
+
+      {/* Role Creation Modal */}
+      {showCreateModal && (
+        <div style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 
+        }}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: '#fff', padding: '2rem', borderRadius: '12px', width: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
+          >
+            <h3 style={{ marginTop: 0 }}>Create New Role</h3>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}>Role Name</label>
+              <input 
+                autoFocus
+                type="text" 
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                placeholder="Manager, Supervisor, etc."
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setShowCreateModal(false)} className={styles.cancelBtn} style={{ flex: 1 }}>Cancel</button>
+              <button 
+                onClick={handleCreateRole} 
+                className={styles.addBtn} 
+                style={{ flex: 1, justifyContent: 'center' }}
+                disabled={!newRoleName.trim()}
+              >
+                Create Role
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
