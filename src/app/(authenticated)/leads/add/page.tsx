@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./leads-add.module.css";
 import dashboardStyles from "../../dashboard.module.css";
-import { 
-  UserPlus, 
-  ShieldCheck, 
-  X, 
+import {
+  UserPlus,
+  ShieldCheck,
+  X,
   ChevronDown,
   Info,
   Building,
@@ -21,7 +21,7 @@ import { toast } from "react-toastify";
 export default function AddLeadPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -60,9 +60,9 @@ export default function AddLeadPage() {
   return (
     <div className={styles.leadsAddPage}>
       <div className={dashboardStyles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>LEADS</span> 
-        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>LEADS</span>
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>ADD NEW LEAD</span>
       </div>
 
@@ -83,11 +83,11 @@ export default function AddLeadPage() {
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>Full Name</label>
-              <input 
+              <input
                 name="name"
-                type="text" 
-                placeholder="e.g. Robert Millhouse" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="e.g. Robert Millhouse"
+                className={styles.formInput}
                 value={formData.name}
                 onChange={handleChange}
                 required
@@ -95,11 +95,11 @@ export default function AddLeadPage() {
             </div>
             <div className={styles.formGroup}>
               <label>Company Name</label>
-              <input 
+              <input
                 name="company"
-                type="text" 
-                placeholder="Nexus Grid Systems" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="Nexus Grid Systems"
+                className={styles.formInput}
                 value={formData.company}
                 onChange={handleChange}
                 required
@@ -107,11 +107,11 @@ export default function AddLeadPage() {
             </div>
             <div className={styles.formGroup}>
               <label>Email Address</label>
-              <input 
+              <input
                 name="email"
-                type="email" 
-                placeholder="robert@grid.tech" 
-                className={styles.formInput} 
+                type="email"
+                placeholder="robert@grid.tech"
+                className={styles.formInput}
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -119,23 +119,23 @@ export default function AddLeadPage() {
             </div>
             <div className={styles.formGroup}>
               <label>Mobile Number</label>
-              <input 
+              <input
                 name="mobileNumber"
-                type="text" 
-                placeholder="+1 235 1254 2214" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="+1 235 1254 2214"
+                className={styles.formInput}
                 value={formData.mobileNumber}
                 onChange={handleChange}
                 required
               />
             </div>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Office Address</label>
-              <input 
+              <label>Address</label>
+              <input
                 name="address"
-                type="text" 
-                placeholder="e.g. 8802 Grid Lane, Sector 7, Chicago" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="e.g. 8802 Grid Lane, Sector 7, Chicago"
+                className={styles.formInput}
                 value={formData.address}
                 onChange={handleChange}
               />
@@ -156,9 +156,9 @@ export default function AddLeadPage() {
             <div className={styles.formGroup}>
               <label>Current Status</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   name="status"
-                  className={styles.formSelect} 
+                  className={styles.formSelect}
                   value={formData.status}
                   onChange={handleChange}
                 >
@@ -172,9 +172,9 @@ export default function AddLeadPage() {
             <div className={styles.formGroup}>
               <label>Salesperson</label>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   name="salesPerson"
-                  className={styles.formSelect} 
+                  className={styles.formSelect}
                   value={formData.salesPerson}
                   onChange={handleChange}
                   required
@@ -189,11 +189,11 @@ export default function AddLeadPage() {
             </div>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <label>Lead Source</label>
-              <input 
+              <input
                 name="source"
-                type="text" 
-                placeholder="Industry Trade Expo 2024" 
-                className={styles.formInput} 
+                type="text"
+                placeholder="Industry Trade Expo 2024"
+                className={styles.formInput}
                 value={formData.source}
                 onChange={handleChange}
               />
@@ -203,8 +203,8 @@ export default function AddLeadPage() {
 
         {/* Action Footer */}
         <div className={styles.actionFooter}>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className={styles.cancelBtn}
             onClick={() => router.push("/leads")}
             disabled={loading}

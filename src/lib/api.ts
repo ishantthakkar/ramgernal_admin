@@ -72,6 +72,10 @@ export const adminApi = {
   convertLead: (id: string) => apiRequest(`/leads/${id}/convert`, {
     method: "POST",
   }),
+  updateLeadStatus: (id: string, status: string) => apiRequest(`/leads/${id}/status`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  }),
   getCustomers: () => apiRequest("/customer/customers-list", {
     method: "GET",
   }),
@@ -91,5 +95,9 @@ export const adminApi = {
   }),
   getDashboardStats: () => apiRequest("/admin/dashboard/stats", {
     method: "GET",
+  }),
+  verifyCustomerSurvey: (id: string) => apiRequest(`/customer/customers/${id}/verify`, {
+    method: "POST",
+    body: JSON.stringify({ status: "verified" }),
   }),
 };

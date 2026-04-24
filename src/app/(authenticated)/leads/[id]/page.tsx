@@ -12,7 +12,8 @@ import {
   Mail,
   Calendar,
   Layers,
-  Loader2
+  Loader2,
+  XCircle
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -24,6 +25,7 @@ export default function LeadDetailsPage() {
   const [lead, setLead] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [converting, setConverting] = useState(false);
+  const [markingLost, setMarkingLost] = useState(false);
 
   useEffect(() => {
     const fetchLead = async () => {
@@ -51,6 +53,21 @@ export default function LeadDetailsPage() {
       toast.error(err.message || "Failed to convert lead. Please try again.");
     } finally {
       setConverting(false);
+    }
+  };
+
+  const handleLost = async () => {
+    if (!window.confirm("Are you sure you want to mark this lead as lost?")) return;
+    
+    setMarkingLost(true);
+    try {
+      await adminApi.updateLeadStatus(id, "Lost Leads");
+      toast.success("Lead marked as lost successfully!");
+      router.push("/leads");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update lead status.");
+    } finally {
+      setMarkingLost(false);
     }
   };
 
@@ -89,14 +106,37 @@ export default function LeadDetailsPage() {
           <h1 className={styles.profileTitle}>Lead Profile: {lead.name}</h1>
           <span className={styles.statusBadge}>{lead.status?.toUpperCase()}</span>
         </div>
-        <button 
-          className={styles.convertBtn} 
-          onClick={handleConvert}
-          disabled={converting || lead.status === "Closed"}
-        >
-          {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />} 
-          {converting ? "Converting..." : lead.status === "Closed" ? "Already Converted" : "Convert to Customer"}
-        </button>
+        <div style={{ display: "flex", gap: "1rem" }}>
+          <button 
+            className={styles.convertBtn} 
+            onClick={handleConvert}
+            disabled={converting || markingLost || lead.status === "Closed" || lead.status === "Lost Leads"}
+          >
+            {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />} 
+            {converting ? "Converting..." : lead.status === "Closed" ? "Already Converted" : "Convert to Customer"}
+          </button>
+          <button 
+            onClick={handleLost}
+            disabled={converting || markingLost || lead.status === "Closed" || lead.status === "Lost Leads"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.6rem 1.25rem",
+              backgroundColor: lead.status === "Lost Leads" ? "#f1f5f9" : "#ef4444",
+              color: lead.status === "Lost Leads" ? "#94a3b8" : "white",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: (lead.status === "Lost Leads" || lead.status === "Closed") ? "not-allowed" : "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
+            {markingLost ? <Loader2 size={18} className={styles.spinner} /> : <XCircle size={18} />} 
+            {markingLost ? "Updating..." : lead.status === "Lost Leads" ? "Lead Lost" : "Mark as Lost"}
+          </button>
+        </div>
       </div>
 
       {/* Lead Information */}
@@ -185,48 +225,6 @@ export default function LeadDetailsPage() {
         </div>
       </section>
 
-      {/* Activities */}
-      <section className={styles.infoSection}>
-        <div className={styles.sectionHeading}>
-          <div className={styles.iconBox}>
-            <FileText size={20} />
-          </div>
-          Activities
-        </div>
-
-        <table className={styles.activityTable}>
-          <thead>
-            <tr>
-              <th>Activity Type</th>
-              <th>Date</th>
-              <th>Outcome</th>
-              <th>Next Follow-up Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Call</td>
-              <td>04/07/2026</td>
-              <td>Showing Interest</td>
-              <td>04/09/2026</td>
-            </tr>
-            <tr>
-              <td>Meeting</td>
-              <td>04/10/2026</td>
-              <td className={styles.outcomeText}>
-                xcxcxcxcxcxxxxxcxcxxcxcxcxcxcxcxcxccxssjsncsjdnsjcnsjcnsjcnscjcncsnccscscs
-              </td>
-              <td>04/09/2026</td>
-            </tr>
-            <tr>
-              <td>Site Visit</td>
-              <td>04/10/2026</td>
-              <td>Showing Interest</td>
-              <td>04/09/2026</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
     </div>
   );
 }

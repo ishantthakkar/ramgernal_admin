@@ -105,7 +105,7 @@ export default function DashboardLayout({
             title={isSidebarCollapsed ? "Logout" : ""}
           >
             <LogOut size={22} strokeWidth={2.5} color="#f87171" className={styles.logoutIcon} />
-            {!isSidebarCollapsed && <span>Logout System</span>}
+            {!isSidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>
@@ -131,8 +131,8 @@ export default function DashboardLayout({
             <div className={styles.divider}></div>
             <div className={styles.userProfile}>
               <div className={styles.userInfo}>
-                <div className={styles.userName}>Admin User</div>
-                <div className={styles.userRole}>HEAD OF OPERATIONS</div>
+                <div className={styles.userName}>Super Admin</div>
+                {/* <div className={styles.userRole}>HEAD OF OPERATIONS</div> */}
               </div>
               <div className={styles.avatar}>
                 <Image

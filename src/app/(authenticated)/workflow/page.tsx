@@ -3,14 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
-import { 
-  Plus, 
-  ClipboardCheck, 
-  Hammer, 
-  Search as SearchIcon, 
-  Filter, 
-  MoreVertical, 
-  ChevronLeft, 
+import {
+  Plus,
+  ClipboardCheck,
+  Hammer,
+  Search as SearchIcon,
+  Filter,
+  MoreVertical,
+  ChevronLeft,
   ChevronRight,
   Search,
   Loader2,
@@ -26,152 +26,152 @@ import modalStyles from "./assign-modal.module.css";
 
 // Mock data for workflow items
 const MOCK_SURVEYS = [
-  { 
-    _id: "S001", 
-    customerName: "John Doe", 
+  {
+    _id: "S001",
+    customerName: "John Doe",
     company: "Sunwell Solar",
-    salesperson: "Alice Smith", 
+    salesperson: "Alice Smith",
     contractor: "",
     projectManager: "",
-    surveyStatus: "Completed", 
+    surveyStatus: "Completed",
     installationStatus: "In Progress",
     inspectionStatus: "Not Started",
-    date: "2024-04-20" 
+    date: "2024-04-20"
   },
-  { 
-    _id: "S002", 
-    customerName: "Jane Roe", 
+  {
+    _id: "S002",
+    customerName: "Jane Roe",
     company: "Green Energy Co",
-    salesperson: "Bob Johnson", 
+    salesperson: "Bob Johnson",
     contractor: "Dave Wilson",
     projectManager: "Sarah Connor",
-    surveyStatus: "Verified", 
+    surveyStatus: "Verified",
     installationStatus: "Not Started",
     inspectionStatus: "Not Started",
-    date: "2024-04-19" 
+    date: "2024-04-19"
   },
-  { 
-    _id: "S003", 
-    customerName: "Marcus Aurelius", 
+  {
+    _id: "S003",
+    customerName: "Marcus Aurelius",
     company: "Rome Renewables",
-    salesperson: "Alice Smith", 
+    salesperson: "Alice Smith",
     contractor: "",
     projectManager: "",
-    surveyStatus: "Pending", 
+    surveyStatus: "Pending",
     installationStatus: "Not Started",
     inspectionStatus: "Not Started",
-    date: "2024-04-21" 
+    date: "2024-04-21"
   },
 ];
 
 const MOCK_INSTALLATIONS = [
-  { 
-    _id: "inst_1", 
+  {
+    _id: "inst_1",
     displayId: "VC-92410",
-    customerName: "Andrew Scoff", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Not Started" 
+    customerName: "Andrew Scoff",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Not Started"
   },
-  { 
-    _id: "inst_2", 
+  {
+    _id: "inst_2",
     displayId: "VC-92410",
-    customerName: "Cliff Booth", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "In Process" 
+    customerName: "Cliff Booth",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "In Process"
   },
-  { 
-    _id: "inst_3", 
+  {
+    _id: "inst_3",
     displayId: "VC-92410",
-    customerName: "Mark Zyden", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Completed" 
+    customerName: "Mark Zyden",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Completed"
   },
-  { 
-    _id: "inst_4", 
+  {
+    _id: "inst_4",
     displayId: "VC-92410",
-    customerName: "Halisen Margot", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Verified" 
+    customerName: "Halisen Margot",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Verified"
   },
-  { 
-    _id: "inst_5", 
+  {
+    _id: "inst_5",
     displayId: "VC-92410",
-    customerName: "Halisen Margot", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Reopened" 
+    customerName: "Halisen Margot",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Reopened"
   },
 ];
 
 const MOCK_INSPECTIONS = [
-  { 
-    _id: "insp_1", 
-    customerName: "Andrew Scoff", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Not Started" 
+  {
+    _id: "insp_1",
+    customerName: "Andrew Scoff",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Not Started"
   },
-  { 
-    _id: "insp_2", 
-    customerName: "Cliff Booth", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "In Process" 
+  {
+    _id: "insp_2",
+    customerName: "Cliff Booth",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "In Process"
   },
-  { 
-    _id: "insp_3", 
-    customerName: "Mark Zyden", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Completed" 
+  {
+    _id: "insp_3",
+    customerName: "Mark Zyden",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Completed"
   },
-  { 
-    _id: "insp_4", 
-    customerName: "Halisen Margot", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Verified" 
+  {
+    _id: "insp_4",
+    customerName: "Halisen Margot",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Verified"
   },
-  { 
-    _id: "insp_5", 
-    customerName: "Halisen Margot", 
-    company: "Xelectronics", 
-    salesPerson: "Jack Hclison", 
-    contractor: "Methew Zynd", 
-    projectManager: "Medison Cly", 
-    status: "Reopened" 
+  {
+    _id: "insp_5",
+    customerName: "Halisen Margot",
+    company: "Xelectronics",
+    salesPerson: "Jack Hclison",
+    contractor: "Methew Zynd",
+    projectManager: "Medison Cly",
+    status: "Reopened"
   },
 ];
 
 export default function WorkflowPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("surveys");
+  const [activeTab, setActiveTab] = useState("Surveys");
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>(MOCK_SURVEYS);
-  
+
   // Assignment Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignType, setAssignType] = useState<"Contractor" | "Project Manager">("Contractor");
@@ -180,27 +180,28 @@ export default function WorkflowPage() {
   const [projectManagers, setProjectManagers] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [counts, setCounts] = useState({
-    surveys: 0,
+    Surveys: 0,
     installations: 0,
     inspections: 0
   });
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchWorkflowData = async () => {
     setLoading(true);
     setData([]);
     try {
       // 1. Fetch Surveys / Project Managers
-      if (activeTab === "surveys") {
+      if (activeTab === "Surveys") {
         const pmResponse = await adminApi.getUserList("project_manager");
         const pmList = pmResponse.users || pmResponse.data || pmResponse;
         setProjectManagers(Array.isArray(pmList) ? pmList : []);
 
         const response = await adminApi.getCustomers();
         const customers = response.customers || response.data || [];
-        
+
         // Update Survey Count dynamically from API
         const totalSurveys = response.count || response.total || customers.length;
-        setCounts(prev => ({ ...prev, surveys: totalSurveys }));
+        setCounts(prev => ({ ...prev, Surveys: totalSurveys }));
 
         const normalizedData = customers.map((c: any) => ({
           _id: c.id,
@@ -209,15 +210,16 @@ export default function WorkflowPage() {
           salesperson: c.salesPerson || "Unassigned",
           projectManager: c.assignedTo || "",
           surveyStatus: c.status || "Pending",
+          verifyStatus: c.verifyStatus || "pending",
           date: c.convertedDate || c.createdDate
         })).filter((item: any) => item.surveyStatus?.toLowerCase() === "completed");
         setData(normalizedData);
 
-      // 2. Fetch Installations
+        // 2. Fetch Installations
       } else if (activeTab === "Installations") {
         const response = await adminApi.getInstallations();
         const installations = response.installations || response.data || (Array.isArray(response) ? response : []);
-        
+
         // Update Installation Count dynamically from API
         const totalInst = response.total || response.count || installations.length;
         setCounts(prev => ({ ...prev, installations: totalInst }));
@@ -234,7 +236,7 @@ export default function WorkflowPage() {
         }));
         setData(normalizedData);
 
-      // 3. Fetch Inspections (Static/Mock for now)
+        // 3. Fetch Inspections (Static/Mock for now)
       } else if (activeTab === "Inspections") {
         setCounts(prev => ({ ...prev, inspections: MOCK_INSPECTIONS.length }));
         setData(MOCK_INSPECTIONS);
@@ -254,13 +256,13 @@ export default function WorkflowPage() {
   useEffect(() => {
     const fetchAllCounts = async () => {
       try {
-        const [surveys, inst] = await Promise.all([
+        const [Surveys, inst] = await Promise.all([
           adminApi.getCustomers(),
           adminApi.getInstallations()
         ]);
-        
+
         setCounts({
-          surveys: surveys.count || surveys.total || (surveys.customers?.length || 0),
+          Surveys: Surveys.count || Surveys.total || (Surveys.customers?.length || 0),
           installations: inst.count || inst.total || (inst.installations?.length || 0),
           inspections: MOCK_INSPECTIONS.length
         });
@@ -303,7 +305,7 @@ export default function WorkflowPage() {
       const response = await adminApi.assignProjectManager(targetRecord._id, staff._id);
       toast.success(response.message || "Assigned successfully.");
       setShowAssignModal(false);
-      
+
       // Refresh the list to show the new assignment
       fetchWorkflowData();
     } catch (err: any) {
@@ -314,21 +316,39 @@ export default function WorkflowPage() {
     }
   };
 
+  const handleVerify = async (record: any) => {
+    if (!window.confirm(`Are you sure you want to verify the survey for ${record.customerName}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await adminApi.verifyCustomerSurvey(record._id);
+      toast.success(response.message || "Survey verified successfully!");
+      fetchWorkflowData();
+    } catch (err: any) {
+      console.error("Verification error:", err);
+      toast.error(err.message || "Failed to verify survey.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const summaryStats = [
-    { label: "Total Surveys", value: counts.surveys.toLocaleString(), icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
+    { label: "Total Surveys", value: counts.Surveys.toLocaleString(), icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
     { label: "Total Installations", value: counts.installations.toLocaleString(), icon: Hammer, color: "#475569", bg: "#f1f5f9" },
     { label: "Total Inspections", value: counts.inspections.toLocaleString(), icon: SearchIcon, color: "#854d0e", bg: "#fef3c7" },
   ];
 
   const getHeaders = () => {
-    if (activeTab === "surveys") {
-      return ["sr number", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "ACTIONS"];
+    if (activeTab === "Surveys") {
+      return ["sr number", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "VERIFY", "ACTIONS"];
     }
-    
+
     if (activeTab === "Installations") {
       return ["SR NUMBER", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
     }
-    
+
     if (activeTab === "Inspections") {
       return ["SR NUMBER", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
     }
@@ -340,9 +360,9 @@ export default function WorkflowPage() {
     switch (status.toLowerCase()) {
       case "completed": return { color: "#94a3b8", bg: "#f1f5f9" };
       case "verified": return { color: "#3b82f6", bg: "#eff6ff" };
-      case "pending": 
+      case "pending":
       case "not started": return { color: "#ef4444", bg: "#fef2f2" };
-      case "in progress": 
+      case "in progress":
       case "in-process":
       case "in process": return { color: "#10b981", bg: "#ecfdf5" };
       case "reopened": return { color: "#fbbf24", bg: "#fffbeb" };
@@ -350,6 +370,14 @@ export default function WorkflowPage() {
       default: return { color: "#64748b", bg: "#f8fafc" };
     }
   };
+
+  const filteredData = data.filter(item => 
+    item.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.salesPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.projectManager?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.status?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className={styles.usersPage} onClick={() => setOpenActionId(null)}>
@@ -359,16 +387,13 @@ export default function WorkflowPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>Workflow Management</h1>
-        <button className={styles.addBtn} onClick={() => router.push(`/workflow/add-${activeTab.toLowerCase()}`)}>
-          <Plus size={20} /> New {activeTab}
-        </button>
       </div>
 
       <div className={styles.userStatsGrid}>
         {summaryStats.map((stat) => (
           <div key={stat.label} className={styles.userStatCard}>
-            <div 
-              className={styles.userStatIcon} 
+            <div
+              className={styles.userStatIcon}
               style={{ backgroundColor: stat.bg, color: stat.color }}
             >
               <stat.icon size={22} />
@@ -382,9 +407,9 @@ export default function WorkflowPage() {
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <div className={styles.tabs}>
-            {["surveys", "Installations", "Inspections"].map((tab) => (
-              <div 
-                key={tab} 
+            {["Surveys", "Installations", "Inspections"].map((tab) => (
+              <div
+                key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
                 onClick={() => setActiveTab(tab)}
               >
@@ -393,15 +418,18 @@ export default function WorkflowPage() {
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div className={styles.filterBtn}>
-              <Filter size={18} /> Filters
-            </div>
             <div className={styles.searchUsers}>
               <SearchIcon size={16} color="#94a3b8" />
-              <input type="text" placeholder="Search Users" className={styles.searchInputSmall} />
+              <input 
+                type="text" 
+                placeholder={`Search ${activeTab}...`} 
+                className={styles.searchInputSmall} 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             <div style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 500 }}>
-              Showing {data.length} {activeTab}
+              Showing {filteredData.length} {activeTab}
             </div>
           </div>
         </div>
@@ -423,16 +451,16 @@ export default function WorkflowPage() {
                     </div>
                   </td>
                 </tr>
-              ) : data.length === 0 ? (
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
-                    No {activeTab.toLowerCase()}s found.
+                    No {activeTab.toLowerCase()} found.
                   </td>
                 </tr>
               ) : (
-                data.map((item, index) => (
+                filteredData.map((item, index) => (
                   <tr key={item._id || `${activeTab}-${index}`}>
-                    {activeTab === "surveys" ? (
+                    {activeTab === "Surveys" ? (
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td>
@@ -447,7 +475,7 @@ export default function WorkflowPage() {
                               {projectManagers.find(pm => pm._id === item.projectManager)?.fullName || "Unknown PM"}
                             </div>
                           ) : item.surveyStatus?.toLowerCase() === "completed" ? (
-                            <button 
+                            <button
                               className={styles.assignBtn}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -467,6 +495,22 @@ export default function WorkflowPage() {
                             <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>{item.surveyStatus || "N/A"}</span>
                           </div>
                         </td>
+                        <td>
+                          {item.verifyStatus === "verified" ? (
+                            <span style={{ color: "#10b981", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Verified</span>
+                          ) : (
+                            <button 
+                              className={styles.assignBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleVerify(item);
+                              }}
+                              style={{ background: "#0076ce", color: "white", border: "none" }}
+                            >
+                              Verify
+                            </button>
+                          )}
+                        </td>
                       </>
                     ) : activeTab === "Installations" ? (
                       <>
@@ -479,8 +523,8 @@ export default function WorkflowPage() {
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span 
-                              className={styles.statusDotActive} 
+                            <span
+                              className={styles.statusDotActive}
                               style={{ backgroundColor: getStatusStyle(item.status).color }}
                             ></span>
                             <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
@@ -500,8 +544,8 @@ export default function WorkflowPage() {
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span 
-                              className={styles.statusDotActive} 
+                            <span
+                              className={styles.statusDotActive}
                               style={{ backgroundColor: getStatusStyle(item.status).color }}
                             ></span>
                             <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
@@ -519,7 +563,7 @@ export default function WorkflowPage() {
                       }}>
                         <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
                       </div>
-                      
+
                       {openActionId === item._id && (
                         <div className={styles.actionDropdown}>
                           <div className={styles.dropdownItem} onClick={() => router.push(`/workflow/view/${item._id}`)}>View</div>
@@ -537,7 +581,7 @@ export default function WorkflowPage() {
 
         <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {data.length} {activeTab}
+            Showing {filteredData.length} {activeTab}
           </div>
           <div className={styles.pagination}>
             <div className={styles.pageBtn}><ChevronLeft size={18} /></div>
@@ -557,7 +601,7 @@ export default function WorkflowPage() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <div className={modalStyles.modalBody}>
               {modalLoading ? (
                 <div className={modalStyles.modalLoading}>
@@ -571,8 +615,8 @@ export default function WorkflowPage() {
               ) : (
                 <div className={modalStyles.staffList}>
                   {availableStaff.map((staff) => (
-                    <div 
-                      key={staff._id} 
+                    <div
+                      key={staff._id}
                       className={modalStyles.staffItem}
                     >
                       <div className={modalStyles.staffLeft}>
@@ -584,7 +628,7 @@ export default function WorkflowPage() {
                           <span className={modalStyles.staffRole}>{staff.userRole || assignType}</span>
                         </div>
                       </div>
-                      <button 
+                      <button
                         className={modalStyles.modalAssignBtn}
                         onClick={() => handleAssignStaff(staff)}
                       >

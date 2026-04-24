@@ -69,7 +69,7 @@ export default function AddUserPage() {
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
-              <label>Full Name</label>
+              <label>Full Name <span style={{ color: "#ef4444" }}>*</span></label>
               <input
                 name="fullName"
                 type="text"
@@ -81,7 +81,7 @@ export default function AddUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Company</label>
+              <label>Company <span style={{ color: "#ef4444" }}>*</span></label>
               <input
                 name="company"
                 type="text"
@@ -93,7 +93,7 @@ export default function AddUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Email Address</label>
+              <label>Email Address <span style={{ color: "#ef4444" }}>*</span></label>
               <input
                 name="email"
                 type="email"
@@ -105,7 +105,7 @@ export default function AddUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Mobile Number</label>
+              <label>Mobile Number <span style={{ color: "#ef4444" }}>*</span></label>
               <input
                 name="mobileNumber"
                 type="text"
@@ -130,7 +130,7 @@ export default function AddUserPage() {
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
-              <label>User Role</label>
+              <label>User Role <span style={{ color: "#ef4444" }}>*</span></label>
               <div style={{ position: "relative" }}>
                 <select
                   name="userRole"
@@ -147,7 +147,7 @@ export default function AddUserPage() {
               </div>
             </div>
             <div className={styles.formGroup}>
-              <label>Status</label>
+              <label>Status <span style={{ color: "#ef4444" }}>*</span></label>
               <div style={{ position: "relative" }}>
                 <select
                   name="status"

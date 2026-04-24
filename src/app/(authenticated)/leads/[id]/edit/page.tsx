@@ -9,8 +9,10 @@ import {
   Save,
   FileText,
   MoreVertical,
+  RefreshCw,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  XCircle
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -21,6 +23,8 @@ export default function EditLeadPage() {
   const id = params.id as string;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [markingLost, setMarkingLost] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -73,6 +77,36 @@ export default function EditLeadPage() {
     }
   };
 
+  const handleConvert = async () => {
+    if (!window.confirm("Are you sure you want to convert this lead to a customer?")) return;
+
+    setConverting(true);
+    try {
+      await adminApi.convertLead(id);
+      toast.success("Lead converted to customer successfully!");
+      router.push("/customers");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to convert lead.");
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const handleLost = async () => {
+    if (!window.confirm("Are you sure you want to mark this lead as lost?")) return;
+
+    setMarkingLost(true);
+    try {
+      await adminApi.updateLeadStatus(id, "Lost Leads");
+      toast.success("Lead marked as lost successfully!");
+      router.push("/leads");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update lead status.");
+    } finally {
+      setMarkingLost(false);
+    }
+  };
+
   return (
     <div className={styles.editPage}>
       <div className={dashboardStyles.breadcrumb}>
@@ -82,8 +116,53 @@ export default function EditLeadPage() {
         <span style={{ color: "#0076ce" }}>EDIT LEAD</span>
       </div>
 
-      <div className={styles.titleArea}>
+      <div className={styles.titleArea} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 className={styles.profileTitle}>Lead Profile: {loading ? "Loading..." : formData.name}</h1>
+        <div style={{ display: "flex", gap: "1rem" }}>
+          <button
+            className={styles.convertBtn}
+            onClick={handleConvert}
+            disabled={converting || markingLost || formData.status === "Closed" || formData.status === "Lost Leads"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.6rem 1.25rem",
+              backgroundColor: (formData.status === "Closed" || formData.status === "Lost Leads") ? "#f1f5f9" : "#0076ce",
+              color: (formData.status === "Closed" || formData.status === "Lost Leads") ? "#94a3b8" : "white",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: (formData.status === "Closed" || formData.status === "Lost Leads") ? "not-allowed" : "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
+            {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />}
+            {converting ? "Converting..." : formData.status === "Closed" ? "Already Converted" : "Convert to Customer"}
+          </button>
+          <button
+            onClick={handleLost}
+            disabled={converting || markingLost || formData.status === "Closed" || formData.status === "Lost Leads"}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              padding: "0.6rem 1.25rem",
+              backgroundColor: formData.status === "Lost Leads" ? "#f1f5f9" : "#ef4444",
+              color: formData.status === "Lost Leads" ? "#94a3b8" : "white",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: (formData.status === "Lost Leads" || formData.status === "Closed") ? "not-allowed" : "pointer",
+              transition: "all 0.2s ease"
+            }}
+          >
+            {markingLost ? <Loader2 size={18} className={styles.spinner} /> : <XCircle size={18} />}
+            {markingLost ? "Updating..." : formData.status === "Lost Leads" ? "Lead Lost" : "Mark as Lost"}
+          </button>
+        </div>
       </div>
 
       {/* Lead Information */}
@@ -135,7 +214,7 @@ export default function EditLeadPage() {
             />
           </div>
           <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            <label>Office Address</label>
+            <label>Address</label>
             <input
               type="text"
               name="address"
@@ -148,84 +227,6 @@ export default function EditLeadPage() {
         </div>
       </section>
 
-      {/* Access & Permissions */}
-      <section className={styles.formSection}>
-        <h2 className={styles.sectionHeading}>Access & Permissions</h2>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label>Salesperson</label>
-            <div style={{ position: "relative" }}>
-              <select
-                name="salesPerson"
-                className={styles.formSelect}
-                value={formData.salesPerson}
-                onChange={handleChange}
-              >
-                <option value="Jay Desai">Jay Desai</option>
-                <option value="Sarah Abrrams">Sarah Abrrams</option>
-                <option value="John Doe">John Doe</option>
-              </select>
-              <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#94a3b8" }} />
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Status</label>
-            <div style={{ position: "relative" }}>
-              <select
-                name="status"
-                className={styles.formSelect}
-                value={formData.status}
-                onChange={handleChange}
-              >
-                <option value="New">New</option>
-                <option value="Active">Active</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Closed">Closed</option>
-              </select>
-              <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#94a3b8" }} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Activities (Read-only) */}
-      <section className={styles.activitiesSection}>
-        <div className={styles.iconBox}>
-          <FileText size={20} />
-        </div>
-        <table className={styles.activityTable}>
-          <thead>
-            <tr>
-              <th>Activity Type</th>
-              <th>Date</th>
-              <th>Outcome</th>
-              <th>Next Follow-up Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Call</td>
-              <td>04/07/2026</td>
-              <td>Showing Interest</td>
-              <td>04/09/2026</td>
-            </tr>
-            <tr>
-              <td>Meeting</td>
-              <td>04/10/2026</td>
-              <td style={{ maxWidth: "300px", lineHeight: "1.4", wordBreak: "break-all" }}>
-                xcxcxcxcxcxxxxxcxcxxcxcxcxcxcxcxcxccxssjsncsjdnsjcnsjcnsjcnscjcncsnccscscs
-              </td>
-              <td>04/09/2026</td>
-            </tr>
-            <tr>
-              <td>Site Visit</td>
-              <td>04/10/2026</td>
-              <td>Showing Interest</td>
-              <td>04/09/2026</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
 
       {/* Action Footer */}
       <div className={styles.actionFooter}>

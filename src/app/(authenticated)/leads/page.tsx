@@ -22,6 +22,8 @@ export default function LeadsPage() {
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<number | null>(30); // 30 days by default
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -43,13 +45,31 @@ export default function LeadsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab]);
+  }, [activeTab, dateRange]);
 
   const filteredLeads = leads.filter(lead => {
-    if (activeTab === "Active Leads") {
-      return lead.status !== "Closed";
+    // Search Filter
+    const matchesSearch = 
+      lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lead.mobileNumber?.includes(searchQuery) ||
+      lead.company?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    // Date Filter
+    if (dateRange) {
+      const createdDate = new Date(lead.createdDate || lead.createdAt);
+      const diffTime = Math.abs(new Date().getTime() - createdDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > dateRange) return false;
     }
-    return lead.status === "Closed";
+
+    // Tab Filter
+    if (activeTab === "Active Leads") {
+      return lead.status !== "Closed" && lead.status !== "Lost Leads";
+    }
+    return lead.status === "Closed" || lead.status === "Lost Leads";
   });
 
   const stats = [
@@ -57,7 +77,7 @@ export default function LeadsPage() {
     { label: "New", value: leads.filter(l => l.status === "New").length.toString() },
     { label: "Active", value: leads.filter(l => l.status === "Active" || l.status === "New").length.toString() },
     { label: "In Progress", value: leads.filter(l => l.status === "In Progress").length.toString() },
-    { label: "Closed", value: leads.filter(l => l.status === "Closed").length.toString() },
+    { label: "Lost Lead", value: leads.filter(l => l.status === "Closed" || l.status === "Lost Leads").length.toString() },
   ];
 
   // Pagination Logic
@@ -98,7 +118,7 @@ export default function LeadsPage() {
         <div className={styles.tableToolbar}>
           <div className={styles.toolbarLeft}>
             <div className={dashboardStyles.tabs}>
-              {["Active Leads", "Closed"].map((tab) => (
+              {["Active Leads", "Lost Lead"].map((tab) => (
                 <div 
                   key={tab} 
                   className={`${dashboardStyles.tab} ${activeTab === tab ? dashboardStyles.tabActive : ""}`}
@@ -108,14 +128,33 @@ export default function LeadsPage() {
                 </div>
               ))}
             </div>
-            <div className={dashboardStyles.filterBtn}>
-              <Filter size={18} /> Filters
-            </div>
           </div>
           
           <div className={styles.toolbarRight}>
-            <div className={styles.dateRangePicker}>
-              <Calendar size={18} /> Last 30 Days <ChevronLeft size={16} style={{ transform: "rotate(-90deg)" }} />
+            <div className={dashboardStyles.searchUsers}>
+              <Search size={16} color="#94a3b8" />
+              <input 
+                type="text" 
+                placeholder="Search Leads..." 
+                className={dashboardStyles.searchInputSmall} 
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+            <div 
+              className={styles.dateRangePicker} 
+              onClick={() => setDateRange(dateRange === 30 ? null : 30)}
+              style={{ 
+                cursor: "pointer", 
+                backgroundColor: dateRange === 30 ? "#e0f2fe" : "white",
+                borderColor: dateRange === 30 ? "#0076ce" : "#e2e8f0",
+                color: dateRange === 30 ? "#0076ce" : "#64748b"
+              }}
+            >
+              <Calendar size={18} /> {dateRange === 30 ? "Last 30 Days" : "All Time"} <ChevronLeft size={16} style={{ transform: "rotate(-90deg)" }} />
             </div>
           </div>
         </div>

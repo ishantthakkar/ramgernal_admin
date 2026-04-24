@@ -24,6 +24,10 @@ export default function UsersPage() {
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
   const [stats, setStats] = useState({
     total_sales_persons: 0,
     total_contractors: 0,
@@ -40,11 +44,9 @@ export default function UsersPage() {
       
       const response = await adminApi.getUserList(apiRole);
       
-      // Update Users List
       const results = response.users || response.data || (Array.isArray(response) ? response : []);
       setUsers(results);
 
-      // Update Stats from "counts" object if available
       if (response.counts) {
         setStats({
           total_sales_persons: response.counts.total_sales_persons || 0,
@@ -61,7 +63,27 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers(activeTab);
+    setCurrentPage(1); // Reset to first page when tab changes
   }, [activeTab]);
+
+  // Search and Filter Logic
+  const filteredUsers = users.filter(user => 
+    user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.mobileNumber?.includes(searchQuery)
+  );
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   const summaryStats = [
     { label: "Total Sales Persons", value: stats.total_sales_persons.toLocaleString(), icon: Users, color: "#0076ce", bg: "#e0e7ff" },
@@ -130,15 +152,21 @@ export default function UsersPage() {
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div className={styles.filterBtn}>
-              <Filter size={18} /> Filters
-            </div>
             <div className={styles.searchUsers}>
               <Search size={16} color="#94a3b8" />
-              <input type="text" placeholder="Search Users" className={styles.searchInputSmall} />
+              <input 
+                type="text" 
+                placeholder="Search Users..." 
+                className={styles.searchInputSmall} 
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
             <div style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 500 }}>
-              Showing {users.length} users
+              Showing {currentItems.length} of {filteredUsers.length} users
             </div>
           </div>
         </div>
@@ -160,16 +188,16 @@ export default function UsersPage() {
                     </div>
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : currentItems.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
-                    No users found in this category.
+                    No users found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                users.map((user, index) => (
+                currentItems.map((user, index) => (
                   <tr key={user._id || index}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
+                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
                     <td>
                       <div className={styles.userDetails}>
                         <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{user.fullName}</span>
@@ -263,12 +291,32 @@ export default function UsersPage() {
 
         <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {users.length} results
+            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} results
           </div>
           <div className={styles.pagination}>
-            <div className={styles.pageBtn}><ChevronLeft size={18} /></div>
-            <div className={`${styles.pageBtn} ${styles.pageActive}`}>1</div>
-            <div className={styles.pageBtn}><ChevronRight size={18} /></div>
+            <div 
+              className={`${styles.pageBtn} ${currentPage === 1 ? styles.disabled : ""}`} 
+              onClick={() => handlePageChange(currentPage - 1)}
+            >
+              <ChevronLeft size={18} />
+            </div>
+            
+            {[...Array(totalPages)].map((_, i) => (
+              <div 
+                key={i} 
+                className={`${styles.pageBtn} ${currentPage === i + 1 ? styles.pageActive : ""}`}
+                onClick={() => handlePageChange(i + 1)}
+              >
+                {i + 1}
+              </div>
+            ))}
+
+            <div 
+              className={`${styles.pageBtn} ${currentPage === totalPages ? styles.disabled : ""}`}
+              onClick={() => handlePageChange(currentPage + 1)}
+            >
+              <ChevronRight size={18} />
+            </div>
           </div>
         </div>
       </div>

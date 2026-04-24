@@ -42,7 +42,7 @@
   border: 1px solid #f1f5f9;
   padding: 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-  overflow: hidden;
+  /* Removed overflow: hidden to allow dropdowns to be visible */
 }
 
 .tableToolbar {
@@ -76,7 +76,7 @@
 
 .tableWrapper {
   width: 100%;
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .table {
