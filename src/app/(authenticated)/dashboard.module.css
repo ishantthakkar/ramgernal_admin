@@ -1101,3 +1101,13 @@
     grid-column: span 1;
   }
 }
+
+.noData {
+  padding: 3rem;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px dashed #e2e8f0;
+  color: #64748b;
+  font-weight: 500;
+}

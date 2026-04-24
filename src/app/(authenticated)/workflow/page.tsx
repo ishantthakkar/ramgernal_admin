@@ -219,16 +219,17 @@ export default function WorkflowPage() {
         const installations = response.installations || response.data || (Array.isArray(response) ? response : []);
         
         // Update Installation Count dynamically from API
-        const totalInst = response.count || response.total || installations.length;
+        const totalInst = response.total || response.count || installations.length;
         setCounts(prev => ({ ...prev, installations: totalInst }));
 
         const normalizedData = installations.map((inst: any) => ({
-          _id: inst._id || inst.id,
-          customerName: inst.customerName || (inst.customer?.name),
-          company: inst.company || (inst.customer?.company),
+          _id: inst.id || inst._id,
+          accountNumber: inst.accountNumber || "N/A",
+          customerName: inst.name || inst.customerName || (inst.customer?.name) || "Unknown",
+          company: inst.company || (inst.customer?.company) || "N/A",
           salesPerson: inst.salesPerson || (inst.customer?.salesPerson) || "Unassigned",
-          contractor: inst.contractor?.fullName || inst.contractor || "Unassigned",
-          projectManager: inst.projectManager?.fullName || inst.projectManager || "Unassigned",
+          contractor: inst.contractorName || inst.contractor?.fullName || inst.contractor || "Unassigned",
+          projectManager: inst.assignedTo?.fullName || inst.projectManager?.fullName || inst.projectManager || "Unassigned",
           status: inst.status || "Pending"
         }));
         setData(normalizedData);
@@ -325,11 +326,11 @@ export default function WorkflowPage() {
     }
     
     if (activeTab === "Installations") {
-      return ["USER ID", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
+      return ["SR NUMBER", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
     }
     
     if (activeTab === "Inspections") {
-      return ["USER ID", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
+      return ["SR NUMBER", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
     }
     return [];
   };
@@ -470,6 +471,7 @@ export default function WorkflowPage() {
                     ) : activeTab === "Installations" ? (
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
@@ -490,6 +492,7 @@ export default function WorkflowPage() {
                     ) : (
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.displayId || item._id}</td>
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>

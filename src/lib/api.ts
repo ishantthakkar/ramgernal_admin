@@ -89,4 +89,7 @@ export const adminApi = {
   getInstallations: () => apiRequest("/installation", {
     method: "GET",
   }),
+  getDashboardStats: () => apiRequest("/admin/dashboard/stats", {
+    method: "GET",
+  }),
 };

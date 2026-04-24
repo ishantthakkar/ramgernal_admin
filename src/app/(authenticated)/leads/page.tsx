@@ -41,6 +41,17 @@ export default function LeadsPage() {
     fetchLeads();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
+  const filteredLeads = leads.filter(lead => {
+    if (activeTab === "Active Leads") {
+      return lead.status !== "Closed";
+    }
+    return lead.status === "Closed";
+  });
+
   const stats = [
     { label: "Total", value: leads.length.toString() },
     { label: "New", value: leads.filter(l => l.status === "New").length.toString() },
@@ -50,10 +61,10 @@ export default function LeadsPage() {
   ];
 
   // Pagination Logic
-  const totalPages = Math.ceil(leads.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentLeads = leads.slice(indexOfFirstItem, indexOfLastItem);
+  const currentLeads = filteredLeads.slice(indexOfFirstItem, indexOfLastItem);
 
   const handlePageChange = (pageNum: number) => {
     if (pageNum > 0 && pageNum <= totalPages) {
@@ -132,10 +143,10 @@ export default function LeadsPage() {
                   </div>
                 </td>
               </tr>
-            ) : leads.length === 0 ? (
+            ) : filteredLeads.length === 0 ? (
               <tr>
                 <td colSpan={8} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
-                  No leads found.
+                  No {activeTab.toLowerCase()} found.
                 </td>
               </tr>
             ) : (
@@ -191,7 +202,7 @@ export default function LeadsPage() {
         {/* Pagination */}
         <div className={styles.paginationWrapper}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, leads.length)} of {leads.length} entries
+            Showing {filteredLeads.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredLeads.length)} of {filteredLeads.length} entries
           </div>
           <div className={dashboardStyles.pagination}>
             <div 

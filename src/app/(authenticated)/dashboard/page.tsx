@@ -1,6 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import styles from "../dashboard.module.css";
+import { adminApi } from "@/lib/api";
 import {
   BarChart3,
   Handshake,
@@ -10,21 +12,49 @@ import {
   Search,
   MoreVertical,
   UserPlus,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const data = await adminApi.getDashboardStats();
+        setStats(data);
+      } catch (error: any) {
+        toast.error(error.message || "Failed to fetch dashboard stats");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
+        <Loader2 className="animate-spin" size={48} color="#3b82f6" />
+      </div>
+    );
+  }
+
   const largeStats = [
     {
       label: "Total Active Leads",
-      value: "1,482",
+      value: stats?.totalActiveLeads?.toLocaleString() || "0",
       icon: BarChart3,
       iconColor: "#0076ce",
       iconBg: "#eff6ff"
     },
     {
       label: "Total Customers",
-      value: "429",
+      value: stats?.totalCustomers?.toLocaleString() || "0",
       icon: Handshake,
       iconColor: "#854d0e",
       iconBg: "#fef3c7"
@@ -32,33 +62,10 @@ export default function DashboardPage() {
   ];
 
   const smallStats = [
-    { label: "Submitted Surveys", value: "24", icon: ClipboardList, color: "#ef4444" },
-    { label: "Completed Installations", value: "18", icon: ShieldCheck, color: "#0076ce" },
-    { label: "Completed Inspections", value: "64", icon: Workflow, color: "#1e293b" },
-    { label: "Active Services", value: "12", icon: Search, color: "#1e293b" },
-  ];
-
-  const recentActivities = [
-    {
-      id: 1,
-      type: "lead",
-      title: "New Lead Created: ",
-      subject: "Andrew Hitchcock",
-      meta: "BY SARAH JENKINS • 12 MINS AGO",
-      icon: UserPlus,
-      iconColor: "#0076ce",
-      iconBg: "#eff6ff"
-    },
-    {
-      id: 2,
-      type: "survey",
-      title: "Survey Submitted: ",
-      subject: "Metro Rail Grid Phase 2",
-      meta: "BY FIELD UNIT #401 • 45 MINS AGO",
-      icon: FileText,
-      iconColor: "#b45309",
-      iconBg: "#fffbeb"
-    }
+    { label: "Submitted Surveys", value: stats?.submittedSurveys?.toLocaleString() || "0", icon: ClipboardList, color: "#ef4444" },
+    { label: "Completed Installations", value: stats?.completedInstallations?.toLocaleString() || "0", icon: ShieldCheck, color: "#0076ce" },
+    { label: "Completed Inspections", value: stats?.completedInspections?.toLocaleString() || "0", icon: Workflow, color: "#1e293b" },
+    { label: "Active Services", value: stats?.activeServices?.toLocaleString() || "0", icon: Search, color: "#1e293b" },
   ];
 
   return (
@@ -102,25 +109,53 @@ export default function DashboardPage() {
         </div>
 
         <div className={styles.activitiesContainer}>
-          {recentActivities.map((activity) => (
-            <div key={activity.id} className={styles.activityRow}>
-              <div className={styles.activityInfo}>
-                <div
-                  className={styles.activityIcon}
-                  style={{ backgroundColor: activity.iconBg, color: activity.iconColor }}
-                >
-                  <activity.icon size={20} />
-                </div>
-                <div className={styles.activityText}>
-                  <div className={styles.activityMain}>
-                    {activity.title} <span>{activity.subject}</span>
+          {stats?.activityLog && stats.activityLog.length > 0 ? (
+            stats.activityLog.map((activity: any, index: number) => {
+              // Helper to get icon and color based on recordType
+              const getLogDisplay = (type: string) => {
+                switch (type?.toLowerCase()) {
+                  case 'lead': return { icon: UserPlus, color: "#3b82f6", bg: "#eff6ff" };
+                  case 'customer': return { icon: Handshake, color: "#10b981", bg: "#ecfdf5" };
+                  case 'survey': return { icon: FileText, color: "#f59e0b", bg: "#fffbeb" };
+                  case 'assignment': return { icon: ClipboardList, color: "#8b5cf6", bg: "#f5f3ff" };
+                  default: return { icon: FileText, color: "#64748b", bg: "#f1f5f9" };
+                }
+              };
+
+              const display = getLogDisplay(activity.recordType);
+              const Icon = display.icon;
+
+              return (
+                <div key={activity._id || activity.id || index} className={styles.activityRow}>
+                  <div className={styles.activityInfo}>
+                    <div
+                      className={styles.activityIcon}
+                      style={{ backgroundColor: display.bg, color: display.color }}
+                    >
+                      <Icon size={20} />
+                    </div>
+                    <div className={styles.activityText}>
+                      <div className={styles.activityMain}>
+                        {activity.logName}: <span>{activity.recordName}</span>
+                      </div>
+                      <div className={styles.activityMeta}>
+                        BY {activity.byPersonName?.toUpperCase()} • {new Date(activity.createdAt).toLocaleDateString(undefined, {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <div className={styles.activityMeta}>{activity.meta}</div>
+                  <MoreVertical size={20} color="#94a3b8" cursor="pointer" />
                 </div>
-              </div>
-              <MoreVertical size={20} color="#94a3b8" cursor="pointer" />
-            </div>
-          ))}
+              );
+            })
+          ) : (
+            <div className={styles.noData}>No recent activities found.</div>
+          )}
         </div>
       </section>
     </div>

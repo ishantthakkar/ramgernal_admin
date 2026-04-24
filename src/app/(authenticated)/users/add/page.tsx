@@ -157,7 +157,6 @@ export default function AddUserPage() {
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
                 </select>
                 <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
               </div>

@@ -92,10 +92,10 @@ export default function LeadDetailsPage() {
         <button 
           className={styles.convertBtn} 
           onClick={handleConvert}
-          disabled={converting}
+          disabled={converting || lead.status === "Closed"}
         >
           {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />} 
-          {converting ? "Converting..." : "Convert to Customer"}
+          {converting ? "Converting..." : lead.status === "Closed" ? "Already Converted" : "Convert to Customer"}
         </button>
       </div>
 
@@ -111,24 +111,24 @@ export default function LeadDetailsPage() {
         <div className={styles.grid}>
           <div className={styles.fieldGroup}>
             <div className={styles.label}>Lead ID</div>
-            <div className={styles.value}>#{lead._id?.slice(-5).toUpperCase() || "N/A"}</div>
+            <div className={styles.value}>#{lead.id?.slice(-5).toUpperCase() || lead._id?.slice(-5).toUpperCase() || "N/A"}</div>
           </div>
           <div className={styles.fieldGroup}>
             <div className={styles.label}>Company</div>
-            <div className={styles.value}>{lead.company}</div>
+            <div className={styles.value}>{lead.company || "N/A"}</div>
           </div>
           <div className={styles.fieldGroup}>
             <div className={styles.label}>Created Date</div>
-            <div className={styles.value}>{lead.createdAt ? new Date(lead.createdAt).toLocaleDateString() : "N/A"}</div>
+            <div className={styles.value}>{lead.createdDate ? new Date(lead.createdDate).toLocaleDateString() : "N/A"}</div>
           </div>
           <div className={styles.fieldGroup}>
-            <div className={styles.label}>Last Updated</div>
-            <div className={styles.value}>{lead.updatedAt ? new Date(lead.updatedAt).toLocaleDateString() : "N/A"}</div>
+            <div className={styles.label}>Last Activity</div>
+            <div className={styles.value}>{lead.lastActivity ? new Date(lead.lastActivity).toLocaleDateString() : "N/A"}</div>
           </div>
           <div className={styles.fieldGroup}>
             <div className={styles.label}>Lead Source</div>
             <div className={styles.value} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Layers size={18} color="#3b82f6" /> Industry Trade Expo 2024
+              <Layers size={18} color="#3b82f6" /> {lead.leadSource || "Unknown"}
             </div>
           </div>
           <div className={styles.fieldGroup}>
@@ -174,7 +174,13 @@ export default function LeadDetailsPage() {
           </div>
           <div className={styles.fieldGroup} style={{ gridColumn: "span 2" }}>
             <div className={styles.label}>Address</div>
-            <div className={styles.value}>{lead.address || "No address provided"}</div>
+            <div className={styles.value}>
+              {lead.street ? `${lead.street}, ` : ""}
+              {lead.city ? `${lead.city}, ` : ""}
+              {lead.state ? `${lead.state} ` : ""}
+              {lead.zip || ""}
+              {(!lead.street && !lead.city && !lead.state && !lead.zip) && "No address provided"}
+            </div>
           </div>
         </div>
       </section>
