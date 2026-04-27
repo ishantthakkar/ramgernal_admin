@@ -18,6 +18,7 @@ import {
   Bell,
   PanelLeft,
   Wallet,
+  User,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -121,27 +122,12 @@ export default function DashboardLayout({
           </div>
 
           <div className={styles.navActions}>
-            <div className={styles.iconBtn}>
-              <Bell size={22} />
-              <span className={styles.notification}></span>
-            </div>
-            <div className={styles.iconBtn}>
-              <Settings size={22} />
-            </div>
-            <div className={styles.divider}></div>
             <div className={styles.userProfile}>
               <div className={styles.userInfo}>
                 <div className={styles.userName}>Super Admin</div>
-                {/* <div className={styles.userRole}>HEAD OF OPERATIONS</div> */}
               </div>
               <div className={styles.avatar}>
-                <Image
-                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=100&h=100&auto=format&fit=crop"
-                  alt="Admin"
-                  width={40}
-                  height={40}
-                  className={styles.avatarImg}
-                />
+                <User size={24} color="#64748b" />
               </div>
             </div>
           </div>

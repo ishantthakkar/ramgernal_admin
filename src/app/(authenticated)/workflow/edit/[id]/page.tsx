@@ -146,22 +146,14 @@ export default function WorkflowEditPage() {
           </button>
           <button 
             className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
-            onClick={() => {
-              if (isContractorAssigned) {
-                setActiveTab("installations");
-              } else {
-                toast.warning("Assign a contractor first to manage materials.");
-              }
-            }}
+            onClick={() => setActiveTab("installations")}
             style={{ 
               border: "none", 
               display: "flex", 
               alignItems: "center", 
               gap: "0.5rem",
-              opacity: isContractorAssigned ? 1 : 0.5,
-              cursor: isContractorAssigned ? "pointer" : "not-allowed"
+              cursor: "pointer"
             }}
-            title={!isContractorAssigned ? "Assign a contractor first" : ""}
           >
             <Hammer size={18} /> Installations
           </button>

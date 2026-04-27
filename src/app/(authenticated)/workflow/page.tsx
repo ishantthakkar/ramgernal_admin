@@ -232,7 +232,8 @@ export default function WorkflowPage() {
           salesPerson: inst.salesPerson || (inst.customer?.salesPerson) || "Unassigned",
           contractor: inst.contractorName || inst.contractor?.fullName || inst.contractor || "Unassigned",
           projectManager: inst.assignedTo?.fullName || inst.projectManager?.fullName || inst.projectManager || "Unassigned",
-          status: inst.contractorStatus || "-"
+          status: inst.contractorStatus || "-",
+          hasMaterials: inst.materialStatus === "completed" || (inst.material && inst.material.length > 0)
         }));
         setData(normalizedData);
 
@@ -550,7 +551,7 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.contractor}
                             </div>
-                          ) : (
+                          ) : item.hasMaterials ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -561,6 +562,8 @@ export default function WorkflowPage() {
                             >
                               <UserPlus size={14} /> Assign
                             </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontStyle: "italic" }}>Add Materials First</span>
                           )}
                         </td>
                         <td>
