@@ -27,7 +27,6 @@ export default function EditLeadPage() {
   const [markingLost, setMarkingLost] = useState(false);
 
   const [formData, setFormData] = useState({
-    id: "",
     name: "",
     company: "",
     email: "",
@@ -48,7 +47,6 @@ export default function EditLeadPage() {
         const response = await adminApi.getLeadById(id);
         const lead = response.lead || response.data || response;
         setFormData({
-          id: id,
           name: lead.name || "",
           company: lead.company || "",
           email: lead.email || "",
@@ -78,29 +76,16 @@ export default function EditLeadPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const token = localStorage.getItem("auth_token");
-    const res = await fetch(
-      "https://ramgeneral-api.onrender.com/api/leads",
-      {
-        method: "POST", // or POST depending on your API
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // replace with actual token
-        },
-        body: JSON.stringify(formData),
-      }
-    );
-
-    const data = await res.json();
-
-    if (res.ok) {
+    try {
+      // Include ID in the body as per backend requirements
+      await adminApi.updateLead({ id, ...formData });
       toast.success("Lead updated successfully!");
       router.push("/leads");
-    } else {
-      toast.error(data?.message || "Failed to update lead.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update lead.");
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   const handleConvert = async () => {
@@ -135,7 +120,6 @@ export default function EditLeadPage() {
 
   return (
     <div className={styles.editPage}>
-      <input type="hidden" name="id" value={formData.id} />
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>LEADS</span>

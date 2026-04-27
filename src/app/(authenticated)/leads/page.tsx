@@ -78,7 +78,6 @@ export default function LeadsPage() {
   const stats = [
     { label: "Total", value: leads.filter(l => l.status !== "Closed" && l.status !== "Converted To Customer").length.toString() },
     { label: "Active", value: leads.filter(l => l.status === "Active" || l.status === "New").length.toString() },
-    { label: "In Progress", value: leads.filter(l => l.status === "In Progress").length.toString() },
     { label: "Lost Lead", value: leads.filter(l => l.status === "Lost Leads").length.toString() },
   ];
 

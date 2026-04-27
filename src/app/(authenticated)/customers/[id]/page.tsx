@@ -24,7 +24,6 @@ export default function CustomerDetailsPage() {
 
   const [customer, setCustomer] = useState<any>(null);
   const [surveys, setSurveys] = useState<any[]>([]);
-  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +32,6 @@ export default function CustomerDetailsPage() {
         const response = await adminApi.getCustomerWorkflowDetails(id);
         setCustomer(response.customer || null);
         setSurveys(response.surveys || []);
-        setActivities(response.activities || []);
       } catch (err) {
         console.error("Failed to fetch customer details:", err);
       } finally {
@@ -204,43 +202,6 @@ export default function CustomerDetailsPage() {
           </table>
         </section>
       )}
-
-      {/* Activities */}
-      <section className={styles.infoSection}>
-        <div className={styles.sectionHeading}>
-          <div className={`${styles.iconBox} ${styles.iconBoxGrey}`}>
-            <FileText size={20} />
-          </div>
-          Activities
-        </div>
-
-        <table className={styles.activityTable}>
-          <thead>
-            <tr>
-              <th>Activity Type</th>
-              <th>Date</th>
-              <th>Outcome</th>
-              <th>Next Follow-up Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activities.length === 0 ? (
-              <tr>
-                <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>No activities recorded.</td>
-              </tr>
-            ) : (
-              activities.map((activity: any) => (
-                <tr key={activity._id}>
-                  <td style={{ fontWeight: 600 }}>{activity.activityType}</td>
-                  <td>{new Date(activity.date).toLocaleDateString()}</td>
-                  <td className={styles.outcomeText}>{activity.outcome}</td>
-                  <td>{activity.nextFollowUpDate ? new Date(activity.nextFollowUpDate).toLocaleDateString() : "N/A"}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </section>
     </div>
   );
 }

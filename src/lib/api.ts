@@ -65,7 +65,7 @@ export const adminApi = {
   getLeadById: (id: string) => apiRequest(`/leads/${id}`, {
     method: "GET",
   }),
-  updateLead: (leadData: any) => apiRequest("/leads", {
+  updateLead: (leadData: any) => apiRequest("/leads-create", {
     method: "POST",
     body: JSON.stringify(leadData),
   }),
@@ -83,6 +83,10 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify({ assignedTo: staffId }),
   }),
+  assignContractor: (surveyId: string, contractorId: string) => apiRequest(`/surveys/${surveyId}/assign-contractor`, {
+    method: "POST",
+    body: JSON.stringify({ contractorId }),
+  }),
   getCustomerWorkflowDetails: (id: string) => apiRequest(`/customer/${id}`, {
     method: "GET",
   }),
@@ -99,5 +103,12 @@ export const adminApi = {
   verifyCustomerSurvey: (id: string) => apiRequest(`/customer/customers/${id}/verify`, {
     method: "POST",
     body: JSON.stringify({ status: "verified" }),
+  }),
+  updateCustomerMaterials: (id: string, data: any) => apiRequest(`/customer/customers/${id}/materials`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  }),
+  getInspections: () => apiRequest("/customer/customers/inspections", {
+    method: "GET",
   }),
 };

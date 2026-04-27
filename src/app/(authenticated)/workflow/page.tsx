@@ -232,14 +232,30 @@ export default function WorkflowPage() {
           salesPerson: inst.salesPerson || (inst.customer?.salesPerson) || "Unassigned",
           contractor: inst.contractorName || inst.contractor?.fullName || inst.contractor || "Unassigned",
           projectManager: inst.assignedTo?.fullName || inst.projectManager?.fullName || inst.projectManager || "Unassigned",
-          status: inst.status || "Pending"
+          status: inst.contractorStatus || "-"
         }));
         setData(normalizedData);
 
-        // 3. Fetch Inspections (Static/Mock for now)
+        // 3. Fetch Inspections
       } else if (activeTab === "Inspections") {
-        setCounts(prev => ({ ...prev, inspections: MOCK_INSPECTIONS.length }));
-        setData(MOCK_INSPECTIONS);
+        const response = await adminApi.getInspections();
+        const customers = response.customers || response.data || [];
+        
+        // Update Inspection Count dynamically from API
+        const totalInsp = response.total || response.count || customers.length;
+        setCounts(prev => ({ ...prev, inspections: totalInsp }));
+
+        const normalizedData = customers.map((c: any) => ({
+          _id: c.id || c._id,
+          accountNumber: c.accountNumber || "N/A",
+          customerName: c.name || "Unknown",
+          company: c.company || "N/A",
+          salesPerson: c.salesPerson || "Unassigned",
+          contractor: c.contractorName || c.assignToContractor?.fullName || "Unassigned",
+          projectManager: c.assignedTo?.fullName || "Unassigned",
+          status: c.status || "-"
+        }));
+        setData(normalizedData);
       }
     } catch (err) {
       console.error("Failed to fetch workflow data:", err);
@@ -256,18 +272,20 @@ export default function WorkflowPage() {
   useEffect(() => {
     const fetchAllCounts = async () => {
       try {
-        const [Surveys, inst] = await Promise.all([
+        const [Surveys, inst, insp] = await Promise.all([
           adminApi.getCustomers(),
-          adminApi.getInstallations()
+          adminApi.getInstallations(),
+          adminApi.getInspections()
         ]);
 
         setCounts({
           Surveys: Surveys.count || Surveys.total || (Surveys.customers?.length || 0),
           installations: inst.count || inst.total || (inst.installations?.length || 0),
-          inspections: MOCK_INSPECTIONS.length
+          inspections: insp.count || insp.total || (insp.customers?.length || 0)
         });
       } catch (err) {
         console.warn("Failed to fetch initial counts:", err);
+        setCounts(prev => ({ ...prev, inspections: 0 }));
       }
     };
     fetchAllCounts();
@@ -295,22 +313,27 @@ export default function WorkflowPage() {
   };
 
   const handleAssignStaff = async (staff: any) => {
-    if (assignType !== "Project Manager") {
-      toast.info("Only Project Manager assignment is currently supported with the live API.");
-      return;
-    }
-
     try {
       setModalLoading(true);
-      const response = await adminApi.assignProjectManager(targetRecord._id, staff._id);
-      toast.success(response.message || "Assigned successfully.");
+      let response;
+      
+      if (assignType === "Project Manager") {
+        response = await adminApi.assignProjectManager(targetRecord._id, staff._id);
+      } else if (assignType === "Contractor") {
+        response = await adminApi.assignContractor(targetRecord._id, staff._id);
+      } else {
+        toast.error("Invalid assignment type.");
+        return;
+      }
+
+      toast.success(response.message || `${assignType} assigned successfully.`);
       setShowAssignModal(false);
 
       // Refresh the list to show the new assignment
       fetchWorkflowData();
     } catch (err: any) {
       console.error("Assignment error:", err);
-      toast.error(err.message || "Failed to assign Project Manager.");
+      toast.error(err.message || `Failed to assign ${assignType}.`);
     } finally {
       setModalLoading(false);
     }
@@ -356,7 +379,7 @@ export default function WorkflowPage() {
   };
 
   const getStatusStyle = (status: string) => {
-    if (!status) return { color: "#64748b", bg: "#f8fafc" };
+    if (!status || status === "-") return { color: "#94a3b8", bg: "#f1f5f9" };
     switch (status.toLowerCase()) {
       case "completed": return { color: "#94a3b8", bg: "#f1f5f9" };
       case "verified": return { color: "#3b82f6", bg: "#eff6ff" };
@@ -491,7 +514,9 @@ export default function WorkflowPage() {
                         </td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.surveyStatus).color }}></span>
+                            {item.surveyStatus !== "-" && (
+                              <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.surveyStatus).color }}></span>
+                            )}
                             <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>{item.surveyStatus || "N/A"}</span>
                           </div>
                         </td>
@@ -519,14 +544,52 @@ export default function WorkflowPage() {
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.contractor}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
+                        <td>
+                          {item.contractor && item.contractor !== "Unassigned" ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
+                              <User size={14} color="#94a3b8" />
+                              {item.contractor}
+                            </div>
+                          ) : (
+                            <button
+                              className={styles.assignBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAssignModal("Contractor", item);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                            >
+                              <UserPlus size={14} /> Assign
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          {item.projectManager && item.projectManager !== "Unassigned" ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
+                              <User size={14} color="#94a3b8" />
+                              {item.projectManager}
+                            </div>
+                          ) : (
+                            <button
+                              className={styles.assignBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAssignModal("Project Manager", item);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                            >
+                              <UserPlus size={14} /> Assign
+                            </button>
+                          )}
+                        </td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span
-                              className={styles.statusDotActive}
-                              style={{ backgroundColor: getStatusStyle(item.status).color }}
-                            ></span>
+                            {item.status !== "-" && (
+                              <span
+                                className={styles.statusDotActive}
+                                style={{ backgroundColor: getStatusStyle(item.status).color }}
+                              ></span>
+                            )}
                             <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
                               {item.status}
                             </span>
@@ -536,18 +599,56 @@ export default function WorkflowPage() {
                     ) : (
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.displayId || item._id}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.contractor}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.projectManager}</td>
+                        <td>
+                          {item.contractor && item.contractor !== "Unassigned" ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
+                              <User size={14} color="#94a3b8" />
+                              {item.contractor}
+                            </div>
+                          ) : (
+                            <button
+                              className={styles.assignBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAssignModal("Contractor", item);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                            >
+                              <UserPlus size={14} /> Assign
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          {item.projectManager && item.projectManager !== "Unassigned" ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
+                              <User size={14} color="#94a3b8" />
+                              {item.projectManager}
+                            </div>
+                          ) : (
+                            <button
+                              className={styles.assignBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAssignModal("Project Manager", item);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                            >
+                              <UserPlus size={14} /> Assign
+                            </button>
+                          )}
+                        </td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span
-                              className={styles.statusDotActive}
-                              style={{ backgroundColor: getStatusStyle(item.status).color }}
-                            ></span>
+                            {item.status !== "-" && (
+                              <span
+                                className={styles.statusDotActive}
+                                style={{ backgroundColor: getStatusStyle(item.status).color }}
+                              ></span>
+                            )}
                             <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
                               {item.status || "N/A"}
                             </span>
