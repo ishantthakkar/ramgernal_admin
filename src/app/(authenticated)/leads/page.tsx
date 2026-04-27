@@ -65,19 +65,21 @@ export default function LeadsPage() {
       if (diffDays > dateRange) return false;
     }
 
+    // Exclude Converted/Closed Leads from both tabs
+    if (lead.status === "Converted To Customer" || lead.status === "Closed") return false;
+
     // Tab Filter
     if (activeTab === "Active Leads") {
-      return lead.status !== "Closed" && lead.status !== "Lost Leads";
+      return lead.status !== "Lost Leads";
     }
-    return lead.status === "Closed" || lead.status === "Lost Leads";
+    return lead.status === "Lost Leads";
   });
 
   const stats = [
-    { label: "Total", value: leads.length.toString() },
-    { label: "New", value: leads.filter(l => l.status === "New").length.toString() },
+    { label: "Total", value: leads.filter(l => l.status !== "Closed" && l.status !== "Converted To Customer").length.toString() },
     { label: "Active", value: leads.filter(l => l.status === "Active" || l.status === "New").length.toString() },
     { label: "In Progress", value: leads.filter(l => l.status === "In Progress").length.toString() },
-    { label: "Lost Lead", value: leads.filter(l => l.status === "Closed" || l.status === "Lost Leads").length.toString() },
+    { label: "Lost Lead", value: leads.filter(l => l.status === "Lost Leads").length.toString() },
   ];
 
   // Pagination Logic

@@ -18,7 +18,9 @@ import {
   Image as ImageIcon,
   ChevronRight,
   Download,
-  Eye
+  Eye,
+  FileText,
+  Calendar
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -131,60 +133,59 @@ export default function WorkflowViewPage() {
             <table className={styles.userTable}>
               <thead>
                 <tr style={{ background: "#f8fafc" }}>
-                  <th>Area / Location</th>
-                  <th>Existing Fixture</th>
+                  <th style={{ minWidth: "150px" }}>Area</th>
+                  <th>Height</th>
+                  <th>Existing Fixture Type</th>
+                  <th>Existing Bulbs</th>
+                  <th>Existing Qty</th>
                   <th>Proposed Fixture</th>
-                  <th>Qty (E / P)</th>
+                  <th>Proposed Qty</th>
                   <th>Price / Unit</th>
                   <th>Total Price</th>
-                  <th>Status</th>
-                  <th>Images</th>
+                  <th>Note</th>
+                  <th>Images/Videos</th>
                 </tr>
               </thead>
               <tbody>
                 {surveys.map((survey: any) => (
                   <tr key={survey._id}>
                     <td style={{ fontWeight: 600, color: "#1e293b" }}>{survey.area}</td>
+                    <td style={{ color: "#64748b" }}>{survey.heightInInches || "N/A"}</td>
                     <td style={{ color: "#64748b" }}>
                       {survey.existingFixtureType === "Other" ? survey.otherFixtureType : survey.existingFixtureType}
                     </td>
+                    <td style={{ color: "#64748b" }}>{survey.existingBulbs || "N/A"}</td>
+                    <td style={{ color: "#ef4444", fontWeight: 700 }}>{survey.existingQuantity}</td>
                     <td style={{ color: "#0076ce", fontWeight: 600 }}>{survey.proposedFixture}</td>
-                    <td>
-                      <span style={{ color: "#ef4444", fontWeight: 600 }}>{survey.existingQuantity}</span>
-                      <span style={{ margin: "0 0.4rem", color: "#cbd5e1" }}>/</span>
-                      <span style={{ color: "#10b981", fontWeight: 600 }}>{survey.proposedQuantity}</span>
-                    </td>
+                    <td style={{ color: "#10b981", fontWeight: 700 }}>{survey.proposedQuantity}</td>
                     <td style={{ color: "#64748b" }}>${survey.pricePerUnit}</td>
                     <td style={{ fontWeight: 700, color: "#1e293b" }}>${survey.totalPrice}</td>
-                    <td>
-                      <span style={{ 
-                        padding: "0.25rem 0.6rem", 
-                        borderRadius: "6px", 
-                        fontSize: "0.75rem", 
-                        fontWeight: 700,
-                        background: "#f0fdf4",
-                        color: "#166534",
-                        textTransform: "uppercase"
-                      }}>
-                        {survey.status || "Completed"}
-                      </span>
+                    <td style={{
+                      maxWidth: "200px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      color: "#64748b",
+                      fontSize: "0.8rem"
+                    }} title={survey.note}>
+                      {survey.note || "N/A"}
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                         {survey.images && survey.images.length > 0 ? (
-                          <button 
+                          <button
                             className={modalStyles.viewImgBtn}
                             onClick={() => {
                               setSelectedImages(survey.images);
                               setActiveArea(survey.area);
                             }}
                           >
-                            <Eye size={14} /> View Img
+                            <Eye size={14} /> View
                             <span style={{ opacity: 0.7, fontWeight: 500 }}>({survey.images.length})</span>
                           </button>
                         ) : (
                           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600 }}>
-                            <ImageIcon size={14} /> No Img
+                            <ImageIcon size={14} /> None
                           </div>
                         )}
                       </div>
@@ -202,6 +203,91 @@ export default function WorkflowViewPage() {
       </div>
 
 
+
+
+      {/* Notes Section */}
+      <div className={styles.formSection} style={{ marginTop: "2rem" }}>
+        <div className={styles.sectionTitle}>
+          <FileText size={22} color="#f59e0b" /> Internal Notes
+        </div>
+        <p className={styles.sectionSubtitle}>System and manual notes regarding this customer.</p>
+
+        {customer.notes && customer.notes.length > 0 ? (
+          <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+            <table className={styles.userTable}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ width: "200px" }}>Date</th>
+                  <th>Note Content</th>
+                </tr>
+              </thead>
+              <tbody>
+                {customer.notes.map((note: any) => (
+                  <tr key={note._id}>
+                    <td style={{ color: "#64748b", fontWeight: 600 }}>{new Date(note.createdAt).toLocaleString()}</td>
+                    <td style={{ color: "#1e293b", fontWeight: 500 }}>{note.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: "2rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
+            <p style={{ color: "#94a3b8", fontWeight: 500 }}>No notes found.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Activities Section */}
+      <div className={styles.formSection} style={{ marginTop: "2rem" }}>
+        <div className={styles.sectionTitle}>
+          <Calendar size={22} color="#8b5cf6" /> Recent Activities
+        </div>
+        <p className={styles.sectionSubtitle}>Call logs, meetings, and follow-ups.</p>
+
+        {data.activities && data.activities.length > 0 ? (
+          <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+            <table className={styles.userTable}>
+              <thead>
+                <tr style={{ background: "#f8fafc" }}>
+                  <th style={{ width: "150px" }}>Date</th>
+                  <th style={{ width: "150px" }}>Type</th>
+                  <th>Outcome</th>
+                  <th style={{ width: "180px" }}>Next Follow-up</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.activities.map((activity: any) => (
+                  <tr key={activity._id}>
+                    <td style={{ color: "#64748b", fontWeight: 600 }}>{new Date(activity.date).toLocaleDateString()}</td>
+                    <td>
+                      <span style={{
+                        padding: "0.25rem 0.6rem",
+                        borderRadius: "6px",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        background: "#eff6ff",
+                        color: "#1d4ed8",
+                        textTransform: "uppercase"
+                      }}>
+                        {activity.activityType}
+                      </span>
+                    </td>
+                    <td style={{ color: "#1e293b", fontWeight: 500 }}>{activity.outcome}</td>
+                    <td style={{ color: "#64748b" }}>
+                      {activity.nextFollowUpDate ? new Date(activity.nextFollowUpDate).toLocaleDateString() : "N/A"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", padding: "2rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
+            <p style={{ color: "#94a3b8", fontWeight: 500 }}>No activities recorded.</p>
+          </div>
+        )}
+      </div>
       <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
         <button
           type="button"
@@ -212,7 +298,6 @@ export default function WorkflowViewPage() {
           <X size={20} /> Close
         </button>
       </div>
-
       {/* Image Modal */}
       {selectedImages && (
         <div className={modalStyles.imgModalOverlay} onClick={() => setSelectedImages(null)}>
@@ -233,11 +318,11 @@ export default function WorkflowViewPage() {
                 {selectedImages.map((img, idx) => (
                   <div key={idx} className={modalStyles.modalImageWrapper}>
                     <img src={img} alt={`Survey ${idx}`} />
-                    <a 
-                      href={img} 
-                      download 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href={img}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className={modalStyles.downloadIconOverlay}
                       title="Download Image"
                     >

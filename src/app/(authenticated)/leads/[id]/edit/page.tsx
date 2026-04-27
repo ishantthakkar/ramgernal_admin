@@ -27,13 +27,19 @@ export default function EditLeadPage() {
   const [markingLost, setMarkingLost] = useState(false);
 
   const [formData, setFormData] = useState({
+    id: "",
     name: "",
     company: "",
     email: "",
     mobileNumber: "",
     salesPerson: "",
     status: "",
-    address: ""
+    street: "",
+    city: "",
+    state: "",
+    zip: "",
+    leadSource: "",
+    notes: ""
   });
 
   useEffect(() => {
@@ -42,13 +48,19 @@ export default function EditLeadPage() {
         const response = await adminApi.getLeadById(id);
         const lead = response.lead || response.data || response;
         setFormData({
+          id: id,
           name: lead.name || "",
           company: lead.company || "",
           email: lead.email || "",
           mobileNumber: lead.mobileNumber || "",
           salesPerson: lead.salesPerson || "",
           status: lead.status || "",
-          address: lead.address || ""
+          street: lead.street || "",
+          city: lead.city || "",
+          state: lead.state || "",
+          zip: lead.zip || "",
+          leadSource: lead.leadSource || "",
+          notes: lead.notes || ""
         });
       } catch (err) {
         console.error("Failed to fetch lead:", err);
@@ -59,22 +71,36 @@ export default function EditLeadPage() {
     fetchLead();
   }, [id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSave = async () => {
     setSaving(true);
-    try {
-      await adminApi.updateLead(id, formData);
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch(
+      "https://ramgeneral-api.onrender.com/api/leads",
+      {
+        method: "POST", // or POST depending on your API
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // replace with actual token
+        },
+        body: JSON.stringify(formData),
+      }
+    );
+
+    const data = await res.json();
+
+    if (res.ok) {
       toast.success("Lead updated successfully!");
       router.push("/leads");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update lead.");
-    } finally {
-      setSaving(false);
+    } else {
+      toast.error(data?.message || "Failed to update lead.");
     }
+
+    setSaving(false);
   };
 
   const handleConvert = async () => {
@@ -109,6 +135,7 @@ export default function EditLeadPage() {
 
   return (
     <div className={styles.editPage}>
+      <input type="hidden" name="id" value={formData.id} />
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>LEADS</span>
@@ -213,20 +240,96 @@ export default function EditLeadPage() {
               onChange={handleChange}
             />
           </div>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            <label>Address</label>
+          <div className={styles.formGroup}>
+            <label>Lead Source</label>
             <input
               type="text"
-              name="address"
+              name="leadSource"
               className={styles.formInput}
-              placeholder="e.g. 8802 Grid Lane, Sector 7, Chicago"
-              value={formData.address}
+              placeholder="e.g. Website"
+              value={formData.leadSource}
+              onChange={handleChange}
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Sales Person</label>
+            <input
+              type="text"
+              name="salesPerson"
+              className={styles.formInput}
+              placeholder="Assign Salesperson"
+              value={formData.salesPerson}
               onChange={handleChange}
             />
           </div>
         </div>
       </section>
 
+      {/* Address Details */}
+      <section className={styles.formSection}>
+        <h2 className={styles.sectionHeading}>Address Details</h2>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            <label>Street</label>
+            <input
+              type="text"
+              name="street"
+              className={styles.formInput}
+              placeholder="e.g. 123 Industrial Way"
+              value={formData.street}
+              onChange={handleChange}
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label>City</label>
+            <input
+              type="text"
+              name="city"
+              className={styles.formInput}
+              placeholder="Newport"
+              value={formData.city}
+              onChange={handleChange}
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label>State</label>
+            <input
+              type="text"
+              name="state"
+              className={styles.formInput}
+              placeholder="California"
+              value={formData.state}
+              onChange={handleChange}
+            />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Zip Code</label>
+            <input
+              type="text"
+              name="zip"
+              className={styles.formInput}
+              placeholder="92660"
+              value={formData.zip}
+              onChange={handleChange}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Additional Notes */}
+      <section className={styles.formSection}>
+        <h2 className={styles.sectionHeading}>Internal Notes</h2>
+        <div className={styles.formGroup}>
+          <textarea
+            name="notes"
+            className={styles.formInput}
+            style={{ height: "120px", resize: "none", paddingTop: "0.75rem" }}
+            placeholder="Add internal notes about this lead..."
+            value={formData.notes}
+            onChange={handleChange}
+          />
+        </div>
+      </section>
 
       {/* Action Footer */}
       <div className={styles.actionFooter}>
@@ -241,7 +344,7 @@ export default function EditLeadPage() {
           onClick={handleSave}
           disabled={saving}
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
     </div>

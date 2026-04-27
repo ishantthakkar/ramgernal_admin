@@ -123,14 +123,18 @@ export default function WorkflowEditPage() {
           <table className={styles.userTable}>
             <thead>
               <tr style={{ background: "#f8fafc" }}>
-                <th style={{ width: "20%" }}>Area / Location</th>
-                <th style={{ width: "20%" }}>Existing Fixture</th>
-                <th style={{ width: "20%" }}>Proposed Fixture</th>
-                <th style={{ width: "10%" }}>Existing Qty</th>
-                <th style={{ width: "10%" }}>Proposed Qty</th>
-                <th style={{ width: "10%" }}>Price/Unit</th>
-                <th style={{ width: "12%" }}>Status</th>
-                <th style={{ width: "6%" }}></th>
+                <th style={{ minWidth: "120px" }}>Area</th>
+                <th style={{ minWidth: "80px" }}>Height</th>
+                <th style={{ minWidth: "150px" }}>Existing Fixture Type</th>
+                <th style={{ minWidth: "120px" }}>Existing Bulbs</th>
+                <th style={{ minWidth: "80px" }}>Existing Qty</th>
+                <th style={{ minWidth: "150px" }}>Proposed Fixture</th>
+                <th style={{ minWidth: "80px" }}>Proposed Qty</th>
+                <th style={{ minWidth: "100px" }}>Price / Unit</th>
+                <th style={{ minWidth: "100px" }}>Total Price</th>
+                <th style={{ minWidth: "150px" }}>Note</th>
+                <th style={{ minWidth: "100px" }}>Images</th>
+                <th style={{ width: "40px" }}></th>
               </tr>
             </thead>
             <tbody>
@@ -142,7 +146,17 @@ export default function WorkflowEditPage() {
                       className={styles.formInput} 
                       value={survey.area || ""} 
                       onChange={(e) => handleInputChange(index, "area", e.target.value)}
-                      style={{ padding: "0.5rem", fontSize: "0.9rem" }}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem" }}
+                    />
+                  </td>
+                  <td>
+                    <input 
+                      type="text" 
+                      className={styles.formInput} 
+                      value={survey.heightInInches || ""} 
+                      onChange={(e) => handleInputChange(index, "heightInInches", e.target.value)}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem" }}
+                      placeholder="in"
                     />
                   </td>
                   <td>
@@ -151,16 +165,16 @@ export default function WorkflowEditPage() {
                       className={styles.formInput} 
                       value={survey.existingFixtureType || ""} 
                       onChange={(e) => handleInputChange(index, "existingFixtureType", e.target.value)}
-                      style={{ padding: "0.5rem", fontSize: "0.9rem" }}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                     />
                   </td>
                   <td>
                     <input 
                       type="text" 
                       className={styles.formInput} 
-                      value={survey.proposedFixture || ""} 
-                      onChange={(e) => handleInputChange(index, "proposedFixture", e.target.value)}
-                      style={{ padding: "0.5rem", fontSize: "0.9rem", color: "#0076ce", fontWeight: 600 }}
+                      value={survey.existingBulbs || ""} 
+                      onChange={(e) => handleInputChange(index, "existingBulbs", e.target.value)}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                     />
                   </td>
                   <td>
@@ -169,7 +183,16 @@ export default function WorkflowEditPage() {
                       className={styles.formInput} 
                       value={survey.existingQuantity || 0} 
                       onChange={(e) => handleInputChange(index, "existingQuantity", e.target.value)}
-                      style={{ padding: "0.5rem", fontSize: "0.9rem" }}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem" }}
+                    />
+                  </td>
+                  <td>
+                    <input 
+                      type="text" 
+                      className={styles.formInput} 
+                      value={survey.proposedFixture || ""} 
+                      onChange={(e) => handleInputChange(index, "proposedFixture", e.target.value)}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem", color: "#0076ce", fontWeight: 600 }}
                     />
                   </td>
                   <td>
@@ -178,7 +201,7 @@ export default function WorkflowEditPage() {
                       className={styles.formInput} 
                       value={survey.proposedQuantity || 0} 
                       onChange={(e) => handleInputChange(index, "proposedQuantity", e.target.value)}
-                      style={{ padding: "0.5rem", fontSize: "0.9rem" }}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                     />
                   </td>
                   <td>
@@ -187,21 +210,30 @@ export default function WorkflowEditPage() {
                       className={styles.formInput} 
                       value={survey.pricePerUnit || ""} 
                       onChange={(e) => handleInputChange(index, "pricePerUnit", e.target.value)}
-                      style={{ padding: "0.5rem", fontSize: "0.9rem" }}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                     />
                   </td>
                   <td>
-                    <select
-                      className={styles.formInput}
-                      value={survey.status || "Completed"}
-                      onChange={(e) => handleInputChange(index, "status", e.target.value)}
-                      style={{ padding: "0.4rem", fontSize: "0.8rem", fontWeight: 600 }}
-                    >
-                      <option value="Completed">Completed</option>
-                      <option value="Verified">Verified</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Pending">Pending</option>
-                    </select>
+                    <input 
+                      type="text" 
+                      className={styles.formInput} 
+                      value={survey.totalPrice || ""} 
+                      onChange={(e) => handleInputChange(index, "totalPrice", e.target.value)}
+                      style={{ padding: "0.4rem", fontSize: "0.85rem", fontWeight: 700 }}
+                    />
+                  </td>
+                  <td>
+                    <textarea 
+                      className={styles.formInput} 
+                      value={survey.note || ""} 
+                      onChange={(e) => handleInputChange(index, "note", e.target.value)}
+                      style={{ padding: "0.4rem", fontSize: "0.8rem", height: "35px", resize: "none" }}
+                    />
+                  </td>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600 }}>
+                      <ImageIcon size={14} /> {survey.images?.length || 0}
+                    </div>
                   </td>
                   <td>
                     <button 
@@ -209,16 +241,16 @@ export default function WorkflowEditPage() {
                         const updated = surveys.filter((_, i) => i !== index);
                         setSurveys(updated);
                       }}
-                      style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}
+                      style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center" }}
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>
               ))}
               {surveys.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>
+                  <td colSpan={12} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>
                     No survey records found.
                   </td>
                 </tr>

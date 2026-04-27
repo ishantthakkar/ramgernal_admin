@@ -150,15 +150,11 @@ export default function LeadDetailsPage() {
 
         <div className={styles.grid}>
           <div className={styles.fieldGroup}>
-            <div className={styles.label}>Lead ID</div>
-            <div className={styles.value}>#{lead.id?.slice(-5).toUpperCase() || lead._id?.slice(-5).toUpperCase() || "N/A"}</div>
-          </div>
-          <div className={styles.fieldGroup}>
             <div className={styles.label}>Company</div>
             <div className={styles.value}>{lead.company || "N/A"}</div>
           </div>
           <div className={styles.fieldGroup}>
-            <div className={styles.label}>Created Date</div>
+            <div className={styles.label}>Date</div>
             <div className={styles.value}>{lead.createdDate ? new Date(lead.createdDate).toLocaleDateString() : "N/A"}</div>
           </div>
           <div className={styles.fieldGroup}>

@@ -65,8 +65,8 @@ export const adminApi = {
   getLeadById: (id: string) => apiRequest(`/leads/${id}`, {
     method: "GET",
   }),
-  updateLead: (id: string, leadData: any) => apiRequest(`/leads/${id}`, {
-    method: "PUT",
+  updateLead: (leadData: any) => apiRequest("/leads", {
+    method: "POST",
     body: JSON.stringify(leadData),
   }),
   convertLead: (id: string) => apiRequest(`/leads/${id}/convert`, {
