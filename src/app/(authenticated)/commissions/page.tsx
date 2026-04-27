@@ -162,7 +162,7 @@ export default function CommissionsPage() {
           <table className={styles.userTable}>
             <thead>
               <tr>
-                <th>Sr number</th>
+                <th>S.No</th>
                 <th>Customer Name</th>
                 <th>Company Name</th>
                 <th>Survey Commission</th>

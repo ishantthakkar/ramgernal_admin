@@ -1,258 +1,138 @@
-.container {
-  padding: 0;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.breadcrumb {
+.imgModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
 }
 
-.header {
+.imgModalContent {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+.imgModalHeader {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #f1f5f9;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
 }
 
-.titleArea {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.title {
-  font-size: 1.75rem;
+.imgModalHeader h3 {
+  margin: 0;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #1e293b;
-  font-family: var(--font-outfit), sans-serif;
 }
 
-.idBadge {
-  font-family: monospace;
+.closeBtn {
   background: #f1f5f9;
-  color: #64748b;
-  padding: 0.2rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.editBtn {
-  background: #0076ce;
-  color: #ffffff;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  border: none;
+  justify-content: center;
+  color: #64748b;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.editBtn:hover {
-  background: #005fa8;
-  transform: translateY(-1px);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.card {
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #f1f5f9;
-  padding: 1.5rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.02);
-}
-
-.cardHeader {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 1.5rem;
-}
-
-.cardTitle {
-  font-size: 1.1rem;
-  font-weight: 700;
+.closeBtn:hover {
+  background: #e2e8f0;
   color: #1e293b;
 }
 
-.infoList {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+.imgModalBody {
+  padding: 2rem;
+  overflow-y: auto;
 }
 
-.infoItem {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.infoLabel {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.infoValue {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #334155;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.statusBadge {
-  padding: 0.4rem 0.8rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.tableSection {
-  margin-top: 2rem;
-}
-
-.tableWrapper {
-  overflow-x: auto;
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.02);
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.table th {
-  text-align: left;
-  padding: 1rem 1.25rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  border-bottom: 1px solid #f1f5f9;
-  background: #f8fafc;
-}
-
-.table td {
-  padding: 1.25rem;
-  font-size: 0.85rem;
-  color: #334155;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.imageGrid {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.imageThumb {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
-  object-fit: cover;
-  cursor: pointer;
-  border: 1px solid #e2e8f0;
-}
-
-.notesTimeline {
-  display: flex;
-  flex-direction: column;
+.modalImageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1.5rem;
 }
 
-.noteItem {
+.modalImageWrapper {
   position: relative;
-  padding-left: 1.5rem;
-  border-left: 2px solid #e2e8f0;
-}
-
-.noteItem::before {
-  content: "";
-  position: absolute;
-  left: -5px;
-  top: 0;
-  width: 8px;
-  height: 8px;
-  background: #0076ce;
-  border-radius: 50%;
-}
-
-.noteTime {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #94a3b8;
-  margin-bottom: 0.25rem;
-}
-
-.noteText {
-  font-size: 0.9rem;
-  color: #334155;
-  line-height: 1.5;
-}
-
-.commissionGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.commissionCard {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  aspect-ratio: 4/3;
   border-radius: 12px;
-  padding: 1rem;
+  overflow: hidden;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.commAmount {
-  font-size: 1.25rem;
+.modalImageWrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.modalImageWrapper:hover img {
+  transform: scale(1.05);
+}
+
+.downloadIconOverlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px;
+  border-radius: 50%;
+  color: #0076ce;
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.modalImageWrapper:hover .downloadIconOverlay {
+  opacity: 1;
+}
+
+.viewImgBtn {
+  background: #f1f5f9;
+  color: #0076ce;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: #10b981;
-  margin: 0.5rem 0;
-}
-
-.commMeta {
-  font-size: 0.8rem;
-  color: #64748b;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+  transition: all 0.2s;
 }
 
-@media (max-width: 1024px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
+.viewImgBtn:hover {
+  background: #0076ce;
+  color: #ffffff;
+}
+
+.emptyImages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  color: #94a3b8;
+  gap: 1rem;
 }

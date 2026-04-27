@@ -121,138 +121,150 @@ export default function EditCustomerPage() {
         <h1 className={styles.profileTitle}>Edit Customer: {formData.name}</h1>
       </div>
 
-      {/* Customer Information */}
-      <section className={styles.formSection}>
-        <h2 className={styles.sectionHeading}>Customer Information</h2>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label>Full Name</label>
-            <input
-              type="text"
-              name="name"
-              className={styles.formInput}
-              placeholder="e.g. Marcus Aurelius"
-              value={formData.name}
-              onChange={handleChange}
-            />
+      <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+        {/* Customer Information */}
+        <section className={styles.formSection}>
+          <h2 className={styles.sectionHeading}>Customer Information</h2>
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup}>
+              <label>Full Name <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="name"
+                required
+                className={styles.formInput}
+                placeholder="e.g. Marcus Aurelius"
+                value={formData.name}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Company <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="company"
+                required
+                className={styles.formInput}
+                placeholder="Industrial Corp Ltd."
+                value={formData.company}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Email Address <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="email"
+                name="email"
+                required
+                className={styles.formInput}
+                placeholder="m.aurelius@voltcore.com"
+                value={formData.email}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Mobile Number <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="mobileNumber"
+                required
+                className={styles.formInput}
+                placeholder="+1 (555) 000-0000"
+                value={formData.mobileNumber}
+                onChange={handleChange}
+              />
+            </div>
           </div>
-          <div className={styles.formGroup}>
-            <label>Company</label>
-            <input
-              type="text"
-              name="company"
-              className={styles.formInput}
-              placeholder="Industrial Corp Ltd."
-              value={formData.company}
-              onChange={handleChange}
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Email Address</label>
-            <input
-              type="email"
-              name="email"
-              className={styles.formInput}
-              placeholder="m.aurelius@voltcore.com"
-              value={formData.email}
-              onChange={handleChange}
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Mobile Number</label>
-            <input
-              type="text"
-              name="mobileNumber"
-              className={styles.formInput}
-              placeholder="+1 (555) 000-0000"
-              value={formData.mobileNumber}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Location Details */}
-      <section className={styles.formSection}>
-        <h2 className={styles.sectionHeading}>Location Details</h2>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            <label>Street Address</label>
-            <input
-              type="text"
-              name="address.street"
-              className={styles.formInput}
-              placeholder="456 Enterprise Way"
-              value={formData.address.street}
-              onChange={handleChange}
-            />
+        {/* Location Details */}
+        <section className={styles.formSection}>
+          <h2 className={styles.sectionHeading}>Location Details</h2>
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+              <label>Street Address <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="address.street"
+                required
+                className={styles.formInput}
+                placeholder="456 Enterprise Way"
+                value={formData.address.street}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>City <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="address.city"
+                required
+                className={styles.formInput}
+                placeholder="Industrial Park"
+                value={formData.address.city}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>State <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="address.state"
+                required
+                className={styles.formInput}
+                placeholder="California"
+                value={formData.address.state}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Zip Code <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="address.zip"
+                required
+                className={styles.formInput}
+                placeholder="90001"
+                value={formData.address.zip}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Lead Source <span className={styles.requiredStar}>*</span></label>
+              <input
+                type="text"
+                name="leadSource"
+                required
+                className={styles.formInput}
+                placeholder="e.g. Website"
+                value={formData.leadSource}
+                onChange={handleChange}
+              />
+            </div>
           </div>
-          <div className={styles.formGroup}>
-            <label>City</label>
-            <input
-              type="text"
-              name="address.city"
-              className={styles.formInput}
-              placeholder="Industrial Park"
-              value={formData.address.city}
-              onChange={handleChange}
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>State</label>
-            <input
-              type="text"
-              name="address.state"
-              className={styles.formInput}
-              placeholder="California"
-              value={formData.address.state}
-              onChange={handleChange}
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Zip Code</label>
-            <input
-              type="text"
-              name="address.zip"
-              className={styles.formInput}
-              placeholder="90001"
-              value={formData.address.zip}
-              onChange={handleChange}
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Lead Source</label>
-            <input
-              type="text"
-              name="leadSource"
-              className={styles.formInput}
-              placeholder="e.g. Website"
-              value={formData.leadSource}
-              onChange={handleChange}
-            />
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Action Footer */}
-      <div className={styles.actionFooter}>
-        <button
-          className={styles.cancelBtn}
-          onClick={() => router.push(`/customers/${id}`)}
-          disabled={saving}
-        >
-          <X size={18} /> Cancel
-        </button>
-        <button
-          className={styles.saveBtn}
-          onClick={handleSave}
-          disabled={saving}
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-        >
-          {saving ? <Loader2 size={18} className={dashboardStyles.spinner} /> : <Save size={18} />}
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
+        {/* Action Footer */}
+        <div className={styles.actionFooter}>
+          <button
+            type="button"
+            className={styles.cancelBtn}
+            onClick={() => router.push(`/customers/${id}`)}
+            disabled={saving}
+          >
+            <X size={18} /> Cancel
+          </button>
+          <button
+            type="submit"
+            className={styles.saveBtn}
+            disabled={saving}
+            style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+          >
+            {saving ? <Loader2 size={18} className={dashboardStyles.spinner} /> : <Save size={18} />}
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

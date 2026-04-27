@@ -342,15 +342,15 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["sr number", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "VERIFY", "ACTIONS"];
+      return ["S.No", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "VERIFY", "ACTIONS"];
     }
 
     if (activeTab === "Installations") {
-      return ["SR NUMBER", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
+      return ["S.No", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
     }
 
     if (activeTab === "Inspections") {
-      return ["SR NUMBER", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
+      return ["S.No", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
     }
     return [];
   };
@@ -371,7 +371,7 @@ export default function WorkflowPage() {
     }
   };
 
-  const filteredData = data.filter(item => 
+  const filteredData = data.filter(item =>
     item.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.salesPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -420,10 +420,10 @@ export default function WorkflowPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
             <div className={styles.searchUsers}>
               <SearchIcon size={16} color="#94a3b8" />
-              <input 
-                type="text" 
-                placeholder={`Search ${activeTab}...`} 
-                className={styles.searchInputSmall} 
+              <input
+                type="text"
+                placeholder={`Search ${activeTab}...`}
+                className={styles.searchInputSmall}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -499,7 +499,7 @@ export default function WorkflowPage() {
                           {item.verifyStatus === "verified" ? (
                             <span style={{ color: "#10b981", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Verified</span>
                           ) : (
-                            <button 
+                            <button
                               className={styles.assignBtn}
                               onClick={(e) => {
                                 e.stopPropagation();

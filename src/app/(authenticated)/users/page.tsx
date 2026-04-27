@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import styles from "../dashboard.module.css";
-import { 
-  Plus, 
-  Users, 
-  Handshake, 
-  Workflow, 
-  Filter, 
-  MoreVertical, 
-  ChevronLeft, 
+import {
+  Plus,
+  Users,
+  Handshake,
+  Workflow,
+  Filter,
+  MoreVertical,
+  ChevronLeft,
   ChevronRight,
   Search,
   Loader2
@@ -27,7 +27,7 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  
+
   const [stats, setStats] = useState({
     total_sales_persons: 0,
     total_contractors: 0,
@@ -41,9 +41,9 @@ export default function UsersPage() {
       if (role === "Sales Person") apiRole = "sales_person";
       else if (role === "Contractors") apiRole = "contractor";
       else if (role === "Project Manager") apiRole = "project_manager";
-      
+
       const response = await adminApi.getUserList(apiRole);
-      
+
       const results = response.users || response.data || (Array.isArray(response) ? response : []);
       setUsers(results);
 
@@ -67,7 +67,7 @@ export default function UsersPage() {
   }, [activeTab]);
 
   // Search and Filter Logic
-  const filteredUsers = users.filter(user => 
+  const filteredUsers = users.filter(user =>
     user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.mobileNumber?.includes(searchQuery)
@@ -92,9 +92,9 @@ export default function UsersPage() {
   ];
 
   const getHeaders = () => {
-    const commonPrefix = ["Sr Number", "Name"];
+    const commonPrefix = ["S.No", "Name"];
     const commonSuffix = ["Status", "Actions"];
-    
+
     if (activeTab === "All Users") {
       return [...commonPrefix, "Role", "Mobile Number", "Email", "Status", "Actions"];
     }
@@ -126,8 +126,8 @@ export default function UsersPage() {
       <div className={styles.userStatsGrid}>
         {summaryStats.map((stat) => (
           <div key={stat.label} className={styles.userStatCard}>
-            <div 
-              className={styles.userStatIcon} 
+            <div
+              className={styles.userStatIcon}
               style={{ backgroundColor: stat.bg, color: stat.color }}
             >
               <stat.icon size={22} />
@@ -142,8 +142,8 @@ export default function UsersPage() {
         <div className={styles.tableHeader}>
           <div className={styles.tabs}>
             {["All Users", "Sales Person", "Contractors", "Project Manager"].map((tab) => (
-              <div 
-                key={tab} 
+              <div
+                key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
                 onClick={() => setActiveTab(tab)}
               >
@@ -154,10 +154,10 @@ export default function UsersPage() {
           <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
             <div className={styles.searchUsers}>
               <Search size={16} color="#94a3b8" />
-              <input 
-                type="text" 
-                placeholder="Search Users..." 
-                className={styles.searchInputSmall} 
+              <input
+                type="text"
+                placeholder="Search Users..."
+                className={styles.searchInputSmall}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -273,7 +273,7 @@ export default function UsersPage() {
                       }}>
                         <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
                       </div>
-                      
+
                       {openActionId === user._id && (
                         <div className={styles.actionDropdown}>
                           <div className={styles.dropdownItem} onClick={() => router.push(`/users/edit/${user._id}`)}>Edit</div>
@@ -294,16 +294,16 @@ export default function UsersPage() {
             Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} results
           </div>
           <div className={styles.pagination}>
-            <div 
-              className={`${styles.pageBtn} ${currentPage === 1 ? styles.disabled : ""}`} 
+            <div
+              className={`${styles.pageBtn} ${currentPage === 1 ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage - 1)}
             >
               <ChevronLeft size={18} />
             </div>
-            
+
             {[...Array(totalPages)].map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className={`${styles.pageBtn} ${currentPage === i + 1 ? styles.pageActive : ""}`}
                 onClick={() => handlePageChange(i + 1)}
               >
@@ -311,7 +311,7 @@ export default function UsersPage() {
               </div>
             ))}
 
-            <div 
+            <div
               className={`${styles.pageBtn} ${currentPage === totalPages ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage + 1)}
             >

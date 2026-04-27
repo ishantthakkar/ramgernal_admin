@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
+import modalStyles from "./workflow-details.module.css";
 import {
   User,
   ShieldCheck,
@@ -16,7 +17,8 @@ import {
   MapPin,
   Image as ImageIcon,
   ChevronRight,
-  Download
+  Download,
+  Eye
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -28,6 +30,8 @@ export default function WorkflowViewPage() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
+  const [activeArea, setActiveArea] = useState<string>("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -168,41 +172,20 @@ export default function WorkflowViewPage() {
                     <td>
                       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                         {survey.images && survey.images.length > 0 ? (
-                          survey.images.slice(0, 1).map((img: string, idx: number) => (
-                            <div key={idx} style={{ position: "relative" }}>
-                              <div style={{ width: "45px", height: "45px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                                <img src={img} alt="Survey" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                              </div>
-                              <a 
-                                href={img} 
-                                download 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                style={{ 
-                                  position: "absolute", 
-                                  bottom: "-4px", 
-                                  right: "-4px", 
-                                  background: "#ffffff", 
-                                  borderRadius: "50%", 
-                                  padding: "4px",
-                                  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                                  display: "flex",
-                                  color: "#0076ce"
-                                }}
-                              >
-                                <Download size={12} />
-                              </a>
-                            </div>
-                          ))
+                          <button 
+                            className={modalStyles.viewImgBtn}
+                            onClick={() => {
+                              setSelectedImages(survey.images);
+                              setActiveArea(survey.area);
+                            }}
+                          >
+                            <Eye size={14} /> View Img
+                            <span style={{ opacity: 0.7, fontWeight: 500 }}>({survey.images.length})</span>
+                          </button>
                         ) : (
-                          <div style={{ width: "45px", height: "45px", borderRadius: "8px", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <ImageIcon size={18} color="#cbd5e1" />
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600 }}>
+                            <ImageIcon size={14} /> No Img
                           </div>
-                        )}
-                        {survey.images && survey.images.length > 1 && (
-                          <span style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 600 }}>
-                            +{survey.images.length - 1} photos
-                          </span>
                         )}
                       </div>
                     </td>
@@ -229,6 +212,44 @@ export default function WorkflowViewPage() {
           <X size={20} /> Close
         </button>
       </div>
+
+      {/* Image Modal */}
+      {selectedImages && (
+        <div className={modalStyles.imgModalOverlay} onClick={() => setSelectedImages(null)}>
+          <div className={modalStyles.imgModalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={modalStyles.imgModalHeader}>
+              <div>
+                <h3>Survey Images</h3>
+                <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
+                  Area: <span style={{ color: "#1e293b", fontWeight: 700 }}>{activeArea}</span>
+                </p>
+              </div>
+              <button className={modalStyles.closeBtn} onClick={() => setSelectedImages(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className={modalStyles.imgModalBody}>
+              <div className={modalStyles.modalImageGrid}>
+                {selectedImages.map((img, idx) => (
+                  <div key={idx} className={modalStyles.modalImageWrapper}>
+                    <img src={img} alt={`Survey ${idx}`} />
+                    <a 
+                      href={img} 
+                      download 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className={modalStyles.downloadIconOverlay}
+                      title="Download Image"
+                    >
+                      <Download size={18} />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

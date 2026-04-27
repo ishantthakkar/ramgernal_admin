@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import styles from "./customers.module.css";
-import { 
-  UserPlus, 
-  Filter, 
-  MoreVertical, 
-  ChevronLeft, 
+import {
+  UserPlus,
+  Filter,
+  MoreVertical,
+  ChevronLeft,
   ChevronRight,
   Search,
   Loader2
@@ -40,7 +40,7 @@ export default function CustomersPage() {
   }, []);
 
   // Search Logic
-  const filteredCustomers = customers.filter(customer => 
+  const filteredCustomers = customers.filter(customer =>
     customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.mobileNumber?.includes(searchQuery) ||
@@ -70,7 +70,7 @@ export default function CustomersPage() {
   return (
     <div className={styles.customersPage} onClick={() => setOpenActionId(null)}>
       <div className={dashboardStyles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>CUSTOMERS</span>
       </div>
 
@@ -88,10 +88,10 @@ export default function CustomersPage() {
           </div>
           <div className={dashboardStyles.searchUsers}>
             <Search size={16} color="#94a3b8" />
-            <input 
-              type="text" 
-              placeholder="Search Customers..." 
-              className={dashboardStyles.searchInputSmall} 
+            <input
+              type="text"
+              placeholder="Search Customers..."
+              className={dashboardStyles.searchInputSmall}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -106,7 +106,7 @@ export default function CustomersPage() {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>sr number</th>
+                <th>S.No</th>
                 <th>AC NUMBER</th>
                 <th>NAME</th>
                 <th>MOBILE NUMBER</th>
@@ -149,14 +149,14 @@ export default function CustomersPage() {
 
                       {(openActionId === customer.id || openActionId === customer._id) && (
                         <div className={styles.actionDropdown}>
-                          <div 
+                          <div
                             className={styles.dropdownItem}
                             onClick={() => router.push(`/customers/${customer.id || customer._id}/edit`)}
                           >
                             Edit
                           </div>
                           <div className={styles.dropdownDivider}></div>
-                          <div 
+                          <div
                             className={styles.dropdownItem}
                             onClick={() => router.push(`/customers/${customer.id || customer._id}`)}
                           >
@@ -178,17 +178,17 @@ export default function CustomersPage() {
             Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredCustomers.length)} of {filteredCustomers.length} entries
           </div>
           <div className={styles.pagination}>
-            <div 
-              className={`${styles.pageNav} ${currentPage === 1 ? styles.disabled : ""}`} 
+            <div
+              className={`${styles.pageNav} ${currentPage === 1 ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage - 1)}
               style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
             >
               <ChevronLeft size={18} />
             </div>
-            
+
             {[...Array(totalPages)].map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className={`${styles.pageBtn} ${currentPage === i + 1 ? styles.pageActive : ""}`}
                 onClick={() => handlePageChange(i + 1)}
               >
@@ -196,7 +196,7 @@ export default function CustomersPage() {
               </div>
             ))}
 
-            <div 
+            <div
               className={`${styles.pageNav} ${currentPage === totalPages ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage + 1)}
               style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}

@@ -169,3 +169,8 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 86, 150, 0.2);
 }
+
+.requiredStar {
+  color: #ef4444;
+  margin-left: 0.25rem;
+}

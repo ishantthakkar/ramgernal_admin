@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./leads.module.css";
 import dashboardStyles from "../dashboard.module.css";
-import { 
-  Filter, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Filter,
+  Search,
+  ChevronLeft,
+  ChevronRight,
   Calendar,
   MoreVertical,
   Plus,
@@ -49,7 +49,7 @@ export default function LeadsPage() {
 
   const filteredLeads = leads.filter(lead => {
     // Search Filter
-    const matchesSearch = 
+    const matchesSearch =
       lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.mobileNumber?.includes(searchQuery) ||
@@ -95,7 +95,7 @@ export default function LeadsPage() {
   return (
     <div className={styles.leadsPage} onClick={() => setOpenActionId(null)}>
       <div className={dashboardStyles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>LEADS</span>
       </div>
 
@@ -119,8 +119,8 @@ export default function LeadsPage() {
           <div className={styles.toolbarLeft}>
             <div className={dashboardStyles.tabs}>
               {["Active Leads", "Lost Lead"].map((tab) => (
-                <div 
-                  key={tab} 
+                <div
+                  key={tab}
                   className={`${dashboardStyles.tab} ${activeTab === tab ? dashboardStyles.tabActive : ""}`}
                   onClick={() => setActiveTab(tab)}
                 >
@@ -129,14 +129,14 @@ export default function LeadsPage() {
               ))}
             </div>
           </div>
-          
+
           <div className={styles.toolbarRight}>
             <div className={dashboardStyles.searchUsers}>
               <Search size={16} color="#94a3b8" />
-              <input 
-                type="text" 
-                placeholder="Search Leads..." 
-                className={dashboardStyles.searchInputSmall} 
+              <input
+                type="text"
+                placeholder="Search Leads..."
+                className={dashboardStyles.searchInputSmall}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -144,11 +144,11 @@ export default function LeadsPage() {
                 }}
               />
             </div>
-            <div 
-              className={styles.dateRangePicker} 
+            <div
+              className={styles.dateRangePicker}
               onClick={() => setDateRange(dateRange === 30 ? null : 30)}
-              style={{ 
-                cursor: "pointer", 
+              style={{
+                cursor: "pointer",
                 backgroundColor: dateRange === 30 ? "#e0f2fe" : "white",
                 borderColor: dateRange === 30 ? "#0076ce" : "#e2e8f0",
                 color: dateRange === 30 ? "#0076ce" : "#64748b"
@@ -162,7 +162,7 @@ export default function LeadsPage() {
         <table className={styles.leadsTable}>
           <thead>
             <tr>
-              <th>sr number</th>
+              <th>S.No</th>
               <th>NAME</th>
               <th>MOBILE NUMBER</th>
               <th>COMPANY</th>
@@ -212,17 +212,17 @@ export default function LeadsPage() {
                       }}>
                         <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
                       </div>
-                      
+
                       {openActionId === lead.id && (
                         <div className={styles.leadsActionDropdown}>
-                          <div 
+                          <div
                             className={styles.leadsDropdownItem}
                             onClick={() => router.push(`/leads/${lead.id}/edit`)}
                           >
                             Edit
                           </div>
                           <div className={styles.leadsDropdownDivider}></div>
-                          <div 
+                          <div
                             className={styles.leadsDropdownItem}
                             onClick={() => router.push(`/leads/${lead.id}`)}
                           >
@@ -244,24 +244,24 @@ export default function LeadsPage() {
             Showing {filteredLeads.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredLeads.length)} of {filteredLeads.length} entries
           </div>
           <div className={dashboardStyles.pagination}>
-            <div 
+            <div
               className={`${dashboardStyles.pageBtn} ${currentPage === 1 ? dashboardStyles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage - 1)}
             >
               <ChevronLeft size={18} />
             </div>
-            
+
             {[...Array(totalPages)].map((_, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 className={`${dashboardStyles.pageBtn} ${currentPage === i + 1 ? dashboardStyles.pageActive : ""}`}
                 onClick={() => handlePageChange(i + 1)}
               >
                 {i + 1}
               </div>
             ))}
-            
-            <div 
+
+            <div
               className={`${dashboardStyles.pageBtn} ${currentPage === totalPages ? dashboardStyles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage + 1)}
             >
