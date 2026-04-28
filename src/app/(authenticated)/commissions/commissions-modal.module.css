@@ -21,6 +21,13 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+
+.modalLarge {
+  max-width: 900px;
 }
 
 @keyframes modalIn {
@@ -35,6 +42,7 @@
   justify-content: space-between;
   align-items: center;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .modalHeader h3 {
@@ -61,8 +69,228 @@
 
 .modalBody {
   padding: 2rem;
+  overflow-y: auto;
 }
 
+.modalFooter {
+  padding: 1.5rem 2rem;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+/* Form Styles in Modal */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 2rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formGroup label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.formInput,
+.formSelect {
+  background: #eef1f4;
+  border: 1px solid transparent;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.formInput::placeholder {
+  color: #94a3b8;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  background: #ffffff;
+  border-color: #0076ce;
+  box-shadow: 0 0 0 4px rgba(0, 118, 206, 0.1);
+}
+
+.formSelect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Payment Rows */
+.paymentRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.paymentRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 0.75rem;
+  align-items: flex-end;
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+}
+
+.paymentField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.paymentField label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.removePaymentBtn {
+  background: #fee2e2;
+  border: none;
+  color: #ef4444;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 0;
+}
+
+.removePaymentBtn:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.addPaymentBtn {
+  background: #0076ce;
+  color: #ffffff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addPaymentBtn:hover {
+  background: #006bbd;
+}
+
+.emptyPayments {
+  text-align: center;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+  border: 1px dashed #e2e8f0;
+}
+
+/* Summary Box */
+.summaryBox {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+  background: #f1f5f9;
+  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summaryItem span {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.summaryItem strong {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* Footer Buttons */
+.cancelBtn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #4b5563;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.cancelBtn:hover {
+  background: #f8fafc;
+}
+
+.saveBtn {
+  background: #0076ce;
+  color: #ffffff;
+  padding: 0.6rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: #006bbd;
+}
+
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Detail Table */
 .detailTable {
   width: 100%;
   border-collapse: collapse;
@@ -112,4 +340,22 @@
   padding: 3rem;
   color: #94a3b8;
   font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .paymentRow {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryBox {
+    grid-template-columns: 1fr;
+  }
+
+  .modalLarge {
+    max-width: 100%;
+  }
 }

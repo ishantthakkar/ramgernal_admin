@@ -1,0 +1,209 @@
+.editPage {
+  display: flex;
+  flex-direction: column;
+}
+
+.titleArea {
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profileTitle {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.formSection {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.sectionHeading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-top: 0;
+  margin-bottom: 2.5rem;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem 3rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formGroup label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.formInput,
+.formSelect {
+  background: #eef1f4;
+  border: 1px solid transparent;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 500;
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+  appearance: none;
+}
+
+.formInput:focus,
+.formSelect:focus {
+  background: #ffffff;
+  border-color: #0076ce;
+  box-shadow: 0 0 0 4px rgba(0, 118, 206, 0.1);
+}
+
+.formInput::placeholder {
+  color: #94a3b8;
+}
+
+.readOnlyField {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #64748b;
+  font-weight: 500;
+  width: 100%;
+}
+
+.paymentsSection {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.paymentTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.paymentTable th {
+  text-align: left;
+  padding: 1rem 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.paymentTable td {
+  padding: 1.5rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badgeBlue {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.actionFooter {
+  background: #f1f5f9;
+  padding: 1.5rem 2.5rem;
+  border-radius: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.cancelBtn {
+  background: #ffffff;
+  color: #4b5563;
+  padding: 0.75rem 1.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1.5px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.saveBtn {
+  background: #005696;
+  color: #ffffff;
+  padding: 0.75rem 2.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.saveBtn:hover {
+  background: #00457a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 86, 150, 0.2);
+}
+
+.addCommissionBtn {
+  background: #0076ce;
+  color: #ffffff;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.addCommissionBtn:hover {
+  background: #006bbd;
+}
+
+.requiredStar {
+  color: #ef4444;
+  margin-left: 0.25rem;
+}

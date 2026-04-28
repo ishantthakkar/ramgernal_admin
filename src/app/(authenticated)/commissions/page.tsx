@@ -1,123 +1,131 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import {
   DollarSign,
-  TrendingUp,
   Search as SearchIcon,
   Filter,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
-  Download,
   CheckCircle2,
   Clock,
-  User,
-  Briefcase,
-  X
+  X,
+  Pencil,
+  Loader2,
 } from "lucide-react";
 import modalStyles from "./commissions-modal.module.css";
+import { adminApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
-interface CommissionDetail {
-  date: string;
-  name: string;
-  amount: string;
+interface ApiCommission {
+  _id: string;
+  commissionType: string;
+  salesPerson: string | null;
+  contractor: string | null;
+  otherName?: string;
+  amount: number;
+  paidAmount: number;
+  paymentMethod: string;
   paymentDate: string;
+  paymentStatus: string;
+  date: string;
+  paidTo: string;
+  pending: number;
 }
 
-interface CommissionRecord {
+interface ApiCustomer {
   id: string;
-  customerName: string;
-  companyName: string;
-  surveyComm: string;
-  installationComm: string;
-  otherComm: string;
-  details: {
-    survey: CommissionDetail[];
-    installation: CommissionDetail[];
-    other: CommissionDetail[];
-  };
+  name: string;
+  company: string;
+  salesPerson: string;
+  contractor: string;
+  total_overall_amount: number;
+  total_paid_amount: number;
+  total_pending_amount: number;
+  commissions: ApiCommission[];
 }
 
-// Mock data for Commissions
-const MOCK_COMMISSIONS: CommissionRecord[] = [
-  {
-    id: "1",
-    customerName: "John Doe",
-    companyName: "Sunwell Solar",
-    surveyComm: "$450.00",
-    installationComm: "$1,200.00",
-    otherComm: "$50.00",
-    details: {
-      survey: [
-        { date: "2024-04-10", name: "Initial Survey", amount: "$450.00", paymentDate: "2024-04-15" }
-      ],
-      installation: [
-        { date: "2024-04-20", name: "Main Install", amount: "$1,200.00", paymentDate: "2024-04-25" }
-      ],
-      other: [
-        { date: "2024-04-12", name: "Travel Reimbursement", amount: "$50.00", paymentDate: "2024-04-15" }
-      ]
-    }
-  },
-  {
-    id: "2",
-    customerName: "Jane Roe",
-    companyName: "Green Energy Co",
-    surveyComm: "$320.00",
-    installationComm: "$0.00",
-    otherComm: "$120.00",
-    details: {
-      survey: [{ date: "2024-03-25", name: "Roof Survey", amount: "$320.00", paymentDate: "2024-04-01" }],
-      installation: [],
-      other: [
-        { date: "2024-04-01", name: "Referral Bonus", amount: "$100.00", paymentDate: "2024-04-05" },
-        { date: "2024-04-05", name: "Site Visit", amount: "$20.00", paymentDate: "2024-04-10" }
-      ]
-    }
-  },
-  {
-    id: "3",
-    customerName: "Marcus Aurelius",
-    companyName: "Rome Renewables",
-    surveyComm: "$500.00",
-    installationComm: "$1,500.00",
-    otherComm: "$0.00",
-    details: {
-      survey: [{ date: "2024-04-01", name: "Tech Survey", amount: "$500.00", paymentDate: "2024-04-10" }],
-      installation: [{ date: "2024-04-15", name: "System Install", amount: "$1,500.00", paymentDate: "2024-04-20" }],
-      other: []
-    }
-  },
-  {
-    id: "4",
-    customerName: "Andrew Scoff",
-    companyName: "Xelectronics",
-    surveyComm: "$280.00",
-    installationComm: "$800.00",
-    otherComm: "$75.00",
-    details: {
-      survey: [{ date: "2024-03-15", name: "Survey A", amount: "$280.00", paymentDate: "2024-03-25" }],
-      installation: [{ date: "2024-04-05", name: "Install Phase 1", amount: "$800.00", paymentDate: "2024-04-15" }],
-      other: [{ date: "2024-03-20", name: "Equipment Handling", amount: "$75.00", paymentDate: "2024-03-25" }]
-    }
-  },
-];
-
+interface OverallSummary {
+  totalCommission: number;
+  totalPaid: number;
+  totalPending: number;
+}
 
 export default function CommissionsPage() {
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
-  const [selectedDetail, setSelectedDetail] = useState<{ type: string, customer: string, data: CommissionDetail[] } | null>(null);
+  const router = useRouter();
+  const [customers, setCustomers] = useState<ApiCustomer[]>([]);
+  const [summary, setSummary] = useState<OverallSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedDetail, setSelectedDetail] = useState<{
+    title: string;
+    customer: string;
+    commissions: ApiCommission[];
+    amount: number;
+  } | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const stats = [
-    { label: "Total Commissions", value: "$45,280", icon: DollarSign, color: "#0076ce", bg: "#e0e7ff" },
-    { label: "Paid This Month", value: "$8,450", icon: CheckCircle2, color: "#10b981", bg: "#ecfdf5" },
-    { label: "Pending Payouts", value: "$12,320", icon: Clock, color: "#f59e0b", bg: "#fffbeb" },
-  ];
+  useEffect(() => {
+    const fetchCommissions = async () => {
+      try {
+        setLoading(true);
+        const response = await adminApi.getCommissionList();
+        setCustomers(response.customers || []);
+        setSummary(response.overallSummary || null);
+      } catch (err: any) {
+        console.error("Failed to fetch commissions:", err);
+        toast.error(err.message || "Failed to load commissions.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCommissions();
+  }, []);
+
+  const stats = useMemo(() => {
+    if (summary) {
+      return [
+        { label: "Total Commissions", value: `$${summary.totalCommission.toLocaleString()}`, icon: DollarSign, color: "#0076ce", bg: "#e0e7ff" },
+        { label: "Paid Amount", value: `$${summary.totalPaid.toLocaleString()}`, icon: CheckCircle2, color: "#10b981", bg: "#ecfdf5" },
+        { label: "Pending Amount", value: `$${summary.totalPending.toLocaleString()}`, icon: Clock, color: "#f59e0b", bg: "#fffbeb" },
+      ];
+    }
+    const total = customers.reduce((sum, c) => sum + (c.total_overall_amount || 0), 0);
+    const paid = customers.reduce((sum, c) => sum + (c.total_paid_amount || 0), 0);
+    const pending = customers.reduce((sum, c) => sum + (c.total_pending_amount || 0), 0);
+    return [
+      { label: "Total Commissions", value: `$${total.toLocaleString()}`, icon: DollarSign, color: "#0076ce", bg: "#e0e7ff" },
+      { label: "Paid Amount", value: `$${paid.toLocaleString()}`, icon: CheckCircle2, color: "#10b981", bg: "#ecfdf5" },
+      { label: "Pending Amount", value: `$${pending.toLocaleString()}`, icon: Clock, color: "#f59e0b", bg: "#fffbeb" },
+    ];
+  }, [customers, summary]);
+
+  const filteredCustomers = useMemo(() => {
+    if (!searchTerm.trim()) return customers;
+    const term = searchTerm.toLowerCase();
+    return customers.filter(
+      (c) =>
+        c.name?.toLowerCase().includes(term) ||
+        c.company?.toLowerCase().includes(term) ||
+        c.salesPerson?.toLowerCase().includes(term) ||
+        c.contractor?.toLowerCase().includes(term)
+    );
+  }, [customers, searchTerm]);
+
+  if (loading) {
+    return (
+      <div className={styles.usersPage}>
+        <div className={styles.breadcrumb}>ADMIN <span>/</span> COMMISSIONS</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4rem" }}>
+          <Loader2 size={40} className={styles.spinner} style={{ color: "#64748b" }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.usersPage} onClick={() => setOpenActionId(null)}>
+    <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span>/</span> COMMISSIONS
       </div>
@@ -126,7 +134,7 @@ export default function CommissionsPage() {
         <h1 className={styles.welcomeText}>Commissions Overview</h1>
       </div>
 
-      <div className={styles.userStatsGrid} style={{ marginBottom: '2rem' }}>
+      <div className={styles.userStatsGrid} style={{ marginBottom: "2rem" }}>
         {stats.map((stat) => (
           <div key={stat.label} className={styles.userStatCard}>
             <div
@@ -144,13 +152,20 @@ export default function CommissionsPage() {
       {/* Commissions Table Card */}
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b' }}>
-            All Commission records
+          <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#1e293b" }}>
+            All Commission Records
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
             <div className={styles.searchUsers}>
               <SearchIcon size={16} color="#94a3b8" />
-              <input type="text" placeholder="Search projects..." className={styles.searchInputSmall} style={{ width: 300 }} />
+              <input
+                type="text"
+                placeholder="Search commissions..."
+                className={styles.searchInputSmall}
+                style={{ width: 300 }}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
             <div className={styles.filterBtn}>
               <Filter size={18} />
@@ -165,70 +180,123 @@ export default function CommissionsPage() {
                 <th>S.No</th>
                 <th>Customer Name</th>
                 <th>Company Name</th>
-                <th>Survey Commission</th>
-                <th>Installation Commission</th>
-                <th>Other Commissions</th>
+                <th>Sales Person</th>
+                <th>Contractor</th>
+                <th>Total Amount</th>
+                <th>Paid Amount</th>
+                <th>Pending Amount</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {MOCK_COMMISSIONS.map((item) => (
+              {filteredCustomers.map((item, idx) => (
                 <tr key={item.id}>
-                  <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.id}</td>
+                  <td style={{ fontWeight: 600, color: "#94a3b8" }}>{idx + 1}</td>
                   <td>
-                    <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.customerName}</span>
+                    <span style={{ fontWeight: 700, color: "#1e293b" }}>{item.name}</span>
                   </td>
                   <td>
-                    <span style={{ fontWeight: 600, color: '#475569' }}>{item.companyName}</span>
+                    <span style={{ fontWeight: 600, color: "#475569" }}>{item.company}</span>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 500, color: "#1e293b" }}>{item.salesPerson}</span>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 500, color: "#1e293b" }}>{item.contractor}</span>
                   </td>
                   <td
-                    style={{ fontWeight: 700, color: '#10b981', cursor: 'pointer' }}
-                    onClick={() => setSelectedDetail({ type: 'Survey Commission', customer: item.customerName, data: item.details.survey })}
+                    style={{ fontWeight: 700, color: "#0076ce", cursor: "pointer" }}
+                    onClick={() =>
+                      setSelectedDetail({
+                        title: "Total Commission Details",
+                        customer: item.name,
+                        commissions: item.commissions || [],
+                        amount: item.total_overall_amount || 0,
+                      })
+                    }
                   >
-                    {item.surveyComm}
+                    ${(item.total_overall_amount || 0).toLocaleString()}
                   </td>
                   <td
-                    style={{ fontWeight: 700, color: '#0076ce', cursor: 'pointer' }}
-                    onClick={() => setSelectedDetail({ type: 'Installation Commission', customer: item.customerName, data: item.details.installation })}
+                    style={{ fontWeight: 700, color: "#10b981", cursor: "pointer" }}
+                    onClick={() =>
+                      setSelectedDetail({
+                        title: "Paid Commission Details",
+                        customer: item.name,
+                        commissions: (item.commissions || []).filter((c) => c.paidAmount > 0),
+                        amount: item.total_paid_amount || 0,
+                      })
+                    }
                   >
-                    {item.installationComm}
+                    ${(item.total_paid_amount || 0).toLocaleString()}
                   </td>
                   <td
-                    style={{ color: '#64748b', cursor: 'pointer' }}
-                    onClick={() => setSelectedDetail({ type: 'Other Commissions', customer: item.customerName, data: item.details.other })}
+                    style={{ fontWeight: 700, color: "#f59e0b", cursor: "pointer" }}
+                    onClick={() =>
+                      setSelectedDetail({
+                        title: "Pending Commission Details",
+                        customer: item.name,
+                        commissions: (item.commissions || []).filter((c) => c.pending > 0),
+                        amount: item.total_pending_amount || 0,
+                      })
+                    }
                   >
-                    {item.otherComm}
+                    ${(item.total_pending_amount || 0).toLocaleString()}
                   </td>
-                  <td style={{ overflow: "visible", position: "relative" }}>
-                    <div onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenActionId(openActionId === item.id ? null : item.id);
-                    }}>
-                      <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
-                    </div>
-
-                    {openActionId === item.id && (
-                      <div className={styles.actionDropdown}>
-                        <div className={styles.dropdownItem}>View</div>
-                        <div className={styles.dropdownDivider}></div>
-                        <div className={styles.dropdownItem}>Edit</div>
-                      </div>
-                    )}
+                  <td>
+                    <button
+                      style={{
+                        background: "#f1f5f9",
+                        border: "none",
+                        color: "#64748b",
+                        padding: "0.4rem 0.75rem",
+                        borderRadius: "6px",
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#e2e8f0";
+                        e.currentTarget.style.color = "#1e293b";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#f1f5f9";
+                        e.currentTarget.style.color = "#64748b";
+                      }}
+                      onClick={() => router.push(`/commissions/edit/${item.id}`)}
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
                   </td>
                 </tr>
               ))}
+              {filteredCustomers.length === 0 && (
+                <tr>
+                  <td colSpan={9} style={{ textAlign: "center", padding: "3rem", color: "#94a3b8" }}>
+                    No commission records found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
         <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {MOCK_COMMISSIONS.length} entries
+            Showing {filteredCustomers.length} entries
           </div>
           <div className={styles.pagination}>
-            <div className={styles.pageBtn}><ChevronLeft size={18} /></div>
+            <div className={styles.pageBtn}>
+              <ChevronLeft size={18} />
+            </div>
             <div className={`${styles.pageBtn} ${styles.pageActive}`}>1</div>
-            <div className={styles.pageBtn}><ChevronRight size={18} /></div>
+            <div className={styles.pageBtn}>
+              <ChevronRight size={18} />
+            </div>
           </div>
         </div>
       </div>
@@ -239,9 +307,11 @@ export default function CommissionsPage() {
           <div className={modalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={modalStyles.modalHeader}>
               <div>
-                <h3>{selectedDetail.type}</h3>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.2rem' }}>
-                  Customer: <span style={{ fontWeight: 600, color: '#1e293b' }}>{selectedDetail.customer}</span>
+                <h3>{selectedDetail.title}</h3>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
+                  Customer: <span style={{ fontWeight: 600, color: "#1e293b" }}>{selectedDetail.customer}</span>
+                  <span style={{ margin: "0 0.5rem" }}>|</span>
+                  Amount: <span style={{ fontWeight: 600, color: "#1e293b" }}>${(selectedDetail.amount || 0).toLocaleString()}</span>
                 </div>
               </div>
               <button className={modalStyles.closeBtn} onClick={() => setSelectedDetail(null)}>
@@ -250,31 +320,55 @@ export default function CommissionsPage() {
             </div>
 
             <div className={modalStyles.modalBody}>
-              {selectedDetail.data.length === 0 ? (
+              {selectedDetail.commissions.length === 0 ? (
                 <div className={modalStyles.emptyState}>
-                  No transaction history found for this category.
+                  No commission records found.
                 </div>
               ) : (
                 <table className={modalStyles.detailTable}>
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Reference Name</th>
+                      <th>S.No</th>
+                      <th>Type</th>
                       <th>Amount</th>
+                      <th>Paid</th>
+                      <th>Pending</th>
+                      <th>Status</th>
+                      <th>Payment Method</th>
                       <th>Payment Date</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedDetail.data.map((row, idx) => (
+                    {selectedDetail.commissions.map((row, idx) => (
                       <tr key={idx}>
-                        <td>{row.date}</td>
-                        <td style={{ fontWeight: 600 }}>{row.name}</td>
-                        <td className={modalStyles.amount}>{row.amount}</td>
+                        <td style={{ fontWeight: 600, color: "#64748b" }}>{idx + 1}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          {row.commissionType === "Other" && row.otherName
+                            ? `${row.commissionType} (${row.otherName})`
+                            : row.commissionType}
+                        </td>
+                        <td className={modalStyles.amount}>${(row.amount || 0).toLocaleString()}</td>
+                        <td style={{ color: "#10b981", fontWeight: 600 }}>${(row.paidAmount || 0).toLocaleString()}</td>
+                        <td style={{ color: "#f59e0b", fontWeight: 600 }}>${(row.pending || 0).toLocaleString()}</td>
                         <td>
-                          <span className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
-                            {row.paymentDate}
+                          <span
+                            className={`${modalStyles.badge} ${
+                              row.paymentStatus === "paid" ? modalStyles.badgeBlue : ""
+                            }`}
+                            style={{
+                              background: row.paymentStatus === "paid" ? "#ecfdf5" : "#fffbeb",
+                              color: row.paymentStatus === "paid" ? "#10b981" : "#f59e0b",
+                            }}
+                          >
+                            {row.paymentStatus}
                           </span>
                         </td>
+                        <td>
+                          <span className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
+                            {row.paymentMethod}
+                          </span>
+                        </td>
+                        <td>{row.paymentDate ? new Date(row.paymentDate).toLocaleDateString() : "N/A"}</td>
                       </tr>
                     ))}
                   </tbody>

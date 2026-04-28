@@ -111,4 +111,11 @@ export const adminApi = {
   getInspections: () => apiRequest("/customer/customers/inspections", {
     method: "GET",
   }),
+  getCommissionList: () => apiRequest("/customer/customers/commission-list", {
+    method: "GET",
+  }),
+  updateCustomerCommissions: (id: string, commissions: any[]) => apiRequest(`/customer/customers/${id}/commissions`, {
+    method: "POST",
+    body: JSON.stringify({ commissions }),
+  }),
 };
