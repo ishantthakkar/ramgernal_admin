@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../dashboard.module.css";
 import {
   Plus,
@@ -9,7 +9,6 @@ import {
   Hammer,
   Search as SearchIcon,
   Filter,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -167,8 +166,12 @@ const MOCK_INSPECTIONS = [
 
 export default function WorkflowPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("Surveys");
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const validTabs = ["Surveys", "Installations", "Inspections"];
+  const initialTab = validTabs.includes(tabParam || "") ? tabParam! : "Surveys";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>(MOCK_SURVEYS);
 
@@ -232,8 +235,7 @@ export default function WorkflowPage() {
           salesPerson: inst.salesPerson || (inst.customer?.salesPerson) || "Unassigned",
           contractor: inst.contractorName || inst.contractor?.fullName || inst.contractor || "Unassigned",
           projectManager: inst.assignedTo?.fullName || inst.projectManager?.fullName || inst.projectManager || "Unassigned",
-          status: inst.contractorStatus || "-",
-          hasMaterials: inst.materialStatus === "completed" || (inst.material && inst.material.length > 0)
+          status: inst.contractorStatus || "-"
         }));
         setData(normalizedData);
 
@@ -370,11 +372,11 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Installations") {
-      return ["S.No", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
+      return ["S.No", "CUSTOMER", "AC NUMBER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
     }
 
     if (activeTab === "Inspections") {
-      return ["S.No", "AC NUMBER", "CUSTOMER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
+      return ["S.No", "CUSTOMER", "AC NUMBER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
     }
     return [];
   };
@@ -404,7 +406,7 @@ export default function WorkflowPage() {
   );
 
   return (
-    <div className={styles.usersPage} onClick={() => setOpenActionId(null)}>
+    <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span>/</span> WORKFLOW
       </div>
@@ -435,7 +437,12 @@ export default function WorkflowPage() {
               <div
                 key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("tab", tab);
+                  router.replace(`/workflow?${params.toString()}`, { scroll: false });
+                }}
               >
                 {tab}
               </div>
@@ -488,7 +495,12 @@ export default function WorkflowPage() {
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td>
-                          <span style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</span>
+                          <span
+                            style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                            onClick={() => router.push(`/workflow/view/${item._id}`)}
+                          >
+                            {item.customerName}
+                          </span>
                         </td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesperson}</td>
@@ -541,8 +553,13 @@ export default function WorkflowPage() {
                     ) : activeTab === "Installations" ? (
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
+                        <td
+                          style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                          onClick={() => router.push(`/workflow/view/${item._id}`)}
+                        >
+                          {item.customerName}
+                        </td>
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
                         <td>
@@ -551,7 +568,7 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.contractor}
                             </div>
-                          ) : item.hasMaterials ? (
+                          ) : (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -562,8 +579,6 @@ export default function WorkflowPage() {
                             >
                               <UserPlus size={14} /> Assign
                             </button>
-                          ) : (
-                            <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontStyle: "italic" }}>Add Materials First</span>
                           )}
                         </td>
                         <td>
@@ -602,8 +617,13 @@ export default function WorkflowPage() {
                     ) : (
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
+                        <td
+                          style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                          onClick={() => router.push(`/workflow/view/${item._id}`)}
+                        >
+                          {item.customerName}
+                        </td>
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
                         <td>
@@ -660,21 +680,13 @@ export default function WorkflowPage() {
                       </>
                     )}
 
-                    <td style={{ overflow: "visible", position: "relative" }}>
-                      <div onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenActionId(openActionId === item._id ? null : item._id);
-                      }}>
-                        <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
-                      </div>
-
-                      {openActionId === item._id && (
-                        <div className={styles.actionDropdown}>
-                          <div className={styles.dropdownItem} onClick={() => router.push(`/workflow/view/${item._id}`)}>View</div>
-                          <div className={styles.dropdownDivider}></div>
-                          <div className={styles.dropdownItem} onClick={() => router.push(`/workflow/edit/${item._id}`)}>Edit</div>
-                        </div>
-                      )}
+                    <td>
+                      <button
+                        className={styles.assignBtn}
+                        onClick={() => router.push(`/workflow/edit/${item._id}`)}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))

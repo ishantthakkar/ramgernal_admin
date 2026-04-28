@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import styles from "../dashboard.module.css";
 import {
@@ -10,7 +10,7 @@ import {
   Handshake,
   Workflow,
   Filter,
-  MoreVertical,
+
   ChevronLeft,
   ChevronRight,
   Search,
@@ -20,8 +20,13 @@ import { adminApi } from "@/lib/api";
 
 export default function UsersPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("All Users");
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const validTabs = ["All Users", "Sales Person", "Contractors", "Project Manager"];
+  const initialTab = validTabs.includes(tabParam || "") ? tabParam! : "All Users";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -111,7 +116,7 @@ export default function UsersPage() {
   };
 
   return (
-    <div className={styles.usersPage} onClick={() => setOpenActionId(null)}>
+    <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span>/</span> USERS
       </div>
@@ -145,7 +150,12 @@ export default function UsersPage() {
               <div
                 key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("tab", tab);
+                  router.replace(`/users?${params.toString()}`, { scroll: false });
+                }}
               >
                 {tab}
               </div>
@@ -200,7 +210,13 @@ export default function UsersPage() {
                     <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
                     <td>
                       <div className={styles.userDetails}>
-                        <span className={styles.userNameTable} style={{ color: "#1e293b", fontWeight: 600 }}>{user.fullName}</span>
+                        <span
+                          className={styles.userNameTable}
+                          style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                          onClick={() => router.push(`/users/view/${user._id}`)}
+                        >
+                          {user.fullName}
+                        </span>
                       </div>
                     </td>
 
@@ -266,21 +282,13 @@ export default function UsersPage() {
                       </>
                     )}
 
-                    <td style={{ overflow: "visible", position: "relative" }}>
-                      <div onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenActionId(openActionId === user._id ? null : user._id);
-                      }}>
-                        <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
-                      </div>
-
-                      {openActionId === user._id && (
-                        <div className={styles.actionDropdown}>
-                          <div className={styles.dropdownItem} onClick={() => router.push(`/users/edit/${user._id}`)}>Edit</div>
-                          <div className={styles.dropdownDivider}></div>
-                          <div className={styles.dropdownItem} onClick={() => router.push(`/users/view/${user._id}`)}>View</div>
-                        </div>
-                      )}
+                    <td>
+                      <button
+                        className={styles.assignBtn}
+                        onClick={() => router.push(`/users/edit/${user._id}`)}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import styles from "./leads.module.css";
 import dashboardStyles from "../dashboard.module.css";
 import {
@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
-  MoreVertical,
   Plus,
   Loader2
 } from "lucide-react";
@@ -18,8 +17,12 @@ import { adminApi } from "@/lib/api";
 
 export default function LeadsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("Active Leads");
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get("tab");
+  const validTabs = ["Active Leads", "Lost Lead"];
+  const initialTab = validTabs.includes(tabParam || "") ? tabParam! : "Active Leads";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -94,7 +97,7 @@ export default function LeadsPage() {
   };
 
   return (
-    <div className={styles.leadsPage} onClick={() => setOpenActionId(null)}>
+    <div className={styles.leadsPage}>
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>LEADS</span>
@@ -123,7 +126,12 @@ export default function LeadsPage() {
                 <div
                   key={tab}
                   className={`${dashboardStyles.tab} ${activeTab === tab ? dashboardStyles.tabActive : ""}`}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("tab", tab);
+                    router.replace(`/leads?${params.toString()}`, { scroll: false });
+                  }}
                 >
                   {tab}
                 </div>
@@ -195,7 +203,13 @@ export default function LeadsPage() {
                 return (
                   <tr key={lead.id || idx}>
                     <td className={styles.idCell}>{globalIndex + 1}</td>
-                    <td className={styles.nameCell}>{lead.name}</td>
+                    <td
+                      className={styles.nameCell}
+                      style={{ cursor: "pointer", fontWeight: 600, color: "#1e293b", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                      onClick={() => router.push(`/leads/${lead.id}`)}
+                    >
+                      {lead.name}
+                    </td>
                     <td>{lead.mobileNumber || "N/A"}</td>
                     <td>{lead.company}</td>
                     <td>{lead.salesPerson}</td>
@@ -206,31 +220,13 @@ export default function LeadsPage() {
                       </div>
                     </td>
                     <td>{lead.lastActivity ? new Date(lead.lastActivity).toLocaleDateString() : "N/A"}</td>
-                    <td style={{ overflow: "visible", position: "relative" }}>
-                      <div onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenActionId(openActionId === lead.id ? null : lead.id);
-                      }}>
-                        <MoreVertical size={18} color="#94a3b8" style={{ cursor: "pointer" }} />
-                      </div>
-
-                      {openActionId === lead.id && (
-                        <div className={styles.leadsActionDropdown}>
-                          <div
-                            className={styles.leadsDropdownItem}
-                            onClick={() => router.push(`/leads/${lead.id}/edit`)}
-                          >
-                            Edit
-                          </div>
-                          <div className={styles.leadsDropdownDivider}></div>
-                          <div
-                            className={styles.leadsDropdownItem}
-                            onClick={() => router.push(`/leads/${lead.id}`)}
-                          >
-                            View
-                          </div>
-                        </div>
-                      )}
+                    <td>
+                      <button
+                        className={dashboardStyles.assignBtn}
+                        onClick={() => router.push(`/leads/${lead.id}/edit`)}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 );

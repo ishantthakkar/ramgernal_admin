@@ -5,7 +5,6 @@ import styles from "./customers.module.css";
 import {
   UserPlus,
   Filter,
-  MoreVertical,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -22,7 +21,7 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [openActionId, setOpenActionId] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -68,7 +67,7 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className={styles.customersPage} onClick={() => setOpenActionId(null)}>
+    <div className={styles.customersPage}>
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>CUSTOMERS</span>
@@ -107,8 +106,8 @@ export default function CustomersPage() {
             <thead>
               <tr>
                 <th>S.No</th>
-                <th>AC NUMBER</th>
                 <th>NAME</th>
+                <th>AC NUMBER</th>
                 <th>MOBILE NUMBER</th>
                 <th>EMAIL</th>
                 <th>COMPANY</th>
@@ -127,8 +126,14 @@ export default function CustomersPage() {
                 currentItems.map((customer, index) => (
                   <tr key={customer.id || customer._id || index}>
                     <td className={styles.idCell}>{indexOfFirstItem + index + 1}</td>
+                    <td
+                      className={styles.nameCell}
+                      style={{ cursor: "pointer", fontWeight: 600, color: "#1e293b", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                      onClick={() => router.push(`/customers/${customer.id || customer._id}`)}
+                    >
+                      {customer.name}
+                    </td>
                     <td style={{ fontWeight: 600 }}>{customer.accountNumber || "N/A"}</td>
-                    <td className={styles.nameCell}>{customer.name}</td>
                     <td>{customer.mobileNumber || "N/A"}</td>
                     <td>{customer.email}</td>
                     <td>{customer.company}</td>
@@ -138,32 +143,13 @@ export default function CustomersPage() {
                         {customer.status || "N/A"}
                       </div>
                     </td>
-                    <td className={styles.actionsCell} style={{ textAlign: "right", position: "relative", overflow: "visible" }}>
-                      <div onClick={(e) => {
-                        e.stopPropagation();
-                        const cid = customer.id || customer._id;
-                        setOpenActionId(openActionId === cid ? null : cid);
-                      }}>
-                        <MoreVertical size={20} style={{ cursor: "pointer" }} />
-                      </div>
-
-                      {(openActionId === customer.id || openActionId === customer._id) && (
-                        <div className={styles.actionDropdown}>
-                          <div
-                            className={styles.dropdownItem}
-                            onClick={() => router.push(`/customers/${customer.id || customer._id}/edit`)}
-                          >
-                            Edit
-                          </div>
-                          <div className={styles.dropdownDivider}></div>
-                          <div
-                            className={styles.dropdownItem}
-                            onClick={() => router.push(`/customers/${customer.id || customer._id}`)}
-                          >
-                            View
-                          </div>
-                        </div>
-                      )}
+                    <td className={styles.actionsCell} style={{ textAlign: "right" }}>
+                      <button
+                        className={dashboardStyles.assignBtn}
+                        onClick={() => router.push(`/customers/${customer.id || customer._id}/edit`)}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))

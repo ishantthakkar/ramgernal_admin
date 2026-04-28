@@ -117,24 +117,7 @@ export default function WorkflowEditPage() {
       </div>
 
       <div className={styles.pageHeader}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <button 
-            onClick={() => router.push(`/workflow/view/${id}`)}
-            className={styles.backBtn}
-            style={{ 
-              background: "white", 
-              border: "1px solid #e2e8f0", 
-              padding: "0.5rem", 
-              borderRadius: "8px",
-              color: "#64748b",
-              display: "flex",
-              alignItems: "center"
-            }}
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className={styles.welcomeText}>Edit Workflow</h1>
-        </div>
+        <h1 className={styles.welcomeText}>Edit Workflow</h1>
         
         <div className={styles.tabs} style={{ marginTop: "1.5rem", width: "fit-content" }}>
           <button 
@@ -146,14 +129,22 @@ export default function WorkflowEditPage() {
           </button>
           <button 
             className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
-            onClick={() => setActiveTab("installations")}
+            onClick={() => {
+              if (isContractorAssigned) {
+                setActiveTab("installations");
+              } else {
+                toast.warning("Assign a contractor first to manage materials.");
+              }
+            }}
             style={{ 
               border: "none", 
               display: "flex", 
               alignItems: "center", 
               gap: "0.5rem",
-              cursor: "pointer"
+              opacity: isContractorAssigned ? 1 : 0.5,
+              cursor: isContractorAssigned ? "pointer" : "not-allowed"
             }}
+            title={!isContractorAssigned ? "Assign a contractor first" : ""}
           >
             <Hammer size={18} /> Installations
           </button>
