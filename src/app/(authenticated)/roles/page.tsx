@@ -1,317 +1,144 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import { 
-  ShieldCheck, 
+  Users, 
   Plus, 
-  Save, 
-  Trash2, 
-  CheckCircle2, 
-  Circle, 
-  LayoutDashboard, 
+  MoreVertical, 
   Search, 
-  Handshake, 
-  ClipboardCheck, 
-  Hammer, 
-  Search as SearchIcon, 
-  BarChart3, 
-  FileText,
-  Wallet,
-  Settings
+  UserPlus,
+  Ticket,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
-import { toast } from "react-toastify";
-
-// Define the modules for access control
-const MODULES = [
-  { id: "dashboard", name: "Dashboard", icon: LayoutDashboard },
-  { id: "leads", name: "Leads", icon: Search },
-  { id: "customers", name: "Customers", icon: Handshake },
-  { id: "surveys", name: "Surveys", icon: ClipboardCheck },
-  { id: "projects", name: "Projects", icon: Settings },
-  { id: "installation", name: "Installation", icon: Hammer },
-  { id: "inspection", name: "Inspection", icon: SearchIcon },
-  { id: "commissions", name: "Commissions", icon: Wallet },
-  { id: "reports", name: "Reports", icon: BarChart3 },
-  { id: "audit", name: "Audit Logs", icon: FileText },
-];
-
-// Define the actions for granular control
-const ACTIONS = ["View", "Create", "Edit", "Approve/Reject", "Assign", "Start", "Submit"];
 
 export default function RolesPermissionsPage() {
-  const [activeRole, setActiveRole] = useState("Super admin");
-  const [loading, setLoading] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newRoleName, setNewRoleName] = useState("");
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // More complex roles state
-  const [roles, setRoles] = useState([
-    { name: "Super admin", isSystem: true },
-    { name: "Admin", isSystem: true },
-    { name: "Project Manager", isSystem: true },
-    { name: "Sales Manager", isSystem: true },
+  // Mock roles data based on the image
+  const [roles] = useState([
+    { id: 1, name: "Sales Person", note: "Jack Heilson" },
+    { id: 2, name: "Contractor", note: "Jack Heilson" },
+    { id: 3, name: "Project Manager", note: "Jack Heilson" },
   ]);
 
-  // Permissions state: { [roleName]: { [moduleId]: boolean[] } }
-  const [permissions, setPermissions] = useState<Record<string, Record<string, boolean[]>>>({
-    "Super admin": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map(() => true) }), {}),
-    "Admin": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map((_, i) => i < 5) }), {}),
-    "Project Manager": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map((_, i) => i === 0 || i === 4) }), {}),
-    "Sales Manager": MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map((_, i) => i === 0) }), {}),
-  });
-
-  const handleSave = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast.success(`Permissions for ${activeRole} updated successfully!`);
-    }, 800);
-  };
-
-  const togglePermission = (moduleId: string, actionIdx: number) => {
-    if (activeRole === "Super admin") {
-      toast.warning("Super admin permissions are system-protected and cannot be modified.");
-      return;
-    }
-
-    setPermissions(prev => {
-      const rolePerms = prev[activeRole] || MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map(() => false) }), {});
-      const modulePerms = [...(rolePerms[moduleId] || ACTIONS.map(() => false))];
-      modulePerms[actionIdx] = !modulePerms[actionIdx];
-      
-      return {
-        ...prev,
-        [activeRole]: {
-          ...rolePerms,
-          [moduleId]: modulePerms
-        }
-      };
-    });
-  };
-
-  const handleCreateRole = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newRoleName.trim()) return;
-    
-    if (roles.some(r => r.name.toLowerCase() === newRoleName.toLowerCase())) {
-      toast.error("Role already exists.");
-      return;
-    }
-
-    const newRole = { name: newRoleName, isSystem: false };
-    setRoles([...roles, newRole]);
-    setPermissions(prev => ({
-      ...prev,
-      [newRoleName]: MODULES.reduce((acc, m) => ({ ...acc, [m.id]: ACTIONS.map(() => false) }), {})
-    }));
-    setActiveRole(newRoleName);
-    setNewRoleName("");
-    setShowCreateModal(false);
-    toast.success(`${newRoleName} role created! You can now configure its permissions.`);
-  };
-
-  const handleDeleteRole = (e: React.MouseEvent, roleName: string) => {
-    e.stopPropagation();
-    if (roles.find(r => r.name === roleName)?.isSystem) {
-      toast.error("System roles cannot be deleted.");
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to delete the "${roleName}" role?`)) return;
-
-    setRoles(prev => prev.filter(r => r.name !== roleName));
-    setPermissions(prev => {
-      const { [roleName]: removed, ...rest } = prev;
-      return rest;
-    });
-
-    if (activeRole === roleName) {
-      setActiveRole("Super admin");
-    }
-    toast.success(`${roleName} role deleted successfully.`);
-  };
+  const stats = [
+    { label: "TOTAL SALES PERSONS", value: "100", icon: Users, color: "#0076ce", bg: "#eff6ff" },
+    { label: "TOTAL CONTRACTORS", value: "500", icon: Ticket, color: "#6366f1", bg: "#f5f3ff" },
+    { label: "TOTAL PROJECT MANAGERS", value: "20", icon: UserPlus, color: "#f59e0b", bg: "#fffbeb" },
+  ];
 
   return (
-    <div className={styles.usersPage} onClick={() => setShowCreateModal(false)}>
-      <div className={styles.breadcrumb}>
-        ADMIN <span>/</span> ROLES & PERMISSIONS
+    <div className={styles.usersPage}>
+      {/* Breadcrumb */}
+      <div className={styles.breadcrumb} style={{ color: "#94a3b8", fontWeight: 600 }}>
+        DASHBOARD <span style={{ margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ color: "#0076ce" }}>ROLES & PERMISSIONS</span>
       </div>
 
-      <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Access Control Management</h1>
-        <button className={styles.addBtn} onClick={(e) => { e.stopPropagation(); setShowCreateModal(true); }}>
+      {/* Page Header */}
+      <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
+        <h1 className={styles.welcomeText} style={{ fontSize: "1.875rem" }}>
+          Manage Roles & Permissions
+        </h1>
+        <button 
+          className={styles.addBtn} 
+          style={{ padding: "0.75rem 1.75rem" }}
+          onClick={() => router.push("/roles/create")}
+        >
           <Plus size={20} /> Create New Role
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '2.5rem', alignItems: 'start' }}>
-        {/* Roles Sidebar */}
-        <div className={styles.card} style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#0076ce' }}>
-            <ShieldCheck size={18} /> System Roles
+      {/* Stats Grid */}
+      <div className={styles.userStatsGrid} style={{ marginBottom: "2.5rem" }}>
+        {stats.map((stat) => (
+          <div key={stat.label} className={styles.userStatCard} style={{ background: "#ffffff", border: "1px solid #f1f5f9" }}>
+            <div 
+              className={styles.userStatIcon} 
+              style={{ backgroundColor: stat.bg, color: stat.color, width: "44px", height: "44px", borderRadius: "10px" }}
+            >
+              <stat.icon size={22} />
+            </div>
+            <div className={styles.userStatValue} style={{ fontSize: "1.75rem" }}>
+              {stat.value}
+            </div>
+            <div className={styles.userStatLabel}>
+              {stat.label}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {roles.map((role) => (
-              <div 
-                key={role.name}
-                onClick={() => setActiveRole(role.name)}
-                style={{ 
-                  padding: '1.25rem 1.5rem',
-                  cursor: 'pointer',
-                  borderLeft: activeRole === role.name ? '4px solid #0076ce' : '4px solid transparent',
-                  background: activeRole === role.name ? '#eff6ff' : 'transparent',
-                  color: activeRole === role.name ? '#1d4ed8' : '#64748b',
-                  fontWeight: activeRole === role.name ? 700 : 500,
-                  transition: 'all 0.2s',
-                  fontSize: '0.95rem',
-                  display: 'flex',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <span style={{ 
-                  color: activeRole === role.name ? '#1d4ed8' : '#64748b',
-                  fontWeight: activeRole === role.name ? 700 : 500,
-                  fontSize: '0.95rem'
-                }}>
-                  {role.name}
-                </span>
-                {role.isSystem ? null : (
-                  <Trash2 
-                    size={16} 
-                    className={styles.deleteIcon} 
-                    onClick={(e) => handleDeleteRole(e, role.name)} 
-                    style={{ color: '#ef4444', opacity: 0.7, padding: '2px' }}
-                  />
-                )}
-              </div>
-            ))}
+        ))}
+      </div>
+
+      {/* Table Section */}
+      <div className={styles.tableCard} style={{ padding: "2rem" }}>
+        <div className={styles.tableHeader}>
+          <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
+            <div className={styles.searchUsers}>
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search Roles"
+                className={styles.searchInputSmall}
+                style={{ width: "440px" }}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          <div style={{ fontSize: "0.875rem", color: "#64748b", fontWeight: 500 }}>
+            Showing 1-10 of 1,284 users
           </div>
         </div>
 
-        {/* Permission Grid */}
-        <div className={styles.tableCard} style={{ padding: 0 }}>
-          <div style={{ 
-            padding: '1.5rem 2rem', 
-            borderBottom: '1px solid #f1f5f9', 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            background: '#f8fafc' 
-          }}>
-            <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                Configuring Permissions For
-              </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>{activeRole}</div>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-               <button 
-                className={styles.addBtn} 
-                style={{ background: '#ffffff', color: '#64748b', border: '1px solid #e2e8f0' }}
-                onClick={() => toast.info("Resetting to defaults...")}
-              >
-                Reset
-              </button>
-              <button className={styles.addBtn} onClick={handleSave} disabled={loading}>
-                {loading ? "Saving..." : <><Save size={18} /> Save Changes</>}
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.userTableContainer}>
-            <table className={styles.userTable} style={{ margin: 0 }}>
-              <thead>
-                <tr>
-                  <th style={{ background: 'transparent' }}>Module Name</th>
-                  {ACTIONS.map(action => (
-                    <th key={action} style={{ background: 'transparent', textAlign: 'center' }}>{action}</th>
-                  ))}
+        <div className={styles.userTableContainer}>
+          <table className={styles.userTable}>
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Note</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roles.map((role) => (
+                <tr key={role.id}>
+                  <td style={{ fontWeight: 600, color: "#475569" }}>{role.name}</td>
+                  <td style={{ color: "#64748b" }}>{role.note}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <button 
+                      className={styles.assignBtn}
+                      style={{ padding: "0.4rem 1.2rem", fontSize: "0.75rem" }}
+                      onClick={() => router.push(`/roles/edit/${role.id}`)}
+                    >
+                      Edit
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {MODULES.map((module) => (
-                  <tr key={module.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ background: '#f1f5f9', padding: '0.6rem', borderRadius: '10px' }}>
-                          <module.icon size={18} color="#0076ce" />
-                        </div>
-                        <span style={{ fontWeight: 700, color: '#1e293b' }}>{module.name}</span>
-                      </div>
-                    </td>
-                    {ACTIONS.map((action, idx) => {
-                      const isChecked = permissions[activeRole]?.[module.id]?.[idx] || false;
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-                      return (
-                        <td key={action} style={{ textAlign: 'center' }}>
-                          <div 
-                            onClick={() => togglePermission(module.id, idx)}
-                            style={{ display: 'inline-flex', cursor: activeRole === "Super admin" ? 'not-allowed' : 'pointer' }}
-                          >
-                            {isChecked ? (
-                              <CheckCircle2 size={22} color="#10b981" />
-                            ) : (
-                              <Circle size={22} color="#e2e8f0" />
-                            )}
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Pagination */}
+        <div className={styles.tableFooter}>
+          <div style={{ fontSize: "0.875rem", color: "#64748b", fontWeight: 500 }}>
+            Showing 1 to 4 of 1,284 entries
           </div>
-          
-          <div style={{ padding: '1.5rem', background: '#fffef3', borderTop: '1px solid #fef3c7', fontSize: '0.85rem', color: '#854d0e', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-             <ShieldCheck size={18} />
-             <span><strong>Note:</strong> 
-               {activeRole === "Super admin" 
-                 ? " Super admin permissions are system-locked for security." 
-                 : ` Changes to ${activeRole} permissions affect all users with this role immediately.`
-               }
-             </span>
+          <div className={styles.pagination}>
+            <div className={styles.pageBtn}><ChevronLeft size={18} /></div>
+            <div className={`${styles.pageBtn} ${styles.pageActive}`}>1</div>
+            <div className={styles.pageBtn}>2</div>
+            <div className={styles.pageBtn}>3</div>
+            <div style={{ display: "flex", alignItems: "center", color: "#94a3b8", padding: "0 0.5rem" }}>...</div>
+            <div className={styles.pageBtn}>128</div>
+            <div className={styles.pageBtn}><ChevronRight size={18} /></div>
           </div>
         </div>
       </div>
-
-      {/* Role Creation Modal */}
-      {showCreateModal && (
-        <div style={{ 
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 
-        }}>
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: '#fff', padding: '2rem', borderRadius: '12px', width: '400px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
-          >
-            <h3 style={{ marginTop: 0 }}>Create New Role</h3>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}>Role Name</label>
-              <input 
-                autoFocus
-                type="text" 
-                value={newRoleName}
-                onChange={(e) => setNewRoleName(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                placeholder="Manager, Supervisor, etc."
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setShowCreateModal(false)} className={styles.cancelBtn} style={{ flex: 1 }}>Cancel</button>
-              <button 
-                onClick={handleCreateRole} 
-                className={styles.addBtn} 
-                style={{ flex: 1, justifyContent: 'center' }}
-                disabled={!newRoleName.trim()}
-              >
-                Create Role
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
