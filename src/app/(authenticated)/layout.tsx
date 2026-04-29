@@ -21,6 +21,7 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { canViewModule, isSuperAdmin } from "@/lib/permissions";
 
 export default function DashboardLayout({
   children,
@@ -31,6 +32,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [userInfo, setUserInfo] = useState<any>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
@@ -38,6 +40,10 @@ export default function DashboardLayout({
       router.push("/");
     } else {
       setIsAuthChecking(false);
+      const savedInfo = localStorage.getItem("user_info");
+      if (savedInfo) {
+        setUserInfo(JSON.parse(savedInfo));
+      }
     }
   }, [router]);
 
@@ -45,15 +51,23 @@ export default function DashboardLayout({
     return null; // or a loading spinner
   }
 
-  const navItems = [
-    { name: "Users", icon: Users, path: "/users" },
-    { name: "Leads", icon: Search, path: "/leads" },
-    { name: "Customers", icon: Handshake, path: "/customers" },
-    { name: "Workflow", icon: Workflow, path: "/workflow" },
-    { name: "Commissions", icon: Wallet, path: "/commissions" },
-    { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles" },
-    { name: "Audit Logs", icon: FileSearch, path: "/audit" },
+  const allNavItems = [
+    { name: "Users", icon: Users, path: "/users", module: "Users" },
+    { name: "Leads", icon: Search, path: "/leads", module: "Leads" },
+    { name: "Customers", icon: Handshake, path: "/customers", module: "Customers" },
+    { 
+      name: "Workflow", 
+      icon: Workflow, 
+      path: "/workflow", 
+      isVisible: canViewModule("Surveys") || canViewModule("Installation") || canViewModule("Inspection") 
+    },
+    { name: "Commissions", icon: Wallet, path: "/commissions", module: "Commissions" },
+    { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", module: "Roles" },
+    { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit Logs" },
   ];
+
+  const filteredNavItems = allNavItems.filter(item => item.isVisible !== undefined ? item.isVisible : canViewModule(item.module || ""));
+  const canViewDashboard = canViewModule("Dashboard");
 
   return (
     <div className={`${styles.layout} ${isSidebarCollapsed ? styles.collapsed : ""}`}>
@@ -72,17 +86,19 @@ export default function DashboardLayout({
 
         <nav className={styles.nav}>
           {/* Dashboard - First Item */}
-          <Link
-            href="/dashboard"
-            className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navActive : ""}`}
-            title={isSidebarCollapsed ? "Dashboard" : ""}
-          >
-            <LayoutDashboard size={22} strokeWidth={2.5} />
-            {!isSidebarCollapsed && <span>Dashboard</span>}
-          </Link>
+          {canViewDashboard && (
+            <Link
+              href="/dashboard"
+              className={`${styles.navItem} ${pathname === "/dashboard" ? styles.navActive : ""}`}
+              title={isSidebarCollapsed ? "Dashboard" : ""}
+            >
+              <LayoutDashboard size={22} strokeWidth={2.5} />
+              {!isSidebarCollapsed && <span>Dashboard</span>}
+            </Link>
+          )}
 
           {/* Other Nav Items */}
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <Link
               key={item.name}
               href={item.path}
@@ -100,6 +116,9 @@ export default function DashboardLayout({
             className={`${styles.navItem} ${styles.logoutBtn}`}
             onClick={() => {
               localStorage.removeItem("auth_token");
+              localStorage.removeItem("user_info");
+              localStorage.removeItem("user_permissions");
+              localStorage.removeItem("is_super_admin");
               toast.success("Logout successful. See you soon!");
               router.push("/");
             }}
@@ -124,7 +143,7 @@ export default function DashboardLayout({
           <div className={styles.navActions}>
             <div className={styles.userProfile}>
               <div className={styles.userInfo}>
-                <div className={styles.userName}>Super Admin</div>
+                <div className={styles.userName}>{isSuperAdmin() ? "Super Admin" : (userInfo?.fullName || "User")}</div>
               </div>
               <div className={styles.avatar}>
                 <User size={24} color="#64748b" />

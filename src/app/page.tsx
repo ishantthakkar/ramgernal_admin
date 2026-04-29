@@ -42,6 +42,19 @@ export default function Home() {
 
       if (token) {
         localStorage.setItem("auth_token", token);
+        
+        // Store permissions and user info
+        if (response.permissions) {
+          localStorage.setItem("user_permissions", JSON.stringify(response.permissions));
+        }
+        
+        const userInfo = response.admin || response.user;
+        if (userInfo) {
+          localStorage.setItem("user_info", JSON.stringify(userInfo));
+          // Mark if super admin (response has 'admin' object)
+          localStorage.setItem("is_super_admin", response.admin ? "true" : "false");
+        }
+
         toast.success("Login successful! Welcome back.");
         router.push("/dashboard");
       } else {

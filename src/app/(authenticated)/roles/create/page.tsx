@@ -20,6 +20,7 @@ import {
   Wallet
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { adminApi } from "@/lib/api";
 
 const MODULES = [
   { id: "dashboard", name: "Dashboard", icon: LayoutGrid },
@@ -39,15 +40,17 @@ export default function CreateRolePage() {
   const [roleName, setRoleName] = useState("");
   const [note, setNote] = useState("Sales Person");
   const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>({
-    dashboard: { view: true, create: false, edit: false },
-    leads: { view: true, create: true, edit: true },
-    customers: { view: true, create: false, edit: true },
-    surveys: { view: true, create: true, edit: true },
-    installation: { view: true, create: false, edit: true },
-    inspection: { view: true, create: true, edit: true },
-    commissions: { view: true, create: false, edit: false },
-    audit_logs: { view: true, create: false, edit: false },
+    dashboard: { view: false, create: false, edit: false },
+    leads: { view: false, create: false, edit: false },
+    customers: { view: false, create: false, edit: false },
+    surveys: { view: false, create: false, edit: false },
+    installation: { view: false, create: false, edit: false },
+    inspection: { view: false, create: false, edit: false },
+    commissions: { view: false, create: false, edit: false },
+    audit_logs: { view: false, create: false, edit: false },
   });
+
+  const [loading, setLoading] = useState(false);
 
   const togglePermission = (moduleId: string, action: string) => {
     setPermissions(prev => ({
@@ -59,9 +62,39 @@ export default function CreateRolePage() {
     }));
   };
 
-  const handleCreate = () => {
-    toast.success("Role created successfully!");
-    router.push("/roles");
+  const handleCreate = async () => {
+    if (!roleName.trim()) {
+      toast.error("Please enter a role name");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Transform permissions to match API (boolean -> 0/1, capitalized keys)
+      const formattedPermissions: any = {};
+      MODULES.forEach(m => {
+        formattedPermissions[m.name] = {
+          view: permissions[m.id].view ? 1 : 0,
+          create: permissions[m.id].create ? 1 : 0,
+          edit: permissions[m.id].edit ? 1 : 0,
+        };
+      });
+
+      const roleData = {
+        roleName: roleName.trim(),
+        notes: note.trim(),
+        permissions: formattedPermissions
+      };
+
+      await adminApi.createRole(roleData);
+      toast.success("Role created successfully!");
+      router.push("/roles");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create role");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -223,8 +256,9 @@ export default function CreateRolePage() {
           onClick={handleCreate}
           className={styles.addBtn}
           style={{ padding: "0.75rem 3.5rem" }}
+          disabled={loading}
         >
-          Create
+          {loading ? "Creating..." : "Create"}
         </button>
       </div>
     </div>

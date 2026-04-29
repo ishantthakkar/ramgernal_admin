@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { adminApi } from "@/lib/api";
+import { canViewModule, hasPermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
 
 // Mock data for workflow items
@@ -168,12 +169,31 @@ export default function WorkflowPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const canViewSurveys = canViewModule("Surveys");
+  const canViewInstallations = canViewModule("Installation");
+  const canViewInspections = canViewModule("Inspection");
+
   const tabParam = searchParams.get("tab");
-  const validTabs = ["Surveys", "Installations", "Inspections"];
-  const initialTab = validTabs.includes(tabParam || "") ? tabParam! : "Surveys";
+  const validTabs = ["Surveys", "Installations", "Inspections"].filter(t => {
+    if (t === "Surveys") return canViewSurveys;
+    if (t === "Installations") return canViewInstallations;
+    if (t === "Inspections") return canViewInspections;
+    return false;
+  });
+
+  const initialTab = validTabs.includes(tabParam || "") ? tabParam! : (validTabs[0] || "Surveys");
   const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>(MOCK_SURVEYS);
+
+  // Permissions for actions
+  const canEditSurveys = hasPermission("Surveys", "edit");
+  const canEditInstallations = hasPermission("Installation", "edit");
+  const canEditInspections = hasPermission("Inspection", "edit");
+
+  const canCreateSurveys = hasPermission("Surveys", "create");
+  const canCreateInstallations = hasPermission("Installation", "create");
+  const canCreateInspections = hasPermission("Inspection", "create");
 
   // Assignment Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -193,16 +213,14 @@ export default function WorkflowPage() {
     setLoading(true);
     setData([]);
     try {
-      // 1. Fetch Surveys / Project Managers
       if (activeTab === "Surveys") {
-        const pmResponse = await adminApi.getUserList("project_manager");
+        const pmResponse = await adminApi.getUserList("Project Manager");
         const pmList = pmResponse.users || pmResponse.data || pmResponse;
         setProjectManagers(Array.isArray(pmList) ? pmList : []);
 
         const response = await adminApi.getCustomers();
         const customers = response.customers || response.data || [];
 
-        // Update Survey Count dynamically from API
         const totalSurveys = response.count || response.total || customers.length;
         setCounts(prev => ({ ...prev, Surveys: totalSurveys }));
 
@@ -218,12 +236,10 @@ export default function WorkflowPage() {
         })).filter((item: any) => item.surveyStatus?.toLowerCase() === "completed");
         setData(normalizedData);
 
-        // 2. Fetch Installations
       } else if (activeTab === "Installations") {
         const response = await adminApi.getInstallations();
         const installations = response.installations || response.data || (Array.isArray(response) ? response : []);
 
-        // Update Installation Count dynamically from API
         const totalInst = response.total || response.count || installations.length;
         setCounts(prev => ({ ...prev, installations: totalInst }));
 
@@ -239,12 +255,10 @@ export default function WorkflowPage() {
         }));
         setData(normalizedData);
 
-        // 3. Fetch Inspections
       } else if (activeTab === "Inspections") {
         const response = await adminApi.getInspections();
         const customers = response.customers || response.data || [];
-        
-        // Update Inspection Count dynamically from API
+
         const totalInsp = response.total || response.count || customers.length;
         setCounts(prev => ({ ...prev, inspections: totalInsp }));
 
@@ -271,7 +285,6 @@ export default function WorkflowPage() {
     fetchWorkflowData();
   }, [activeTab]);
 
-  // Initial fetch for all counts to keep stats dynamic
   useEffect(() => {
     const fetchAllCounts = async () => {
       try {
@@ -302,8 +315,7 @@ export default function WorkflowPage() {
     setAvailableStaff([]);
 
     try {
-      // Role name must match exactly what's allowed in the backend
-      const roleToFetch = type === "Project Manager" ? "project_manager" : "contractor";
+      const roleToFetch = type; // "Project Manager" or "Contractor"
       const response = await adminApi.getUserList(roleToFetch);
       const staff = response.users || response.data || response;
       setAvailableStaff(Array.isArray(staff) ? staff : []);
@@ -319,7 +331,7 @@ export default function WorkflowPage() {
     try {
       setModalLoading(true);
       let response;
-      
+
       if (assignType === "Project Manager") {
         response = await adminApi.assignProjectManager(targetRecord._id, staff._id);
       } else if (assignType === "Contractor") {
@@ -331,8 +343,6 @@ export default function WorkflowPage() {
 
       toast.success(response.message || `${assignType} assigned successfully.`);
       setShowAssignModal(false);
-
-      // Refresh the list to show the new assignment
       fetchWorkflowData();
     } catch (err: any) {
       console.error("Assignment error:", err);
@@ -392,7 +402,7 @@ export default function WorkflowPage() {
       case "in-process":
       case "in process": return { color: "#10b981", bg: "#ecfdf5" };
       case "reopened": return { color: "#fbbf24", bg: "#fffbeb" };
-      case "new": return { color: "#8b5cf6", bg: "#f5f3ff" }; // Purple for new
+      case "new": return { color: "#8b5cf6", bg: "#f5f3ff" };
       default: return { color: "#64748b", bg: "#f8fafc" };
     }
   };
@@ -433,7 +443,7 @@ export default function WorkflowPage() {
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <div className={styles.tabs}>
-            {["Surveys", "Installations", "Inspections"].map((tab) => (
+            {validTabs.map((tab) => (
               <div
                 key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
@@ -510,7 +520,7 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {projectManagers.find(pm => pm._id === item.projectManager)?.fullName || "Unknown PM"}
                             </div>
-                          ) : item.surveyStatus?.toLowerCase() === "completed" ? (
+                          ) : (item.surveyStatus?.toLowerCase() === "completed" && canCreateSurveys) ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -522,7 +532,9 @@ export default function WorkflowPage() {
                               <UserPlus size={14} /> Assign
                             </button>
                           ) : (
-                            <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontStyle: "italic" }}>Awaiting Completion</span>
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontStyle: "italic" }}>
+                              {item.surveyStatus?.toLowerCase() === "completed" ? "No Assign Permission" : "Awaiting Completion"}
+                            </span>
                           )}
                         </td>
                         <td>
@@ -536,7 +548,7 @@ export default function WorkflowPage() {
                         <td>
                           {item.verifyStatus === "verified" ? (
                             <span style={{ color: "#10b981", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Verified</span>
-                          ) : (
+                          ) : canCreateSurveys ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -547,7 +559,7 @@ export default function WorkflowPage() {
                             >
                               Verify
                             </button>
-                          )}
+                          ) : null}
                         </td>
                       </>
                     ) : activeTab === "Installations" ? (
@@ -568,7 +580,7 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.contractor}
                             </div>
-                          ) : (
+                          ) : canCreateInstallations ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -579,6 +591,8 @@ export default function WorkflowPage() {
                             >
                               <UserPlus size={14} /> Assign
                             </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
                           )}
                         </td>
                         <td>
@@ -587,7 +601,7 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.projectManager}
                             </div>
-                          ) : (
+                          ) : canCreateInstallations ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -598,6 +612,8 @@ export default function WorkflowPage() {
                             >
                               <UserPlus size={14} /> Assign
                             </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
                           )}
                         </td>
                         <td>
@@ -632,7 +648,7 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.contractor}
                             </div>
-                          ) : (
+                          ) : canCreateInspections ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -643,6 +659,8 @@ export default function WorkflowPage() {
                             >
                               <UserPlus size={14} /> Assign
                             </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
                           )}
                         </td>
                         <td>
@@ -651,7 +669,7 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.projectManager}
                             </div>
-                          ) : (
+                          ) : canCreateInspections ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -662,6 +680,8 @@ export default function WorkflowPage() {
                             >
                               <UserPlus size={14} /> Assign
                             </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
                           )}
                         </td>
                         <td>
@@ -681,12 +701,16 @@ export default function WorkflowPage() {
                     )}
 
                     <td>
-                      <button
-                        className={styles.assignBtn}
-                        onClick={() => router.push(`/workflow/edit/${item._id}`)}
-                      >
-                        Edit
-                      </button>
+                      {((activeTab === "Surveys" && canEditSurveys) ||
+                        (activeTab === "Installations" && canEditInstallations) ||
+                        (activeTab === "Inspections" && canEditInspections)) && (
+                          <button
+                            className={styles.assignBtn}
+                            onClick={() => router.push(`/workflow/edit/${item._id}`)}
+                          >
+                            Edit
+                          </button>
+                        )}
                     </td>
                   </tr>
                 ))

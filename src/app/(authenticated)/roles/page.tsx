@@ -1,34 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import { 
   Users, 
   Plus, 
-  MoreVertical, 
   Search, 
   UserPlus,
   Ticket,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react";
+import { adminApi } from "@/lib/api";
+import { toast } from "react-toastify";
 
 export default function RolesPermissionsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
+  const [roles, setRoles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock roles data based on the image
-  const [roles] = useState([
-    { id: 1, name: "Sales Person", note: "Jack Heilson" },
-    { id: 2, name: "Contractor", note: "Jack Heilson" },
-    { id: 3, name: "Project Manager", note: "Jack Heilson" },
-  ]);
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.getRoles();
+      setRoles(data.roles || []);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to fetch roles");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRoles = roles.filter(role => 
+    role.roleName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    role.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const stats = [
-    { label: "TOTAL SALES PERSONS", value: "100", icon: Users, color: "#0076ce", bg: "#eff6ff" },
-    { label: "TOTAL CONTRACTORS", value: "500", icon: Ticket, color: "#6366f1", bg: "#f5f3ff" },
-    { label: "TOTAL PROJECT MANAGERS", value: "20", icon: UserPlus, color: "#f59e0b", bg: "#fffbeb" },
+    { label: "TOTAL ROLES", value: roles.length.toString(), icon: Users, color: "#0076ce", bg: "#eff6ff" },
+    { label: "SYSTEM ROLES", value: "3", icon: Ticket, color: "#6366f1", bg: "#f5f3ff" },
+    { label: "CUSTOM ROLES", value: (roles.length - 3 > 0 ? roles.length - 3 : 0).toString(), icon: UserPlus, color: "#f59e0b", bg: "#fffbeb" },
   ];
 
   return (
@@ -90,54 +108,66 @@ export default function RolesPermissionsPage() {
             </div>
           </div>
           <div style={{ fontSize: "0.875rem", color: "#64748b", fontWeight: 500 }}>
-            Showing 1-10 of 1,284 users
+            Showing {filteredRoles.length} roles
           </div>
         </div>
 
         <div className={styles.userTableContainer}>
-          <table className={styles.userTable}>
-            <thead>
-              <tr>
-                <th>Role</th>
-                <th>Note</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roles.map((role) => (
-                <tr key={role.id}>
-                  <td style={{ fontWeight: 600, color: "#475569" }}>{role.name}</td>
-                  <td style={{ color: "#64748b" }}>{role.note}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <button 
-                      className={styles.assignBtn}
-                      style={{ padding: "0.4rem 1.2rem", fontSize: "0.75rem" }}
-                      onClick={() => router.push(`/roles/edit/${role.id}`)}
-                    >
-                      Edit
-                    </button>
-                  </td>
+          {loading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
+              <Loader2 className={styles.spinner} />
+            </div>
+          ) : (
+            <table className={styles.userTable}>
+              <thead>
+                <tr>
+                  <th>Role</th>
+                  <th>Note</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredRoles.length > 0 ? (
+                  filteredRoles.map((role) => (
+                    <tr key={role._id}>
+                      <td style={{ fontWeight: 600, color: "#475569" }}>{role.roleName}</td>
+                      <td style={{ color: "#64748b" }}>{role.notes}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <button 
+                          className={styles.assignBtn}
+                          style={{ padding: "0.4rem 1.2rem", fontSize: "0.75rem" }}
+                          onClick={() => router.push(`/roles/edit/${role._id}`)}
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                      No roles found matching your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Pagination */}
-        <div className={styles.tableFooter}>
-          <div style={{ fontSize: "0.875rem", color: "#64748b", fontWeight: 500 }}>
-            Showing 1 to 4 of 1,284 entries
+        {!loading && filteredRoles.length > 0 && (
+          <div className={styles.tableFooter}>
+            <div style={{ fontSize: "0.875rem", color: "#64748b", fontWeight: 500 }}>
+              Showing 1 to {filteredRoles.length} of {roles.length} entries
+            </div>
+            <div className={styles.pagination}>
+              <div className={styles.pageBtn}><ChevronLeft size={18} /></div>
+              <div className={`${styles.pageBtn} ${styles.pageActive}`}>1</div>
+              <div className={styles.pageBtn}><ChevronRight size={18} /></div>
+            </div>
           </div>
-          <div className={styles.pagination}>
-            <div className={styles.pageBtn}><ChevronLeft size={18} /></div>
-            <div className={`${styles.pageBtn} ${styles.pageActive}`}>1</div>
-            <div className={styles.pageBtn}>2</div>
-            <div className={styles.pageBtn}>3</div>
-            <div style={{ display: "flex", alignItems: "center", color: "#94a3b8", padding: "0 0.5rem" }}>...</div>
-            <div className={styles.pageBtn}>128</div>
-            <div className={styles.pageBtn}><ChevronRight size={18} /></div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

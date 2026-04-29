@@ -20,6 +20,8 @@ import {
   Wallet
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { adminApi } from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 const MODULES = [
   { id: "dashboard", name: "Dashboard", icon: LayoutGrid },
@@ -39,18 +41,52 @@ export default function EditRolePage() {
   const params = useParams();
   const id = params.id as string;
 
-  const [roleName, setRoleName] = useState("Sales Person");
-  const [note, setNote] = useState("Sales Person");
+  const [roleName, setRoleName] = useState("");
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>({
-    dashboard: { view: true, create: false, edit: false },
-    leads: { view: true, create: true, edit: true },
-    customers: { view: true, create: false, edit: true },
-    surveys: { view: true, create: true, edit: true },
-    installation: { view: true, create: false, edit: true },
-    inspection: { view: true, create: true, edit: true },
-    commissions: { view: true, create: false, edit: false },
-    audit_logs: { view: true, create: false, edit: false },
+    dashboard: { view: false, create: false, edit: false },
+    leads: { view: false, create: false, edit: false },
+    customers: { view: false, create: false, edit: false },
+    surveys: { view: false, create: false, edit: false },
+    installation: { view: false, create: false, edit: false },
+    inspection: { view: false, create: false, edit: false },
+    commissions: { view: false, create: false, edit: false },
+    audit_logs: { view: false, create: false, edit: false },
   });
+
+  useEffect(() => {
+    if (id) {
+      fetchRoleDetails();
+    }
+  }, [id]);
+
+  const fetchRoleDetails = async () => {
+    try {
+      setLoading(true);
+      const data = await adminApi.getRoleById(id);
+      const role = data.role;
+      
+      setRoleName(role.roleName);
+      setNote(role.notes);
+      
+      const newPermissions: any = {};
+      MODULES.forEach(m => {
+        const apiPerms = role.permissions?.[m.name] || {};
+        newPermissions[m.id] = {
+          view: apiPerms.view === 1,
+          create: apiPerms.create === 1,
+          edit: apiPerms.edit === 1,
+        };
+      });
+      setPermissions(newPermissions);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to fetch role details");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const togglePermission = (moduleId: string, action: string) => {
     setPermissions(prev => ({
@@ -62,10 +98,48 @@ export default function EditRolePage() {
     }));
   };
 
-  const handleSave = () => {
-    toast.success("Role updated successfully!");
-    router.push("/roles");
+  const handleSave = async () => {
+    if (!roleName.trim()) {
+      toast.error("Please enter a role name");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      const formattedPermissions: any = {};
+      MODULES.forEach(m => {
+        formattedPermissions[m.name] = {
+          view: permissions[m.id].view ? 1 : 0,
+          create: permissions[m.id].create ? 1 : 0,
+          edit: permissions[m.id].edit ? 1 : 0,
+        };
+      });
+
+      const roleData = {
+        id,
+        roleName: roleName.trim(),
+        notes: note.trim(),
+        permissions: formattedPermissions
+      };
+
+      await adminApi.updateRole(roleData);
+      toast.success("Role updated successfully!");
+      router.push("/roles");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update role");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Loader2 className={styles.spinner} size={48} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.usersPage}>
@@ -226,8 +300,9 @@ export default function EditRolePage() {
           onClick={handleSave}
           className={styles.addBtn}
           style={{ padding: "0.75rem 3.5rem" }}
+          disabled={saving}
         >
-          Save
+          {saving ? "Saving..." : "Save"}
         </button>
       </div>
     </div>

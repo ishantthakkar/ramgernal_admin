@@ -118,4 +118,18 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify({ commissions }),
   }),
+  getRoles: () => apiRequest("/roles", {
+    method: "GET",
+  }),
+  createRole: (roleData: any) => apiRequest("/roles", {
+    method: "POST",
+    body: JSON.stringify(roleData),
+  }),
+  getRoleById: (id: string) => apiRequest(`/roles/${id}`, {
+    method: "GET",
+  }),
+  updateRole: (roleData: any) => apiRequest("/roles", {
+    method: "POST",
+    body: JSON.stringify(roleData),
+  }),
 };

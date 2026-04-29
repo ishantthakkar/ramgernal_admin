@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import dashboardStyles from "../dashboard.module.css";
 import { adminApi } from "@/lib/api";
+import { hasPermission } from "@/lib/permissions";
 
 export default function CustomersPage() {
   const router = useRouter();
@@ -21,6 +22,9 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const canEdit = hasPermission("Customers", "edit");
+  const canCreate = hasPermission("Customers", "create");
 
 
   useEffect(() => {
@@ -144,12 +148,14 @@ export default function CustomersPage() {
                       </div>
                     </td>
                     <td className={styles.actionsCell} style={{ textAlign: "right" }}>
-                      <button
-                        className={dashboardStyles.assignBtn}
-                        onClick={() => router.push(`/customers/${customer.id || customer._id}/edit`)}
-                      >
-                        Edit
-                      </button>
+                      {canEdit && (
+                        <button
+                          className={dashboardStyles.assignBtn}
+                          onClick={() => router.push(`/customers/${customer.id || customer._id}/edit`)}
+                        >
+                          Edit
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
