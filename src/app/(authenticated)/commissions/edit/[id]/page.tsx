@@ -126,9 +126,11 @@ export default function EditCommissionPage() {
     paidTo: "",
     totalAmount: "",
   });
-  const [addPayments, setAddPayments] = useState<
-    { id: string; paidAmount: string; paymentMethod: string; paymentDate: string }[]
-  >([]);
+  const [addPayment, setAddPayment] = useState({
+    paidAmount: "",
+    paymentMethod: "",
+    paymentDate: ""
+  });
 
   useEffect(() => {
     if (customer) {
@@ -140,11 +142,6 @@ export default function EditCommissionPage() {
       }));
     }
   }, [customer]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -166,6 +163,11 @@ export default function EditCommissionPage() {
     });
   };
 
+  const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setAddPayment((prev) => ({ ...prev, [name]: value }));
+  };
+
   const getPaidToOptions = () => {
     if (!customer) return [];
     if (addFormData.commissionType === "Survey Commission") return customer.salesPerson ? [customer.salesPerson] : [];
@@ -179,24 +181,9 @@ export default function EditCommissionPage() {
     return [];
   };
 
-  const addPaymentRow = () => {
-    setAddPayments((prev) => [
-      ...prev,
-      { id: Math.random().toString(36).substr(2, 9), paidAmount: "", paymentMethod: "", paymentDate: "" },
-    ]);
-  };
-
-  const removePaymentRow = (pid: string) => {
-    setAddPayments((prev) => prev.filter((p) => p.id !== pid));
-  };
-
-  const updatePaymentRow = (pid: string, field: string, value: string) => {
-    setAddPayments((prev) => prev.map((p) => (p.id === pid ? { ...p, [field]: value } : p)));
-  };
-
   const computedPaid = useMemo(() => {
-    return addPayments.reduce((sum, p) => sum + (parseFloat(p.paidAmount) || 0), 0);
-  }, [addPayments]);
+    return parseFloat(addPayment.paidAmount) || 0;
+  }, [addPayment.paidAmount]);
 
   const computedPending = useMemo(() => {
     return (parseFloat(addFormData.totalAmount) || 0) - computedPaid;
@@ -205,8 +192,6 @@ export default function EditCommissionPage() {
   const isAddFormValid = () => {
     return (
       addFormData.commissionType &&
-      addFormData.customerName &&
-      addFormData.companyName &&
       addFormData.paidTo &&
       addFormData.totalAmount &&
       (addFormData.commissionType !== "Others" || addFormData.commissionName)
@@ -228,12 +213,12 @@ export default function EditCommissionPage() {
         commission_type: mapCommissionType(addFormData.commissionType),
         amount: parseFloat(addFormData.totalAmount) || 0,
         paid_amount: computedPaid,
-        payment_method: addPayments[0]?.paymentMethod || "",
+        payment_method: addPayment.paymentMethod,
         payment_status: computedPaid >= (parseFloat(addFormData.totalAmount) || 0) ? "paid" : "payment pending",
       };
 
-      if (addPayments[0]?.paymentDate) {
-        newCommission.payment_date = addPayments[0].paymentDate;
+      if (addPayment.paymentDate) {
+        newCommission.payment_date = addPayment.paymentDate;
       }
 
       if (newCommission.commission_type === "Survey") {
@@ -244,22 +229,7 @@ export default function EditCommissionPage() {
         newCommission.other_name = addFormData.commissionName;
       }
 
-      const existingCommissions = (customer.commissions || []).map((c: ApiCommission) => {
-        const mapped: any = {
-          commission_type: c.commissionType,
-          amount: c.amount,
-          paid_amount: c.paidAmount,
-          payment_method: c.paymentMethod,
-          payment_status: c.paymentStatus,
-        };
-        if (c.paymentDate) mapped.payment_date = c.paymentDate.split("T")[0];
-        if (c.otherName) mapped.other_name = c.otherName;
-        return mapped;
-      });
-
-      const allCommissions = [...existingCommissions, newCommission];
-
-      await adminApi.updateCustomerCommissions(id, allCommissions);
+      await adminApi.updateCustomerCommissions(id, [newCommission]);
       toast.success("Commission added successfully.");
 
       // Refresh data
@@ -276,7 +246,7 @@ export default function EditCommissionPage() {
         paidTo: customer?.salesPerson || "",
         totalAmount: "",
       });
-      setAddPayments([]);
+      setAddPayment({ paidAmount: "", paymentMethod: "", paymentDate: "" });
     } catch (err: any) {
       toast.error(err.message || "Failed to save commission.");
     } finally {
@@ -326,41 +296,10 @@ export default function EditCommissionPage() {
         </h1>
       </div>
 
-      {/* Commission Information */}
+      {/* Customer Information */}
       <section className={styles.formSection}>
-        <h2 className={styles.sectionHeading}>Commission Information</h2>
+        <h2 className={styles.sectionHeading}>Customer Information</h2>
         <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label>Commission Type</label>
-            <div style={{ position: "relative" }}>
-              <select
-                name="commissionType"
-                className={styles.formSelect}
-                value={formData.commissionType}
-                onChange={handleChange}
-              >
-                <option value="Survey Commission">Survey Commission</option>
-                <option value="Installation Commission">Installation Commission</option>
-                <option value="Others">Others</option>
-              </select>
-              <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
-            </div>
-          </div>
-
-          {formData.commissionType === "Others" && (
-            <div className={styles.formGroup}>
-              <label>Commission Name</label>
-              <input
-                type="text"
-                name="commissionName"
-                className={styles.formInput}
-                placeholder="e.g. Referral Bonus"
-                value={formData.commissionName}
-                onChange={handleChange}
-              />
-            </div>
-          )}
-
           <div className={styles.formGroup}>
             <label>Customer Name</label>
             <div className={styles.readOnlyField}>{formData.customerName}</div>
@@ -369,38 +308,6 @@ export default function EditCommissionPage() {
           <div className={styles.formGroup}>
             <label>Company Name</label>
             <div className={styles.readOnlyField}>{formData.companyName}</div>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label>Paid To</label>
-            <div style={{ position: "relative" }}>
-              <select
-                name="paidTo"
-                className={styles.formSelect}
-                value={formData.paidTo}
-                onChange={handleChange}
-              >
-                {customer && (
-                  <>
-                    {customer.salesPerson && <option value={customer.salesPerson}>{customer.salesPerson}</option>}
-                    {customer.contractor && <option value={customer.contractor}>{customer.contractor}</option>}
-                  </>
-                )}
-              </select>
-              <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
-            </div>
-          </div>
-
-          <div className={styles.formGroup}>
-            <label>Total Commission</label>
-            <input
-              type="number"
-              name="totalAmount"
-              className={styles.formInput}
-              placeholder="0.00"
-              value={formData.totalAmount}
-              onChange={handleChange}
-            />
           </div>
         </div>
       </section>
@@ -440,13 +347,13 @@ export default function EditCommissionPage() {
                       ? `${comm.commissionType} (${comm.otherName})`
                       : comm.commissionType}
                   </td>
-                  <td style={{ fontWeight: 700, color: "#0076ce" }}>
+                  <td style={{ fontWeight: 600 }}>
                     ${(comm.amount || 0).toLocaleString()}
                   </td>
-                  <td style={{ color: "#10b981", fontWeight: 600 }}>
+                  <td style={{ fontWeight: 600 }}>
                     ${(comm.paidAmount || 0).toLocaleString()}
                   </td>
-                  <td style={{ color: "#f59e0b", fontWeight: 600 }}>
+                  <td style={{ fontWeight: 600 }}>
                     ${(comm.pending || 0).toLocaleString()}
                   </td>
                   <td>
@@ -457,13 +364,11 @@ export default function EditCommissionPage() {
                         color: comm.paymentStatus === "paid" ? "#10b981" : "#f59e0b",
                       }}
                     >
-                      {comm.paymentStatus}
+                      {comm.paymentStatus === "payment pending" ? "pending" : comm.paymentStatus}
                     </span>
                   </td>
-                  <td>
-                    <span className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
-                      {comm.paymentMethod}
-                    </span>
+                  <td style={{ fontWeight: 600 }}>
+                    {comm.paymentMethod}
                   </td>
                   <td>
                     {comm.paymentDate ? new Date(comm.paymentDate).toLocaleDateString() : "N/A"}
@@ -537,30 +442,6 @@ export default function EditCommissionPage() {
                 )}
 
                 <div className={modalStyles.formGroup}>
-                  <label>Customer Name <span style={{ color: "#ef4444" }}>*</span></label>
-                  <input
-                    type="text"
-                    name="customerName"
-                    placeholder="e.g. John Doe"
-                    className={modalStyles.formInput}
-                    value={addFormData.customerName}
-                    onChange={handleAddFormChange}
-                  />
-                </div>
-
-                <div className={modalStyles.formGroup}>
-                  <label>Company Name <span style={{ color: "#ef4444" }}>*</span></label>
-                  <input
-                    type="text"
-                    name="companyName"
-                    placeholder="e.g. Sunwell Solar"
-                    className={modalStyles.formInput}
-                    value={addFormData.companyName}
-                    onChange={handleAddFormChange}
-                  />
-                </div>
-
-                <div className={modalStyles.formGroup}>
                   <label>Paid To <span style={{ color: "#ef4444" }}>*</span></label>
                   <div style={{ position: "relative" }}>
                     <select
@@ -596,74 +477,54 @@ export default function EditCommissionPage() {
                 </div>
               </div>
 
-              {/* Payments Section */}
+              {/* Payment Section */}
               <div style={{ marginTop: "2rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-                  <h4 style={{ fontSize: "1rem", fontWeight: 700, color: "#1e293b", margin: 0 }}>
-                    Payments
-                  </h4>
-                  <button type="button" className={modalStyles.addPaymentBtn} onClick={addPaymentRow}>
-                    <Plus size={16} /> Add Payment
-                  </button>
-                </div>
+                <h4 style={{ fontSize: "1rem", fontWeight: 700, color: "#1e293b", marginBottom: "1rem" }}>
+                  Payment Details
+                </h4>
 
-                {addPayments.length === 0 ? (
-                  <div className={modalStyles.emptyPayments}>
-                    No payments added yet. Click "Add Payment" to record a payment.
+                <div className={modalStyles.paymentRow}>
+                  <div className={modalStyles.paymentField}>
+                    <label>Paid Amount</label>
+                    <input
+                      type="number"
+                      name="paidAmount"
+                      placeholder="0.00"
+                      className={modalStyles.formInput}
+                      value={addPayment.paidAmount}
+                      onChange={handlePaymentChange}
+                    />
                   </div>
-                ) : (
-                  <div className={modalStyles.paymentRows}>
-                    {addPayments.map((payment) => (
-                      <div key={payment.id} className={modalStyles.paymentRow}>
-                        <div className={modalStyles.paymentField}>
-                          <label>Paid Amount</label>
-                          <input
-                            type="number"
-                            placeholder="0.00"
-                            className={modalStyles.formInput}
-                            value={payment.paidAmount}
-                            onChange={(e) => updatePaymentRow(payment.id, "paidAmount", e.target.value)}
-                          />
-                        </div>
-                        <div className={modalStyles.paymentField}>
-                          <label>Payment Method</label>
-                          <div style={{ position: "relative" }}>
-                            <select
-                              className={modalStyles.formSelect}
-                              value={payment.paymentMethod}
-                              onChange={(e) => updatePaymentRow(payment.id, "paymentMethod", e.target.value)}
-                            >
-                              <option value="">Select Method</option>
-                              {PAYMENT_METHODS.map((m) => (
-                                <option key={m} value={m}>
-                                  {m}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown size={16} style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
-                          </div>
-                        </div>
-                        <div className={modalStyles.paymentField}>
-                          <label>Payment Date</label>
-                          <input
-                            type="date"
-                            className={modalStyles.formInput}
-                            value={payment.paymentDate}
-                            onChange={(e) => updatePaymentRow(payment.id, "paymentDate", e.target.value)}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          className={modalStyles.removePaymentBtn}
-                          onClick={() => removePaymentRow(payment.id)}
-                          title="Remove payment"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
+                  <div className={modalStyles.paymentField}>
+                    <label>Payment Method</label>
+                    <div style={{ position: "relative" }}>
+                      <select
+                        name="paymentMethod"
+                        className={modalStyles.formSelect}
+                        value={addPayment.paymentMethod}
+                        onChange={handlePaymentChange}
+                      >
+                        <option value="">Select Method</option>
+                        {PAYMENT_METHODS.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} style={{ position: "absolute", right: "0.75rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
+                    </div>
                   </div>
-                )}
+                  <div className={modalStyles.paymentField}>
+                    <label>Payment Date</label>
+                    <input
+                      type="date"
+                      name="paymentDate"
+                      className={modalStyles.formInput}
+                      value={addPayment.paymentDate}
+                      onChange={handlePaymentChange}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Summary */}

@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   Clock,
   X,
-  Pencil,
   Loader2,
 } from "lucide-react";
 import modalStyles from "./commissions-modal.module.css";
@@ -162,13 +161,10 @@ export default function CommissionsPage() {
                 type="text"
                 placeholder="Search commissions..."
                 className={styles.searchInputSmall}
-                style={{ width: 300 }}
+                style={{ width: 450 }}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </div>
-            <div className={styles.filterBtn}>
-              <Filter size={18} />
             </div>
           </div>
         </div>
@@ -193,7 +189,12 @@ export default function CommissionsPage() {
                 <tr key={item.id}>
                   <td style={{ fontWeight: 600, color: "#94a3b8" }}>{idx + 1}</td>
                   <td>
-                    <span style={{ fontWeight: 700, color: "#1e293b" }}>{item.name}</span>
+                    <span
+                      style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                      onClick={() => router.push(`/commissions/view/${item.id}`)}
+                    >
+                      {item.name}
+                    </span>
                   </td>
                   <td>
                     <span style={{ fontWeight: 600, color: "#475569" }}>{item.company}</span>
@@ -245,31 +246,10 @@ export default function CommissionsPage() {
                   </td>
                   <td>
                     <button
-                      style={{
-                        background: "#f1f5f9",
-                        border: "none",
-                        color: "#64748b",
-                        padding: "0.4rem 0.75rem",
-                        borderRadius: "6px",
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.3rem",
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#e2e8f0";
-                        e.currentTarget.style.color = "#1e293b";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "#f1f5f9";
-                        e.currentTarget.style.color = "#64748b";
-                      }}
+                      className={styles.assignBtn}
                       onClick={() => router.push(`/commissions/edit/${item.id}`)}
                     >
-                      <Pencil size={14} /> Edit
+                      Edit
                     </button>
                   </td>
                 </tr>
@@ -314,7 +294,7 @@ export default function CommissionsPage() {
                   Amount: <span style={{ fontWeight: 600, color: "#1e293b" }}>${(selectedDetail.amount || 0).toLocaleString()}</span>
                 </div>
               </div>
-              <button className={modalStyles.closeBtn} onClick={() => setSelectedDetail(null)}>
+              <button className={modalStyles.closeBtn} onClick={() => setSelectedDetail(null)} style={{ cursor: "pointer" }}>
                 <X size={24} />
               </button>
             </div>
@@ -333,7 +313,6 @@ export default function CommissionsPage() {
                       <th>Amount</th>
                       <th>Paid</th>
                       <th>Pending</th>
-                      <th>Status</th>
                       <th>Payment Method</th>
                       <th>Payment Date</th>
                     </tr>
@@ -348,25 +327,10 @@ export default function CommissionsPage() {
                             : row.commissionType}
                         </td>
                         <td className={modalStyles.amount}>${(row.amount || 0).toLocaleString()}</td>
-                        <td style={{ color: "#10b981", fontWeight: 600 }}>${(row.paidAmount || 0).toLocaleString()}</td>
-                        <td style={{ color: "#f59e0b", fontWeight: 600 }}>${(row.pending || 0).toLocaleString()}</td>
-                        <td>
-                          <span
-                            className={`${modalStyles.badge} ${
-                              row.paymentStatus === "paid" ? modalStyles.badgeBlue : ""
-                            }`}
-                            style={{
-                              background: row.paymentStatus === "paid" ? "#ecfdf5" : "#fffbeb",
-                              color: row.paymentStatus === "paid" ? "#10b981" : "#f59e0b",
-                            }}
-                          >
-                            {row.paymentStatus}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`${modalStyles.badge} ${modalStyles.badgeBlue}`}>
-                            {row.paymentMethod}
-                          </span>
+                        <td style={{ fontWeight: 600 }}>${(row.paidAmount || 0).toLocaleString()}</td>
+                        <td style={{ fontWeight: 600 }}>${(row.pending || 0).toLocaleString()}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          {row.paymentMethod}
                         </td>
                         <td>{row.paymentDate ? new Date(row.paymentDate).toLocaleDateString() : "N/A"}</td>
                       </tr>
