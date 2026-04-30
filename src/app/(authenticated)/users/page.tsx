@@ -17,10 +17,14 @@ import {
   Loader2
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { hasPermission } from "@/lib/permissions";
 
 export default function UsersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const canCreateUsers = hasPermission("User", "create");
+  const canEditUsers = hasPermission("User", "edit");
 
   const tabParam = searchParams.get("tab");
   const validTabs = ["All Users", "Sales Person", "Contractors", "Project Manager"];
@@ -43,9 +47,9 @@ export default function UsersPage() {
     setLoading(true);
     try {
       let apiRole: string | undefined;
-      if (role === "Sales Person") apiRole = "sales_person";
-      else if (role === "Contractors") apiRole = "contractor";
-      else if (role === "Project Manager") apiRole = "project_manager";
+      if (role === "Sales Person") apiRole = "Sales Person";
+      else if (role === "Contractors") apiRole = "Contractor";
+      else if (role === "Project Manager") apiRole = "Project Manager";
 
       const response = await adminApi.getUserList(apiRole);
 
@@ -123,9 +127,11 @@ export default function UsersPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>Users</h1>
-        <button className={styles.addBtn} onClick={() => router.push("/users/add")}>
-          <Plus size={20} /> Add User
-        </button>
+        {canCreateUsers && (
+          <button className={styles.addBtn} onClick={() => router.push("/users/add")}>
+            <Plus size={20} /> Add User
+          </button>
+        )}
       </div>
 
       <div className={styles.userStatsGrid}>
@@ -283,12 +289,14 @@ export default function UsersPage() {
                     )}
 
                     <td>
-                      <button
-                        className={styles.assignBtn}
-                        onClick={() => router.push(`/users/edit/${user._id}`)}
-                      >
-                        Edit
-                      </button>
+                      {canEditUsers && (
+                        <button
+                          className={styles.assignBtn}
+                          onClick={() => router.push(`/users/edit/${user._id}`)}
+                        >
+                          Edit
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

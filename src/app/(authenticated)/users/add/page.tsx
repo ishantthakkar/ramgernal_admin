@@ -169,7 +169,7 @@ export default function AddUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Email Address {formData.userRole !== "Sales Person" && formData.userRole !== "Contractor" && <span style={{ color: "#ef4444" }}>*</span>}</label>
+              <label>Email Address</label>
               <input
                 name="email"
                 type="email"
@@ -177,7 +177,6 @@ export default function AddUserPage() {
                 className={styles.formInput}
                 value={formData.email}
                 onChange={handleChange}
-                required={formData.userRole !== "Sales Person" && formData.userRole !== "Contractor"}
               />
             </div>
             <div className={styles.formGroup}>

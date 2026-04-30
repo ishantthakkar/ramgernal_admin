@@ -52,7 +52,7 @@ export default function DashboardLayout({
   }
 
   const allNavItems = [
-    { name: "Users", icon: Users, path: "/users", module: "Users" },
+    { name: "Users", icon: Users, path: "/users", module: "User" },
     { name: "Leads", icon: Search, path: "/leads", module: "Leads" },
     { name: "Customers", icon: Handshake, path: "/customers", module: "Customers" },
     { 
@@ -61,9 +61,9 @@ export default function DashboardLayout({
       path: "/workflow", 
       isVisible: canViewModule("Surveys") || canViewModule("Installation") || canViewModule("Inspection") 
     },
-    { name: "Commissions", icon: Wallet, path: "/commissions", module: "Commissions" },
-    { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", module: "Roles" },
-    { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit Logs" },
+    { name: "Commissions", icon: Wallet, path: "/commissions", module: "Commission" },
+    { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", isVisible: isSuperAdmin() },
+    { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit" },
   ];
 
   const filteredNavItems = allNavItems.filter(item => item.isVisible !== undefined ? item.isVisible : canViewModule(item.module || ""));

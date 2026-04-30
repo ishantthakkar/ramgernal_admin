@@ -214,7 +214,7 @@ export default function WorkflowPage() {
     setData([]);
     try {
       if (activeTab === "Surveys") {
-        const pmResponse = await adminApi.getUserList("Project Manager");
+        const pmResponse = await adminApi.getUserList(); // Fetch all users to be safe
         const pmList = pmResponse.users || pmResponse.data || pmResponse;
         setProjectManagers(Array.isArray(pmList) ? pmList : []);
 
@@ -229,7 +229,8 @@ export default function WorkflowPage() {
           customerName: c.name,
           company: c.company,
           salesperson: c.salesPerson || "Unassigned",
-          projectManager: c.assignedTo || "",
+          projectManager: typeof c.assignedTo === 'object' ? (c.assignedTo._id || c.assignedTo.id) : (c.assignedTo || c.projectManager || ""),
+          pmName: (typeof c.assignedTo === 'object' ? c.assignedTo.fullName : null) || (typeof c.projectManager === 'object' ? c.projectManager.fullName : null),
           surveyStatus: c.status || "Pending",
           verifyStatus: c.verifyStatus || "pending",
           date: c.convertedDate || c.createdDate
@@ -315,8 +316,11 @@ export default function WorkflowPage() {
     setAvailableStaff([]);
 
     try {
-      const roleToFetch = type; // "Project Manager" or "Contractor"
-      const response = await adminApi.getUserList(roleToFetch);
+      let apiRole = "";
+      if (type === "Project Manager") apiRole = "project_manager";
+      else if (type === "Contractor") apiRole = "contractor";
+      
+      const response = await adminApi.getUserList(apiRole || type);
       const staff = response.users || response.data || response;
       setAvailableStaff(Array.isArray(staff) ? staff : []);
     } catch (err) {
@@ -507,7 +511,7 @@ export default function WorkflowPage() {
                         <td>
                           <span
                             style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
-                            onClick={() => router.push(`/workflow/view/${item._id}`)}
+                            onClick={() => router.push(`/workflow/view/${item._id}?from=Surveys`)}
                           >
                             {item.customerName}
                           </span>
@@ -518,7 +522,11 @@ export default function WorkflowPage() {
                           {item.projectManager ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
                               <User size={14} color="#94a3b8" />
-                              {projectManagers.find(pm => pm._id === item.projectManager)?.fullName || "Unknown PM"}
+                              {item.pmName || projectManagers.find(pm => {
+                                const pmId = (pm._id || pm.id || "").toString().toLowerCase();
+                                const targetId = (item.projectManager || "").toString().toLowerCase();
+                                return pmId === targetId && targetId !== "";
+                              })?.fullName || item.projectManager || "Unknown PM"}
                             </div>
                           ) : (item.surveyStatus?.toLowerCase() === "completed" && canCreateSurveys) ? (
                             <button
@@ -567,7 +575,7 @@ export default function WorkflowPage() {
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td
                           style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
-                          onClick={() => router.push(`/workflow/view/${item._id}`)}
+                          onClick={() => router.push(`/workflow/view/${item._id}?from=Installations`)}
                         >
                           {item.customerName}
                         </td>
@@ -635,7 +643,7 @@ export default function WorkflowPage() {
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td
                           style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
-                          onClick={() => router.push(`/workflow/view/${item._id}`)}
+                          onClick={() => router.push(`/workflow/view/${item._id}?from=Inspections`)}
                         >
                           {item.customerName}
                         </td>
@@ -706,7 +714,7 @@ export default function WorkflowPage() {
                         (activeTab === "Inspections" && canEditInspections)) && (
                           <button
                             className={styles.assignBtn}
-                            onClick={() => router.push(`/workflow/edit/${item._id}`)}
+                            onClick={() => router.push(`/workflow/edit/${item._id}?from=${activeTab}`)}
                           >
                             Edit
                           </button>

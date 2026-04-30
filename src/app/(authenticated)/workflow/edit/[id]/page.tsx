@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
 import {
   User as UserIcon,
@@ -23,12 +23,15 @@ export default function WorkflowEditPage() {
   const params = useParams();
   const id = params.id as string;
 
+  const searchParams = useSearchParams();
+  const fromTab = searchParams.get("from");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [customer, setCustomer] = useState<any>(null);
   const [surveys, setSurveys] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"survey" | "installations">("survey");
+  const [activeTab, setActiveTab] = useState<"survey" | "installations">(fromTab?.toLowerCase() === "installations" ? "installations" : "survey");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,10 +87,14 @@ export default function WorkflowEditPage() {
         await adminApi.updateCustomerWorkflow(id, { customer, surveys });
         toast.success("Survey workflow updated successfully!");
       } else {
-        await adminApi.updateCustomerMaterials(id, { materials });
-        toast.success("Materials updated successfully!");
+        // Only send new materials to prevent duplication (backend appends)
+        const newMaterials = materials.filter(m => !m._id && m.item_name.trim() !== "");
+        if (newMaterials.length > 0) {
+          await adminApi.updateCustomerMaterials(id, { materials: newMaterials });
+        }
+        toast.success("New materials added successfully!");
       }
-      router.push(`/workflow/view/${id}`);
+      router.push(`/workflow/view/${id}?from=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to save changes.");
     } finally {
@@ -111,7 +118,7 @@ export default function WorkflowEditPage() {
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/workflow")}>WORKFLOW</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}>WORKFLOW</span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>EDIT WORKFLOW</span>
       </div>
@@ -120,34 +127,38 @@ export default function WorkflowEditPage() {
         <h1 className={styles.welcomeText}>Edit Workflow</h1>
         
         <div className={styles.tabs} style={{ marginTop: "1.5rem", width: "fit-content" }}>
-          <button 
-            className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
-            onClick={() => setActiveTab("survey")}
-            style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
-          >
-            <ClipboardCheck size={18} /> Survey
-          </button>
-          <button 
-            className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
-            onClick={() => {
-              if (isContractorAssigned) {
-                setActiveTab("installations");
-              } else {
-                toast.warning("Assign a contractor first to manage materials.");
-              }
-            }}
-            style={{ 
-              border: "none", 
-              display: "flex", 
-              alignItems: "center", 
-              gap: "0.5rem",
-              opacity: isContractorAssigned ? 1 : 0.5,
-              cursor: isContractorAssigned ? "pointer" : "not-allowed"
-            }}
-            title={!isContractorAssigned ? "Assign a contractor first" : ""}
-          >
-            <Hammer size={18} /> Installations
-          </button>
+          {(fromTab !== "Installations") && (
+            <button 
+              className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
+              onClick={() => setActiveTab("survey")}
+              style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <ClipboardCheck size={18} /> Survey
+            </button>
+          )}
+          {(fromTab !== "Surveys") && (
+            <button 
+              className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
+              onClick={() => {
+                if (isContractorAssigned) {
+                  setActiveTab("installations");
+                } else {
+                  toast.warning("Assign a contractor first to manage materials.");
+                }
+              }}
+              style={{ 
+                border: "none", 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "0.5rem",
+                opacity: isContractorAssigned ? 1 : 0.5,
+                cursor: isContractorAssigned ? "pointer" : "not-allowed"
+              }}
+              title={!isContractorAssigned ? "Assign a contractor first" : ""}
+            >
+              <Hammer size={18} /> Installations
+            </button>
+          )}
         </div>
       </div>
 
@@ -406,6 +417,42 @@ export default function WorkflowEditPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Read-only Survey History for reference during Installation editing */}
+          <div className={styles.formSection} style={{ marginTop: "2rem" }}>
+            <div className={styles.sectionTitle}>
+              <ClipboardCheck size={22} color="#10b981" /> Survey History (Reference)
+            </div>
+            <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+              <table className={styles.userTable}>
+                <thead>
+                  <tr style={{ background: "#f8fafc" }}>
+                    <th style={{ minWidth: "150px" }}>Area</th>
+                    <th>Fixture</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {surveys.map((survey, index) => (
+                    <tr key={survey._id || index}>
+                      <td style={{ fontWeight: 600, color: "#1e293b" }}>{survey.area}</td>
+                      <td style={{ color: "#64748b" }}>{survey.proposedFixture}</td>
+                      <td style={{ color: "#10b981", fontWeight: 700 }}>{survey.proposedQuantity}</td>
+                      <td style={{ color: "#64748b" }}>${survey.totalPrice}</td>
+                      <td style={{ fontSize: "0.8rem", color: "#94a3b8" }}>{survey.note || "N/A"}</td>
+                    </tr>
+                  ))}
+                  {surveys.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: "center", padding: "2rem" }}>No survey data.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -413,7 +460,7 @@ export default function WorkflowEditPage() {
         <button
           type="button"
           className={styles.cancelBtn}
-          onClick={() => router.push(`/workflow/view/${id}`)}
+          onClick={() => router.push(`/workflow/view/${id}?from=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}
           style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
         >
           Cancel

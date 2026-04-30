@@ -24,17 +24,16 @@ import { adminApi } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 const MODULES = [
-  { id: "dashboard", name: "Dashboard", icon: LayoutGrid },
-  { id: "leads", name: "Leads", icon: BarChart2 },
-  { id: "customers", name: "Customers", icon: User },
-  { id: "surveys", name: "Surveys", icon: ClipboardCheck },
-  { id: "installation", name: "Installation", icon: Zap },
-  { id: "inspection", name: "Inspection", icon: SearchIcon },
-  { id: "commissions", name: "Commissions", icon: Wallet },
-  { id: "audit_logs", name: "Audit Logs", icon: History },
+  { id: "users", name: "User", icon: User, allowed: ["view", "edit", "create"] },
+  { id: "dashboard", name: "Dashboard", icon: LayoutGrid, allowed: ["view"] },
+  { id: "leads", name: "Leads", icon: BarChart2, allowed: ["view", "edit"] },
+  { id: "customers", name: "Customers", icon: User, allowed: ["view", "edit"] },
+  { id: "surveys", name: "Surveys", icon: ClipboardCheck, allowed: ["view", "edit"] },
+  { id: "installation", name: "Installation", icon: Zap, allowed: ["view", "edit"] },
+  { id: "inspection", name: "Inspection", icon: SearchIcon, allowed: ["view", "edit"] },
+  { id: "commissions", name: "Commission", icon: Wallet, allowed: ["view", "edit"] },
+  { id: "audit_logs", name: "Audit", icon: History, allowed: ["view"] },
 ];
-
-const ACTIONS = ["VIEW", "CREATE", "EDIT"];
 
 export default function EditRolePage() {
   const router = useRouter();
@@ -45,16 +44,12 @@ export default function EditRolePage() {
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>({
-    dashboard: { view: false, create: false, edit: false },
-    leads: { view: false, create: false, edit: false },
-    customers: { view: false, create: false, edit: false },
-    surveys: { view: false, create: false, edit: false },
-    installation: { view: false, create: false, edit: false },
-    inspection: { view: false, create: false, edit: false },
-    commissions: { view: false, create: false, edit: false },
-    audit_logs: { view: false, create: false, edit: false },
-  });
+  const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>(
+    MODULES.reduce((acc, m) => ({
+      ...acc,
+      [m.id]: { view: false, create: false, edit: false }
+    }), {})
+  );
 
   useEffect(() => {
     if (id) {
@@ -93,7 +88,7 @@ export default function EditRolePage() {
       ...prev,
       [moduleId]: {
         ...prev[moduleId],
-        [action.toLowerCase()]: !prev[moduleId][action.toLowerCase()]
+        [action]: !prev[moduleId][action]
       }
     }));
   };
@@ -191,7 +186,7 @@ export default function EditRolePage() {
         <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "16px", border: "1px solid #f1f5f9" }}>
           <div style={{ display: "grid", gridTemplateColumns: "2fr repeat(3, 1fr)", gap: "1rem", marginBottom: "1rem", padding: "0 1rem" }}>
             <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8" }}>MODULE / SCOPE</div>
-            {ACTIONS.map(action => (
+            {["VIEW", "CREATE", "EDIT"].map(action => (
               <div key={action} style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textAlign: "center" }}>{action}</div>
             ))}
           </div>
@@ -217,25 +212,29 @@ export default function EditRolePage() {
                   </div>
                   <span style={{ fontWeight: 600, color: "#1e293b", fontSize: "0.9rem" }}>{module.name}</span>
                 </div>
-                {ACTIONS.map((action) => (
+                {["view", "create", "edit"].map((action) => (
                   <div key={action} style={{ display: "flex", justifyContent: "center" }}>
-                    <div 
-                      onClick={() => togglePermission(module.id, action)}
-                      style={{ 
-                        width: "20px", 
-                        height: "20px", 
-                        borderRadius: "4px", 
-                        border: permissions[module.id][action.toLowerCase()] ? "none" : "2px solid #e2e8f0",
-                        background: permissions[module.id][action.toLowerCase()] ? "#0076ce" : "transparent",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "all 0.2s"
-                      }}
-                    >
-                      {permissions[module.id][action.toLowerCase()] && <Check size={14} color="white" strokeWidth={3} />}
-                    </div>
+                    {module.allowed.includes(action) ? (
+                      <div 
+                        onClick={() => togglePermission(module.id, action)}
+                        style={{ 
+                          width: "20px", 
+                          height: "20px", 
+                          borderRadius: "4px", 
+                          border: permissions[module.id][action] ? "none" : "2px solid #e2e8f0",
+                          background: permissions[module.id][action] ? "#0076ce" : "transparent",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.2s"
+                        }}
+                      >
+                        {permissions[module.id][action] && <Check size={14} color="white" strokeWidth={3} />}
+                      </div>
+                    ) : (
+                      <div style={{ width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1", fontWeight: 700 }}>-</div>
+                    )}
                   </div>
                 ))}
               </div>

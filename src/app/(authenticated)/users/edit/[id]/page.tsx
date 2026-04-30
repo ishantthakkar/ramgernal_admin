@@ -63,11 +63,13 @@ export default function EditUserPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic Email Validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      toast.error("Please enter a valid email address.");
-      return;
+    // Basic Email Validation (only if email is provided)
+    if (formData.email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error("Please enter a valid email address.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -143,7 +145,7 @@ export default function EditUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Email Address <span style={{ color: "#ef4444" }}>*</span></label>
+              <label>Email Address</label>
               <input
                 name="email"
                 type="email"
@@ -152,7 +154,6 @@ export default function EditUserPage() {
                 style={{ background: "#eef1f4" }}
                 value={formData.email}
                 onChange={handleChange}
-                required
               />
             </div>
             <div className={styles.formGroup}>

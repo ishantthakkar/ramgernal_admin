@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
 import modalStyles from "./workflow-details.module.css";
 import {
@@ -33,11 +33,14 @@ export default function WorkflowViewPage() {
   const params = useParams();
   const id = params.id as string;
 
+  const searchParams = useSearchParams();
+  const fromTab = searchParams.get("from");
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
   const [activeArea, setActiveArea] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"survey" | "installations">("survey");
+  const [activeTab, setActiveTab] = useState<"survey" | "installations">(fromTab?.toLowerCase() === "installations" ? "installations" : "survey");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -71,51 +74,48 @@ export default function WorkflowViewPage() {
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/workflow")}>WORKFLOW</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}>WORKFLOW</span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>VIEW SURVEY</span>
       </div>
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>Workflow Details</h1>
-        <button 
-          className={styles.addBtn}
-          onClick={() => router.push(`/workflow/edit/${id}`)}
-          style={{ background: "#0076ce" }}
-        >
-          <Edit2 size={18} /> Edit Workflow
-        </button>
       </div>
 
       <div className={styles.tabs} style={{ marginBottom: "2rem", width: "fit-content" }}>
-        <button 
-          className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
-          onClick={() => setActiveTab("survey")}
-          style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
-        >
-          <ClipboardCheck size={18} /> Survey
-        </button>
-        <button 
-          className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
-          onClick={() => {
-            if (isContractorAssigned) {
-              setActiveTab("installations");
-            } else {
-              toast.warning("Materials are only available after contractor assignment.");
-            }
-          }}
-          style={{ 
-            border: "none", 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.5rem",
-            opacity: isContractorAssigned ? 1 : 0.5,
-            cursor: isContractorAssigned ? "pointer" : "not-allowed"
-          }}
-          title={!isContractorAssigned ? "Contractor not assigned" : ""}
-        >
-          <Hammer size={18} /> Installations
-        </button>
+        {(fromTab !== "Installations") && (
+          <button 
+            className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
+            onClick={() => setActiveTab("survey")}
+            style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
+          >
+            <ClipboardCheck size={18} /> Survey
+          </button>
+        )}
+        {(fromTab !== "Surveys") && (
+          <button 
+            className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
+            onClick={() => {
+              if (isContractorAssigned) {
+                setActiveTab("installations");
+              } else {
+                toast.warning("Materials are only available after contractor assignment.");
+              }
+            }}
+            style={{ 
+              border: "none", 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "0.5rem",
+              opacity: isContractorAssigned ? 1 : 0.5,
+              cursor: isContractorAssigned ? "pointer" : "not-allowed"
+            }}
+            title={!isContractorAssigned ? "Contractor not assigned" : ""}
+          >
+            <Hammer size={18} /> Installations
+          </button>
+        )}
       </div>
 
       {/* Customer Information */}
@@ -246,49 +246,130 @@ export default function WorkflowViewPage() {
           )}
         </div>
       ) : (
-        <div className={styles.formSection} style={{ marginTop: "2rem" }}>
-          <div className={styles.sectionTitle}>
-            <Hammer size={22} color="#475569" /> Installation Materials
-          </div>
-          <p className={styles.sectionSubtitle}>Items and quantities issued for this installation.</p>
+        <>
+          <div className={styles.formSection} style={{ marginTop: "2rem" }}>
+            <div className={styles.sectionTitle}>
+              <Hammer size={22} color="#475569" /> Installation Materials
+            </div>
+            <p className={styles.sectionSubtitle}>Items and quantities issued for this installation.</p>
 
-          {data.materials && data.materials.length > 0 ? (
-            <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-              <table className={styles.userTable}>
-                <thead>
-                  <tr style={{ background: "#f8fafc" }}>
-                    <th style={{ width: "80px" }}>Sr. No</th>
-                    <th style={{ minWidth: "200px" }}>Item Name</th>
-                    <th style={{ width: "150px" }}>Issued Qty</th>
-                    <th>Image</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.materials.map((item: any, index: number) => (
-                    <tr key={index}>
-                      <td style={{ fontWeight: 600, color: "#64748b" }}>{index + 1}</td>
-                      <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.item_name}</td>
-                      <td style={{ fontWeight: 700, color: "#0076ce" }}>{item.issued_qty}</td>
-                      <td>
-                        {item.image ? (
-                          <div style={{ width: "60px", height: "60px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                            <img src={item.image} alt={item.item_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          </div>
-                        ) : (
-                          <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No image</span>
-                        )}
-                      </td>
+            {data.materials && data.materials.length > 0 ? (
+              <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                <table className={styles.userTable}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      <th style={{ width: "80px" }}>Sr. No</th>
+                      <th style={{ minWidth: "200px" }}>Item Name</th>
+                      <th style={{ width: "150px" }}>Issued Qty</th>
+                      <th>Image</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {data.materials.map((item: any, index: number) => (
+                      <tr key={index}>
+                        <td style={{ fontWeight: 600, color: "#64748b" }}>{index + 1}</td>
+                        <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.item_name}</td>
+                        <td style={{ fontWeight: 700, color: "#0076ce" }}>{item.issued_qty}</td>
+                        <td>
+                          {item.image ? (
+                            <div style={{ width: "60px", height: "60px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                              <img src={item.image} alt={item.item_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No image</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
+                <p style={{ color: "#94a3b8", fontWeight: 500 }}>No materials recorded yet.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Also show Survey History in Installations view if requested */}
+          <div className={styles.formSection} style={{ marginTop: "2rem" }}>
+            <div className={styles.sectionTitle}>
+              <ClipboardCheck size={22} color="#10b981" /> Survey History
             </div>
-          ) : (
-            <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
-              <p style={{ color: "#94a3b8", fontWeight: 500 }}>No materials recorded yet.</p>
-            </div>
-          )}
-        </div>
+            {surveys && surveys.length > 0 ? (
+              <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+                <table className={styles.userTable}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      <th style={{ minWidth: "150px" }}>Area</th>
+                      <th>Height</th>
+                      <th>Existing Fixture Type</th>
+                      <th>Existing Bulbs</th>
+                      <th>Existing Qty</th>
+                      <th>Proposed Fixture</th>
+                      <th>Proposed Qty</th>
+                      <th>Price / Unit</th>
+                      <th>Total Price</th>
+                      <th>Note</th>
+                      <th>Images/Videos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {surveys.map((survey: any) => (
+                      <tr key={survey._id}>
+                        <td style={{ fontWeight: 600, color: "#1e293b" }}>{survey.area}</td>
+                        <td style={{ color: "#64748b" }}>{survey.heightInInches || "N/A"}</td>
+                        <td style={{ color: "#64748b" }}>
+                          {survey.existingFixtureType === "Other" ? survey.otherFixtureType : survey.existingFixtureType}
+                        </td>
+                        <td style={{ color: "#64748b" }}>{survey.existingBulbs || "N/A"}</td>
+                        <td style={{ color: "#ef4444", fontWeight: 700 }}>{survey.existingQuantity}</td>
+                        <td style={{ color: "#0076ce", fontWeight: 600 }}>{survey.proposedFixture}</td>
+                        <td style={{ color: "#10b981", fontWeight: 700 }}>{survey.proposedQuantity}</td>
+                        <td style={{ color: "#64748b" }}>${survey.pricePerUnit}</td>
+                        <td style={{ fontWeight: 700, color: "#1e293b" }}>${survey.totalPrice}</td>
+                        <td style={{
+                          maxWidth: "200px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color: "#64748b",
+                          fontSize: "0.8rem"
+                        }} title={survey.note}>
+                          {survey.note || "N/A"}
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            {survey.images && survey.images.length > 0 ? (
+                              <button
+                                className={modalStyles.viewImgBtn}
+                                onClick={() => {
+                                  setSelectedImages(survey.images);
+                                  setActiveArea(survey.area);
+                                }}
+                              >
+                                <Eye size={14} /> View
+                                <span style={{ opacity: 0.7, fontWeight: 500 }}>({survey.images.length})</span>
+                              </button>
+                            ) : (
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600 }}>
+                                <ImageIcon size={14} /> None
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
+                <p style={{ color: "#94a3b8", fontWeight: 500 }}>No survey records found.</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
 
@@ -381,7 +462,7 @@ export default function WorkflowViewPage() {
         <button
           type="button"
           className={styles.cancelBtn}
-          onClick={() => router.push("/workflow")}
+          onClick={() => router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}
           style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
         >
           <X size={20} /> Close

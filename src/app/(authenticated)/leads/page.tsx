@@ -14,10 +14,13 @@ import {
   Loader2
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { hasPermission } from "@/lib/permissions";
 
 export default function LeadsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const canEditLeads = hasPermission("Leads", "edit");
 
   const tabParam = searchParams.get("tab");
   const validTabs = ["Active Leads", "Lost Lead"];
@@ -221,12 +224,14 @@ export default function LeadsPage() {
                     </td>
                     <td>{lead.lastActivity ? new Date(lead.lastActivity).toLocaleDateString() : "N/A"}</td>
                     <td>
-                      <button
-                        className={dashboardStyles.assignBtn}
-                        onClick={() => router.push(`/leads/${lead.id}/edit`)}
-                      >
-                        Edit
-                      </button>
+                      {canEditLeads && (
+                        <button
+                          className={dashboardStyles.assignBtn}
+                          onClick={() => router.push(`/leads/${lead.id}/edit`)}
+                        >
+                          Edit
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
