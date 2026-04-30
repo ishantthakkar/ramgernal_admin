@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
-import { 
-  Users, 
-  Plus, 
-  Search, 
+import {
+  Users,
+  Plus,
+  Search,
   UserPlus,
   Ticket,
   ChevronLeft,
@@ -38,7 +38,7 @@ export default function RolesPermissionsPage() {
     }
   };
 
-  const filteredRoles = roles.filter(role => 
+  const filteredRoles = roles.filter(role =>
     role.roleName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     role.notes?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -53,7 +53,7 @@ export default function RolesPermissionsPage() {
     <div className={styles.usersPage}>
       {/* Breadcrumb */}
       <div className={styles.breadcrumb} style={{ color: "#94a3b8", fontWeight: 600 }}>
-        DASHBOARD <span style={{ margin: "0 0.5rem" }}>&gt;</span>
+        Admin <span style={{ margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>ROLES & PERMISSIONS</span>
       </div>
 
@@ -62,8 +62,8 @@ export default function RolesPermissionsPage() {
         <h1 className={styles.welcomeText} style={{ fontSize: "1.875rem" }}>
           Manage Roles & Permissions
         </h1>
-        <button 
-          className={styles.addBtn} 
+        <button
+          className={styles.addBtn}
           style={{ padding: "0.75rem 1.75rem" }}
           onClick={() => router.push("/roles/create")}
         >
@@ -75,8 +75,8 @@ export default function RolesPermissionsPage() {
       <div className={styles.userStatsGrid} style={{ marginBottom: "2.5rem" }}>
         {stats.map((stat) => (
           <div key={stat.label} className={styles.userStatCard} style={{ background: "#ffffff", border: "1px solid #f1f5f9" }}>
-            <div 
-              className={styles.userStatIcon} 
+            <div
+              className={styles.userStatIcon}
               style={{ backgroundColor: stat.bg, color: stat.color, width: "44px", height: "44px", borderRadius: "10px" }}
             >
               <stat.icon size={22} />
@@ -133,7 +133,7 @@ export default function RolesPermissionsPage() {
                       <td style={{ fontWeight: 600, color: "#475569" }}>{role.roleName}</td>
                       <td style={{ color: "#64748b" }}>{role.notes}</td>
                       <td style={{ textAlign: "right" }}>
-                        <button 
+                        <button
                           className={styles.assignBtn}
                           style={{ padding: "0.4rem 1.2rem", fontSize: "0.75rem" }}
                           onClick={() => router.push(`/roles/edit/${role._id}`)}

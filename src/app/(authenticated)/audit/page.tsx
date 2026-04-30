@@ -92,42 +92,19 @@ export default function AuditLogsPage() {
         </button>
       </div>
 
-      <div className={styles.userStatsGrid}>
-        {stats.map((stat) => (
-          <div key={stat.label} className={styles.userStatCard}>
-            <div 
-              className={styles.userStatIcon} 
-              style={{ backgroundColor: stat.bg, color: stat.color }}
-            >
-              <stat.icon size={22} />
-            </div>
-            <div className={styles.userStatValue}>{stat.value}</div>
-            <div className={styles.userStatLabel}>{stat.label}</div>
-          </div>
-        ))}
-      </div>
-
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
-          <div className={styles.tabs}>
-            {["All Activities", "Security Events", "Workflows", "User Auth"].map((tab) => (
-              <div 
-                key={tab} 
-                className={`${styles.tab} ${activeType === tab ? styles.tabActive : ""}`}
-                onClick={() => setActiveType(tab)}
-              >
-                {tab}
-              </div>
-            ))}
+          <div className={styles.searchUsers}>
+            <SearchIcon size={16} color="#94a3b8" />
+            <input 
+              type="text" 
+              placeholder="Search logs..." 
+              className={styles.searchInputSmall} 
+              style={{ width: 440 }}
+            />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div className={styles.filterBtn}>
-              <Filter size={18} /> Filters
-            </div>
-            <div className={styles.searchUsers}>
-              <SearchIcon size={16} color="#94a3b8" />
-              <input type="text" placeholder="Search logs..." className={styles.searchInputSmall} style={{ width: 150 }} />
-            </div>
+          <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
+            Showing {MOCK_AUDIT_LOGS.length} results
           </div>
         </div>
 

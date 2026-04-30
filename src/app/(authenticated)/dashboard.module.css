@@ -810,6 +810,7 @@
   width: 100%;
   outline: none;
   transition: all 0.2s;
+  appearance: none;
 }
 
 .formInput::placeholder {
