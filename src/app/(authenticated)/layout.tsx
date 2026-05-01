@@ -61,6 +61,7 @@ export default function DashboardLayout({
       path: "/workflow", 
       isVisible: canViewModule("Surveys") || canViewModule("Installation") || canViewModule("Inspection") 
     },
+    { name: "Services", icon: Settings, path: "/services", isVisible: true },
     { name: "Commissions", icon: Wallet, path: "/commissions", module: "Commission" },
     { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", isVisible: isSuperAdmin() },
     { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit" },
@@ -102,7 +103,7 @@ export default function DashboardLayout({
             <Link
               key={item.name}
               href={item.path}
-              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads" || item.path === "/customers" || item.path === "/workflow" || item.path === "/commissions" || item.path === "/roles" || item.path === "/audit") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
+              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads" || item.path === "/customers" || item.path === "/workflow" || item.path === "/services" || item.path === "/commissions" || item.path === "/roles" || item.path === "/audit") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
             >
               <item.icon size={22} strokeWidth={2.5} />

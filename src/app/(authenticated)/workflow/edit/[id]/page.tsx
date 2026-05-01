@@ -94,7 +94,7 @@ export default function WorkflowEditPage() {
         }
         toast.success("New materials added successfully!");
       }
-      router.push(`/workflow/view/${id}?from=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`);
+      router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to save changes.");
     } finally {
@@ -167,7 +167,7 @@ export default function WorkflowEditPage() {
         <div className={styles.sectionTitle}>
           <UserIcon size={22} color="#0076ce" /> Customer Information
         </div>
-        <p className={styles.sectionSubtitle}>Reviewing primary contact and company details.</p>
+
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
@@ -200,7 +200,7 @@ export default function WorkflowEditPage() {
             </div>
             <p className={styles.sectionSubtitle}>Modify fixtures, quantities, and pricing for this survey.</p>
 
-            <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+            <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflowX: "auto" }}>
               <table className={styles.userTable}>
                 <thead>
                   <tr style={{ background: "#f8fafc" }}>
@@ -347,7 +347,7 @@ export default function WorkflowEditPage() {
             </button>
           </div>
 
-          <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+          <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflowX: "auto" }}>
             <table className={styles.userTable}>
               <thead>
                 <tr style={{ background: "#f8fafc" }}>
@@ -423,7 +423,7 @@ export default function WorkflowEditPage() {
             <div className={styles.sectionTitle}>
               <ClipboardCheck size={22} color="#10b981" /> Survey History (Reference)
             </div>
-            <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+            <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflowX: "auto" }}>
               <table className={styles.userTable}>
                 <thead>
                   <tr style={{ background: "#f8fafc" }}>
@@ -456,21 +456,22 @@ export default function WorkflowEditPage() {
         </div>
       )}
 
-      <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
+      <div className={styles.actionFooter}>
         <button
           type="button"
           className={styles.cancelBtn}
-          onClick={() => router.push(`/workflow/view/${id}?from=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}
-          style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
+          onClick={() => router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}
+          disabled={saving}
+          style={{ padding: "0.875rem 3rem", background: "#ffffff", color: "#4b5563", border: "1.5px solid #e2e8f0" }}
         >
-          Cancel
+          <X size={20} /> Cancel
         </button>
         <button
           type="button"
-          className={styles.addBtn}
+          className={styles.createBtn}
           onClick={handleSave}
           disabled={saving}
-          style={{ padding: "0.875rem 3rem", display: "flex", alignItems: "center", gap: "0.5rem" }}
+          style={{ padding: "0.875rem 3rem", display: "flex", alignItems: "center", gap: "0.5rem", background: "#005696" }}
         >
           {saving ? <Loader2 size={20} className={styles.spinner} /> : <Save size={20} />}
           {saving ? "Saving..." : "Save Changes"}

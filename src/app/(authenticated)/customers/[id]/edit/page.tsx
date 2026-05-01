@@ -249,7 +249,7 @@ export default function EditCustomerPage() {
           <button
             type="button"
             className={styles.cancelBtn}
-            onClick={() => router.push(`/customers/${id}`)}
+            onClick={() => router.push("/customers")}
             disabled={saving}
           >
             <X size={18} /> Cancel

@@ -422,7 +422,8 @@ export default function WorkflowPage() {
   return (
     <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span>/</span> WORKFLOW
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ color: "#0076ce" }}>WORKFLOW</span>
       </div>
 
       <div className={styles.pageHeader}>

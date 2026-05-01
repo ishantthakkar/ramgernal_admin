@@ -122,7 +122,8 @@ export default function UsersPage() {
   return (
     <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span>/</span> USERS
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ color: "#0076ce" }}>USERS</span>
       </div>
 
       <div className={styles.pageHeader}>

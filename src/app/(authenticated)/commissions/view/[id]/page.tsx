@@ -6,7 +6,7 @@ import styles from "../../edit/[id]/commission-edit.module.css";
 import dashboardStyles from "../../../dashboard.module.css";
 import modalStyles from "../../commissions-modal.module.css";
 import {
-  ArrowLeft,
+  X,
   Loader2,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
@@ -216,9 +216,14 @@ export default function ViewCommissionPage() {
       </section>
 
       {/* Back Footer */}
-      <div className={styles.actionFooter}>
-        <button className={styles.cancelBtn} onClick={() => router.push("/commissions")}>
-          <ArrowLeft size={18} /> Back to Commissions
+      <div className={dashboardStyles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end", display: "flex" }}>
+        <button
+          type="button"
+          className={dashboardStyles.cancelBtn}
+          onClick={() => router.push("/commissions")}
+          style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff", display: "flex", alignItems: "center", gap: "0.5rem", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 600 }}
+        >
+          <X size={20} /> Close
         </button>
       </div>
     </div>

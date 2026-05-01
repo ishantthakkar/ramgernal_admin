@@ -71,8 +71,9 @@ export default function AddUserPage() {
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span>
-        TEAM MANAGEMENT <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>/</span>
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>USERS</span>
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>ADD USER</span>
       </div>
 

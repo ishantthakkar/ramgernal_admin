@@ -115,7 +115,7 @@ export default function CommissionsPage() {
   if (loading) {
     return (
       <div className={styles.usersPage}>
-        <div className={styles.breadcrumb}>ADMIN <span>/</span> COMMISSIONS</div>
+      <div className={styles.breadcrumb}>ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> <span style={{ color: "#0076ce" }}>COMMISSIONS</span></div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4rem" }}>
           <Loader2 size={40} className={styles.spinner} style={{ color: "#64748b" }} />
         </div>
@@ -126,7 +126,8 @@ export default function CommissionsPage() {
   return (
     <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span>/</span> COMMISSIONS
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ color: "#0076ce" }}>COMMISSIONS</span>
       </div>
 
       <div className={styles.pageHeader}>
