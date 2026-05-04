@@ -82,14 +82,12 @@ export default function AuditLogsPage() {
   return (
     <div className={styles.usersPage} onClick={() => setOpenActionId(null)}>
       <div className={styles.breadcrumb}>
-        ADMIN <span>/</span> AUDIT LOGS
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span style={{ color: "#0076ce" }}>AUDIT LOGS</span>
       </div>
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>System Audit Logs</h1>
-        <button className={styles.addBtn} style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0' }}>
-          <Download size={20} /> Export Logs
-        </button>
       </div>
 
       <div className={styles.tableCard}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import { adminApi } from "@/lib/api";
 import {
@@ -18,6 +19,7 @@ import {
 import { toast } from "react-toastify";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -105,12 +107,12 @@ export default function DashboardPage() {
       <section>
         <div className={styles.sectionHeader}>
           <h2 className={styles.welcomeText}>Recent Activities</h2>
-          <span className={styles.viewAll}>View All Activity</span>
+          <span className={styles.viewAll} onClick={() => router.push('/audit')} style={{ cursor: 'pointer' }}>View All Activity</span>
         </div>
 
         <div className={styles.activitiesContainer}>
           {stats?.activityLog && stats.activityLog.length > 0 ? (
-            stats.activityLog.map((activity: any, index: number) => {
+            stats.activityLog.slice(0, 5).map((activity: any, index: number) => {
               // Helper to get icon and color based on recordType
               const getLogDisplay = (type: string) => {
                 switch (type?.toLowerCase()) {
@@ -149,7 +151,6 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <MoreVertical size={20} color="#94a3b8" cursor="pointer" />
                 </div>
               );
             })
