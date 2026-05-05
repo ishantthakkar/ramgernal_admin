@@ -215,7 +215,7 @@ export default function LeadsPage() {
                     </td>
                     <td>{lead.mobileNumber || "N/A"}</td>
                     <td>{lead.company}</td>
-                    <td>{lead.salesPerson}</td>
+                    <td>{lead.createdByName}</td>
                     <td>
                       <div className={styles.statusIndicator}>
                         <div className={lead.status === "Active" || lead.status === "New" ? styles.dotActive : styles.dotDeactivated}></div>
