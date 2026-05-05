@@ -33,6 +33,8 @@ export default function EditLeadPage() {
   const [converting, setConverting] = useState(false);
   const [markingLost, setMarkingLost] = useState(false);
 
+  const [existingNotes, setExistingNotes] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -44,8 +46,7 @@ export default function EditLeadPage() {
     city: "",
     state: "",
     zip: "",
-    leadSource: "",
-    notes: ""
+    leadSource: ""
   });
 
   useEffect(() => {
@@ -58,15 +59,15 @@ export default function EditLeadPage() {
           company: lead.company || "",
           email: lead.email || "",
           mobileNumber: lead.mobileNumber || "",
-          salesPerson: lead.salesPerson || "",
+          salesPerson: lead.user_id?.fullName || lead.salesPerson || "",
           status: lead.status || "",
           street: lead.street || "",
           city: lead.city || "",
           state: lead.state || "",
           zip: lead.zip || "",
-          leadSource: lead.leadSource || "",
-          notes: lead.notes || ""
+          leadSource: lead.leadSource || ""
         });
+        setExistingNotes(Array.isArray(lead.notes) ? lead.notes : []);
       } catch (err) {
         console.error("Failed to fetch lead:", err);
         toast.error("Failed to load lead details.");
@@ -86,7 +87,11 @@ export default function EditLeadPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await adminApi.updateLead({ id, ...formData });
+      await adminApi.updateLead({ 
+        id, 
+        ...formData, 
+        notes: newNote.trim() || undefined 
+      });
       toast.success("Lead updated successfully!");
       router.push("/leads");
     } catch (err: any) {
@@ -155,8 +160,8 @@ export default function EditLeadPage() {
         <div>
           <h1 className={styles.welcomeText}>Edit Lead Profile</h1>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
-            <span style={{ 
-              backgroundColor: `${getStatusColor(formData.status)}15`, 
+            <span style={{
+              backgroundColor: `${getStatusColor(formData.status)}15`,
               color: getStatusColor(formData.status),
               padding: "0.25rem 0.75rem",
               borderRadius: "99px",
@@ -199,7 +204,7 @@ export default function EditLeadPage() {
           <div className={styles.sectionTitle}>
             <Info size={22} color="#0076ce" /> Lead Information
           </div>
-          
+
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>Full Name <span style={{ color: "#ef4444" }}>*</span></label>
@@ -256,6 +261,8 @@ export default function EditLeadPage() {
                   value={formData.salesPerson}
                   onChange={handleChange}
                   required
+                  readOnly
+                  style={{ background: "#f1f5f9", cursor: "not-allowed", color: "#64748b" }}
                 />
                 <User size={16} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
               </div>
@@ -352,16 +359,35 @@ export default function EditLeadPage() {
         {/* Notes Section */}
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <FileText size={22} color="#0076ce" /> Internal Notes
+            <FileText size={22} color="#0076ce" /> Internal Notes & History
           </div>
+          
+          {/* Historical Notes */}
+          {existingNotes.length > 0 && (
+            <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", marginBottom: "0.75rem", display: "block" }}>PAST NOTES</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {existingNotes.map((n, index) => (
+                  <div key={n._id || index} style={{ paddingBottom: index !== existingNotes.length - 1 ? "0.75rem" : "0", borderBottom: index !== existingNotes.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                    <div style={{ color: "#64748b", fontSize: "0.7rem", marginBottom: "0.25rem", display: "flex", justifyContent: "space-between" }}>
+                      <span>Note {index + 1}</span>
+                      <span>{n.createdAt ? new Date(n.createdAt).toLocaleString() : ""}</span>
+                    </div>
+                    <div style={{ color: "#475569", fontSize: "0.85rem", fontWeight: 500 }}>{n.note}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className={styles.formGroup} style={{ marginTop: "1rem" }}>
+            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#0076ce", marginBottom: "0.5rem", display: "block" }}>ADD NEW NOTE</label>
             <textarea
-              name="notes"
               className={styles.formInput}
-              style={{ height: "120px", resize: "none", paddingTop: "0.875rem" }}
-              placeholder="Add internal notes about this lead..."
-              value={formData.notes}
-              onChange={handleChange}
+              style={{ height: "100px", resize: "none", paddingTop: "0.875rem" }}
+              placeholder="Type a new note here to add to the history..."
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
             />
           </div>
         </section>

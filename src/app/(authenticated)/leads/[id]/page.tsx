@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
-import { 
-  Info, 
-  FileText, 
-  RefreshCw, 
+import {
+  Info,
+  FileText,
+  RefreshCw,
   Mail,
   Calendar,
   Layers,
@@ -49,7 +49,7 @@ export default function LeadDetailsPage() {
 
   const handleConvert = async () => {
     if (!window.confirm("Are you sure you want to convert this lead to a customer?")) return;
-    
+
     setConverting(true);
     try {
       await adminApi.convertLead(id);
@@ -64,7 +64,7 @@ export default function LeadDetailsPage() {
 
   const handleLost = async () => {
     if (!window.confirm("Are you sure you want to mark this lead as lost?")) return;
-    
+
     setMarkingLost(true);
     try {
       await adminApi.updateLeadStatus(id, "Lost Leads");
@@ -91,8 +91,8 @@ export default function LeadDetailsPage() {
         <div style={{ textAlign: "center", color: "#64748b" }}>
           <XCircle size={48} color="#ef4444" style={{ margin: "0 auto 1rem" }} />
           <p style={{ fontWeight: 600 }}>Lead not found.</p>
-          <button 
-            className={styles.cancelBtn} 
+          <button
+            className={styles.cancelBtn}
             onClick={() => router.push("/leads")}
             style={{ marginTop: "1rem" }}
           >
@@ -116,11 +116,11 @@ export default function LeadDetailsPage() {
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
-        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
-        <span 
-          style={{ cursor: "pointer" }} 
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span
+          style={{ cursor: "pointer" }}
           onClick={() => router.push("/leads")}
-        >LEADS</span> <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span> 
+        >LEADS</span> <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>VIEW LEAD</span>
       </div>
 
@@ -128,8 +128,8 @@ export default function LeadDetailsPage() {
         <div>
           <h1 className={styles.welcomeText}>Lead Profile: {lead.name}</h1>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
-            <span style={{ 
-              backgroundColor: `${getStatusColor(lead.status)}15`, 
+            <span style={{
+              backgroundColor: `${getStatusColor(lead.status)}15`,
               color: getStatusColor(lead.status),
               padding: "0.25rem 0.75rem",
               borderRadius: "99px",
@@ -143,23 +143,23 @@ export default function LeadDetailsPage() {
         </div>
 
         <div style={{ display: "flex", gap: "1rem" }}>
-          <button 
-            className={styles.createBtn} 
+          <button
+            className={styles.createBtn}
             onClick={handleConvert}
             disabled={converting || markingLost || lead.status === "Converted To Customer" || lead.status === "Lost Leads"}
             style={{ background: "#10b981" }}
           >
-            {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />} 
+            {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />}
             {converting ? "Converting..." : lead.status === "Converted To Customer" ? "Converted" : "Convert to Customer"}
           </button>
-          
-          <button 
+
+          <button
             className={styles.createBtn}
             onClick={handleLost}
             disabled={converting || markingLost || lead.status === "Converted To Customer" || lead.status === "Lost Leads"}
             style={{ background: "#ef4444" }}
           >
-            {markingLost ? <Loader2 size={18} className={styles.spinner} /> : <XCircle size={18} />} 
+            {markingLost ? <Loader2 size={18} className={styles.spinner} /> : <XCircle size={18} />}
             {markingLost ? "Updating..." : lead.status === "Lost Leads" ? "Lead Lost" : "Mark as Lost"}
           </button>
         </div>
@@ -199,21 +199,21 @@ export default function LeadDetailsPage() {
             <label>Assigned Salesperson</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <div style={{ 
-                  background: "#eff6ff", 
-                  color: "#1d4ed8", 
-                  width: 24, 
-                  height: 24, 
-                  display: "flex", 
-                  alignItems: "center", 
-                  justifyContent: "center", 
-                  fontWeight: 700, 
+                <div style={{
+                  background: "#eff6ff",
+                  color: "#1d4ed8",
+                  width: 24,
+                  height: 24,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
                   fontSize: "0.6rem",
                   borderRadius: "50%"
                 }}>
                   {lead.salesPerson?.charAt(0) || "S"}
                 </div>
-                {lead.salesPerson || "Unassigned"}
+                {lead.user_id?.fullName || "Unassigned"}
               </div>
             </div>
           </div>
