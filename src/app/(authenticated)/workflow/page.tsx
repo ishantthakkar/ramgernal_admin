@@ -228,9 +228,9 @@ export default function WorkflowPage() {
           _id: c.id,
           customerName: c.name,
           company: c.company,
-          salesperson: c.salesPerson || "Unassigned",
-          projectManager: typeof c.assignedTo === 'object' ? (c.assignedTo._id || c.assignedTo.id) : (c.assignedTo || c.projectManager || ""),
-          pmName: (typeof c.assignedTo === 'object' ? c.assignedTo.fullName : null) || (typeof c.projectManager === 'object' ? c.projectManager.fullName : null),
+          salesperson: c.salesPersonName || "Unassigned",
+          projectManager: (typeof c.assignedTo === 'object' && c.assignedTo !== null) ? (c.assignedTo._id || c.assignedTo.id) : (c.assignedTo || c.projectManager || ""),
+          pmName: (typeof c.assignedTo === 'object' && c.assignedTo !== null ? c.assignedTo.fullName : null) || (typeof c.projectManager === 'object' && c.projectManager !== null ? c.projectManager.fullName : null),
           surveyStatus: c.status || "Pending",
           verifyStatus: c.verifyStatus || "pending",
           date: c.convertedDate || c.createdDate
@@ -249,7 +249,7 @@ export default function WorkflowPage() {
           accountNumber: inst.accountNumber || "N/A",
           customerName: inst.name || inst.customerName || (inst.customer?.name) || "Unknown",
           company: inst.company || (inst.customer?.company) || "N/A",
-          salesPerson: inst.salesPerson || (inst.customer?.salesPerson) || "Unassigned",
+          salesPerson: inst.salesPersonName || (inst.customer?.salesPerson) || "Unassigned",
           contractor: inst.contractorName || inst.contractor?.fullName || inst.contractor || "Unassigned",
           projectManager: inst.assignedTo?.fullName || inst.projectManager?.fullName || inst.projectManager || "Unassigned",
           status: inst.contractorStatus || "-"
@@ -317,9 +317,9 @@ export default function WorkflowPage() {
 
     try {
       let apiRole = "";
-      if (type === "Project Manager") apiRole = "project_manager";
-      else if (type === "Contractor") apiRole = "contractor";
-      
+      if (type === "Project Manager") apiRole = "Project Manager";
+      else if (type === "Contractor") apiRole = "Contractor";
+
       const response = await adminApi.getUserList(apiRole || type);
       const staff = response.users || response.data || response;
       setAvailableStaff(Array.isArray(staff) ? staff : []);

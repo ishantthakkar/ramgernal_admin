@@ -132,4 +132,20 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify(roleData),
   }),
+  getEligibleCustomers: () => apiRequest("/services/customers/eligible", {
+    method: "GET",
+  }),
+  getServiceCustomerDetails: (customerId: string) => apiRequest(`/services/customers/${customerId}/details`, {
+    method: "GET",
+  }),
+  createServiceTicket: (serviceData: any) => apiRequest("/services", {
+    method: "POST",
+    body: JSON.stringify(serviceData),
+  }),
+  getServices: () => apiRequest("/services", {
+    method: "GET",
+  }),
+  getActivityLogs: () => apiRequest("/activities", {
+    method: "GET",
+  }),
 };

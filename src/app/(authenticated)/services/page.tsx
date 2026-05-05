@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import {
   Settings,
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import { canViewModule, hasPermission } from "@/lib/permissions";
 
 const MOCK_SERVICES = [
   {
@@ -97,9 +99,21 @@ const MOCK_CONTRACTORS = [
 ];
 
 export default function ServicesPage() {
+  const router = useRouter();
   const [view, setView] = useState<"list" | "add">("list");
   const [loading, setLoading] = useState(false);
+  const [services, setServices] = useState<any[]>([]);
+  const [eligibleCustomers, setEligibleCustomers] = useState<any[]>([]);
+  const [contractors, setContractors] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+
+  useEffect(() => {
+    if (!canViewModule("Services")) {
+      toast.error("You do not have permission to view services.");
+      router.push("/dashboard");
+      return;
+    }
+  }, [router]);
   
   // Form State for Add Service
   const [formData, setFormData] = useState({
@@ -107,35 +121,84 @@ export default function ServicesPage() {
     toFixItems: [] as any[],
     materialDelivered: false,
     assignedTo: "",
-    notes: ""
+    notes: "",
+    status: "Assigned"
   });
 
-  const loadMockData = () => {
-    setSelectedCustomer(MOCK_PREFILL_DATA);
-    const items = MOCK_PREFILL_DATA.surveys.map(s => ({
-      surveyId: s._id,
-      area: s.area,
-      fixtureType: s.proposedFixture,
-      proposedQty: s.proposedQuantity,
-      toFix: 1,
-      image: s.images[0],
-      issueNote: "Flickering issue reported by staff."
-    }));
-    setFormData({
-      customerId: "mock_prefill",
-      toFixItems: items,
-      materialDelivered: true,
-      assignedTo: "c1",
-      notes: "Sample service request note."
-    });
+  const fetchServices = async () => {
+    setLoading(true);
+    try {
+      const response = await adminApi.getServices();
+      if (response.success) {
+        setServices(response.data);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to fetch services");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCustomerChange = (customerId: string) => {
-    if (customerId === "mock_prefill") {
-      loadMockData();
-    } else {
+  const fetchEligibleCustomers = async () => {
+    try {
+      const response = await adminApi.getEligibleCustomers();
+      if (response.success) {
+        setEligibleCustomers(response.data);
+      }
+    } catch (error: any) {
+      toast.error("Failed to load eligible customers");
+    }
+  };
+
+  const fetchContractors = async () => {
+    try {
+      const response = await adminApi.getUserList("Contractor");
+      const results = response.users || response.data || (Array.isArray(response) ? response : []);
+      setContractors(results);
+    } catch (error: any) {
+      console.error("Failed to fetch contractors:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (view === "list") {
+      fetchServices();
+    } else if (view === "add") {
+      fetchEligibleCustomers();
+      fetchContractors();
+    }
+  }, [view]);
+
+  const handleCustomerChange = async (customerId: string) => {
+    if (!customerId) {
       setSelectedCustomer(null);
       setFormData(prev => ({ ...prev, customerId: "", toFixItems: [] }));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await adminApi.getServiceCustomerDetails(customerId);
+      if (response.success) {
+        setSelectedCustomer(response.data);
+        const items = response.data.surveys.map((s: any) => ({
+          surveyId: s._id,
+          area: s.area,
+          fixtureType: s.proposedFixture,
+          proposedQty: s.proposedQuantity,
+          toFix: 0,
+          issueNote: ""
+        }));
+        setFormData(prev => ({
+          ...prev,
+          customerId,
+          toFixItems: items
+        }));
+      }
+    } catch (error: any) {
+      toast.error("Failed to fetch customer details");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,10 +208,45 @@ export default function ServicesPage() {
     setFormData(prev => ({ ...prev, toFixItems: updated }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Service ticket created successfully!");
-    setView("list");
+    
+    // Filter out items that don't need fixing if necessary, or just send all
+    // Based on the user's curl example, they send specific items.
+    // Let's only send items where toFix > 0
+    const toFixItems = formData.toFixItems.filter(item => item.toFix > 0);
+    
+    if (toFixItems.length === 0) {
+      toast.warning("Please specify at least one item to fix.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        ...formData,
+        toFixItems
+      };
+      const response = await adminApi.createServiceTicket(payload);
+      if (response.success) {
+        toast.success("Service ticket created successfully!");
+        setView("list");
+        // Reset form
+        setFormData({
+          customerId: "",
+          toFixItems: [],
+          materialDelivered: false,
+          assignedTo: "",
+          notes: "",
+          status: "Assigned"
+        });
+        setSelectedCustomer(null);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create service ticket");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (view === "add") {
@@ -181,14 +279,25 @@ export default function ServicesPage() {
                   value={formData.customerId}
                   onChange={(e) => handleCustomerChange(e.target.value)}
                   required
+                  disabled={loading}
                 >
                   <option value="">Choose a customer...</option>
-                  <option value="mock_prefill">Andrew Scoff - Xelectronics</option>
+                  {eligibleCustomers.map(cust => (
+                    <option key={cust._id} value={cust._id}>
+                      {cust.name} {cust.company ? `- ${cust.company}` : ""}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", fontWeight: "bold", pointerEvents: "none", color: "#64748b" }} />
               </div>
             </div>
           </section>
+
+          {loading && !selectedCustomer && (
+            <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
+              <Loader2 className="animate-spin" size={32} color="#0076ce" />
+            </div>
+          )}
 
           {selectedCustomer && (
             <>
@@ -243,20 +352,20 @@ export default function ServicesPage() {
                     </div>
                     <div className={styles.formGroup}>
                       <label>Street Address</label>
-                      <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.address || "N/A"}</div>
+                      <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.address?.street || "N/A"}</div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" }}>
                       <div className={styles.formGroup}>
                         <label>City</label>
-                        <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.city || "N/A"}</div>
+                        <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.address?.city || "N/A"}</div>
                       </div>
                       <div className={styles.formGroup}>
                         <label>State</label>
-                        <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.state || "N/A"}</div>
+                        <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.address?.state || "N/A"}</div>
                       </div>
                       <div className={styles.formGroup}>
                         <label>ZIP</label>
-                        <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.zipCode || "N/A"}</div>
+                        <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.address?.zip || "N/A"}</div>
                       </div>
                     </div>
                   </div>
@@ -276,7 +385,6 @@ export default function ServicesPage() {
                         <th>Type of Fixture</th>
                         <th>Original Qty</th>
                         <th style={{ width: "120px" }}>To Fix</th>
-                        <th>Photo/Video</th>
                         <th style={{ minWidth: "250px" }}>Issue Note</th>
                       </tr>
                     </thead>
@@ -290,21 +398,14 @@ export default function ServicesPage() {
                             <input 
                               type="number" 
                               className={styles.formInput}
-                              value={item.toFix}
-                              onChange={(e) => handleToFixChange(idx, "toFix", parseInt(e.target.value))}
+                              value={item.toFix || 0}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                handleToFixChange(idx, "toFix", isNaN(val) ? 0 : val);
+                              }}
                               style={{ padding: "0.4rem", textAlign: "center" }}
+                              min="0"
                             />
-                          </td>
-                          <td>
-                            {item.image ? (
-                              <div style={{ width: "50px", height: "50px", borderRadius: "6px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                                <img src={item.image} alt="Ref" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                              </div>
-                            ) : (
-                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem" }}>
-                                <ImageIcon size={14} /> None
-                              </div>
-                            )}
                           </td>
                           <td>
                             <textarea 
@@ -322,7 +423,7 @@ export default function ServicesPage() {
                 </div>
               </section>
 
-              {/* Assignment & Verification */}
+              {/* Assignment & Logistics */}
               <section className={styles.formSection} style={{ marginTop: "2rem" }}>
                 <div className={styles.sectionTitle}>
                   <ShieldCheck size={22} color="#ef4444" /> Assignment & Logistics
@@ -335,10 +436,9 @@ export default function ServicesPage() {
                         className={styles.formSelect}
                         value={formData.assignedTo}
                         onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
-                        required
                       >
                         <option value="">Select Contractor</option>
-                        {MOCK_CONTRACTORS.map(c => (
+                        {contractors.map(c => (
                           <option key={c._id} value={c._id}>{c.fullName}</option>
                         ))}
                       </select>
@@ -360,17 +460,31 @@ export default function ServicesPage() {
                     </div>
                   </div>
                 </div>
-                
-                <div style={{ marginTop: "2rem", display: "flex", gap: "1rem" }}>
-                   <button type="button" className={styles.assignBtn} style={{ background: "#10b981", color: "white", border: "none" }}>
-                      Verify Material
-                   </button>
+
+                <div className={styles.formGroup} style={{ marginTop: "1.5rem" }}>
+                  <label>Notes</label>
+                  <textarea 
+                    className={styles.formInput}
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="General service notes..."
+                    style={{ padding: "0.8rem", height: "80px" }}
+                  />
                 </div>
               </section>
 
               <div className={styles.actionFooter} style={{ background: "#f8fafc", padding: "2rem", borderRadius: "12px", marginTop: "3rem" }}>
-                <button type="submit" className={styles.createBtn} style={{ padding: "0.875rem 4rem" }}>
-                  <SaveIcon size={20} style={{ marginRight: "0.5rem" }} /> Create Service Ticket
+                <button 
+                  type="button" 
+                  className={styles.cancelBtn} 
+                  onClick={() => setView("list")}
+                  style={{ padding: "0.875rem 3rem" }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className={styles.createBtn} style={{ padding: "0.875rem 4rem" }} disabled={loading}>
+                  {loading ? <Loader2 className="animate-spin" size={20} /> : <SaveIcon size={20} style={{ marginRight: "0.5rem" }} />}
+                  Create Service Ticket
                 </button>
               </div>
             </>
@@ -391,9 +505,11 @@ export default function ServicesPage() {
           <h1 className={styles.welcomeText}>Service Tracking</h1>
           <p style={{ color: "#64748b", marginTop: "4px" }}>Manage post-installation service workflows</p>
         </div>
-        <button className={styles.createBtn} onClick={() => setView("add")}>
-          <Plus size={20} /> Add Service
-        </button>
+        {hasPermission("Services", "create") && (
+          <button className={styles.createBtn} onClick={() => setView("add")}>
+            <Plus size={20} /> Add Service
+          </button>
+        )}
       </div>
 
       <div style={{ marginTop: "2rem" }}>
@@ -405,54 +521,70 @@ export default function ServicesPage() {
                  <th>Ticket ID</th>
                  <th>Customer</th>
                  <th>Company</th>
-                 <th>Contractor</th>
                  <th>Logistics</th>
                  <th>Status</th>
+                 <th>Date</th>
                  <th>Actions</th>
                </tr>
              </thead>
              <tbody>
-               {MOCK_SERVICES.map((item) => (
-                 <tr key={item._id}>
-                   <td style={{ fontWeight: 700, color: "#0076ce" }}>{item._id}</td>
-                   <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.customerName}</td>
-                   <td style={{ color: "#1e293b" }}>{item.company}</td>
-                   <td style={{ fontWeight: 500, color: "#475569" }}>{item.contractor}</td>
-                   <td>
-                     <span style={{ 
-                       padding: "4px 12px", 
-                       borderRadius: "20px", 
-                       fontSize: "0.75rem", 
-                       fontWeight: 700,
-                       background: item.logistics === "Delivered" ? "#dcfce7" : "#fef3c7",
-                       color: item.logistics === "Delivered" ? "#15803d" : "#92400e"
-                     }}>
-                       {item.logistics}
-                     </span>
-                   </td>
-                   <td>
-                     <span style={{ 
-                       padding: "4px 12px", 
-                       borderRadius: "6px", 
-                       fontSize: "0.75rem", 
-                       fontWeight: 600,
-                       background: item.status === "Completed" ? "#f0fdf4" : item.status === "In Progress" ? "#eff6ff" : "#f1f5f9",
-                       color: item.status === "Completed" ? "#16a34a" : item.status === "In Progress" ? "#2563eb" : "#475569",
-                       border: `1px solid ${item.status === "Completed" ? "#bbf7d0" : item.status === "In Progress" ? "#bfdbfe" : "#e2e8f0"}`
-                     }}>
-                       {item.status}
-                     </span>
-                   </td>
-                   <td>
-                      <button 
-                        className={styles.assignBtn}
-                        onClick={() => toast.info(`Editing ${item._id} (Static Demo)`)}
-                      >
-                        Edit
-                      </button>
+               {loading ? (
+                 <tr>
+                   <td colSpan={7} style={{ textAlign: "center", padding: "3rem" }}>
+                     <Loader2 className="animate-spin" style={{ margin: "0 auto" }} />
                    </td>
                  </tr>
-               ))}
+               ) : services.length === 0 ? (
+                 <tr>
+                   <td colSpan={7} style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>
+                     No service tickets found.
+                   </td>
+                 </tr>
+               ) : (
+                 services.map((item) => (
+                   <tr key={item._id}>
+                     <td style={{ fontWeight: 700, color: "#0076ce" }}>{item.ticketId || item._id}</td>
+                     <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.customerId?.name}</td>
+                     <td style={{ color: "#1e293b" }}>{item.customerId?.company}</td>
+                     <td>
+                       <span style={{ 
+                         padding: "4px 12px", 
+                         borderRadius: "20px", 
+                         fontSize: "0.75rem", 
+                         fontWeight: 700,
+                         background: item.materialDelivered ? "#dcfce7" : "#fef3c7",
+                         color: item.materialDelivered ? "#15803d" : "#92400e"
+                       }}>
+                         {item.materialDelivered ? "Delivered" : "Pending"}
+                       </span>
+                     </td>
+                     <td>
+                       <span style={{ 
+                         padding: "4px 12px", 
+                         borderRadius: "6px", 
+                         fontSize: "0.75rem", 
+                         fontWeight: 600,
+                         background: item.status === "Completed" ? "#f0fdf4" : item.status === "Assigned" ? "#eff6ff" : "#f1f5f9",
+                         color: item.status === "Completed" ? "#16a34a" : item.status === "Assigned" ? "#2563eb" : "#475569",
+                         border: `1px solid ${item.status === "Completed" ? "#bbf7d0" : item.status === "Assigned" ? "#bfdbfe" : "#e2e8f0"}`
+                       }}>
+                         {item.status}
+                       </span>
+                     </td>
+                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                        {new Date(item.createdAt).toLocaleDateString()}
+                     </td>
+                     <td>
+                        <button 
+                          className={styles.assignBtn}
+                          onClick={() => toast.info(`View details for ${item.ticketId}`)}
+                        >
+                          View
+                        </button>
+                     </td>
+                   </tr>
+                 ))
+               )}
              </tbody>
            </table>
          </div>

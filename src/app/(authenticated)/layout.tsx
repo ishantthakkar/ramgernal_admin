@@ -61,7 +61,7 @@ export default function DashboardLayout({
       path: "/workflow", 
       isVisible: canViewModule("Surveys") || canViewModule("Installation") || canViewModule("Inspection") 
     },
-    { name: "Services", icon: Settings, path: "/services", isVisible: true },
+    { name: "Services", icon: Settings, path: "/services", module: "Services" },
     { name: "Commissions", icon: Wallet, path: "/commissions", module: "Commission" },
     { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", isVisible: isSuperAdmin() },
     { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit" },

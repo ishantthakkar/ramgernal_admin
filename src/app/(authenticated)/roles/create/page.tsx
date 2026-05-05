@@ -31,6 +31,7 @@ const MODULES = [
   { id: "installation", name: "Installation", icon: Zap, allowed: ["view", "edit"] },
   { id: "inspection", name: "Inspection", icon: SearchIcon, allowed: ["view", "edit"] },
   { id: "commissions", name: "Commission", icon: Wallet, allowed: ["view", "edit"] },
+  { id: "services", name: "Services", icon: ClipboardCheck, allowed: ["view", "create", "edit"] },
   { id: "audit_logs", name: "Audit", icon: History, allowed: ["view"] },
 ];
 

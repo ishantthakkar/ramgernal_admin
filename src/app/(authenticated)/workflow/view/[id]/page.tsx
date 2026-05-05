@@ -85,7 +85,7 @@ export default function WorkflowViewPage() {
 
       <div className={styles.tabs} style={{ marginBottom: "2rem", width: "fit-content" }}>
         {(fromTab !== "Installations") && (
-          <button 
+          <button
             className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
             onClick={() => setActiveTab("survey")}
             style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -94,7 +94,7 @@ export default function WorkflowViewPage() {
           </button>
         )}
         {(fromTab !== "Surveys") && (
-          <button 
+          <button
             className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
             onClick={() => {
               if (isContractorAssigned) {
@@ -103,10 +103,10 @@ export default function WorkflowViewPage() {
                 toast.warning("Materials are only available after contractor assignment.");
               }
             }}
-            style={{ 
-              border: "none", 
-              display: "flex", 
-              alignItems: "center", 
+            style={{
+              border: "none",
+              display: "flex",
+              alignItems: "center",
               gap: "0.5rem",
               opacity: isContractorAssigned ? 1 : 0.5,
               cursor: isContractorAssigned ? "pointer" : "not-allowed"
@@ -153,7 +153,7 @@ export default function WorkflowViewPage() {
           <div className={styles.formGroup}>
             <label>Sales Person</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.salesPerson}
+              {customer.user_id.fullName}
             </div>
           </div>
           <div className={styles.formGroup}>
