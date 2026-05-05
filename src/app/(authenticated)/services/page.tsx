@@ -505,11 +505,11 @@ export default function ServicesPage() {
           <h1 className={styles.welcomeText}>Service Tracking</h1>
           <p style={{ color: "#64748b", marginTop: "4px" }}>Manage post-installation service workflows</p>
         </div>
-        {hasPermission("Services", "create") && (
+        {/* {hasPermission("Services", "create") && (
           <button className={styles.createBtn} onClick={() => setView("add")}>
             <Plus size={20} /> Add Service
           </button>
-        )}
+        )} */}
       </div>
 
       <div style={{ marginTop: "2rem" }}>
