@@ -83,7 +83,7 @@ export default function AddLeadPage() {
           <div className={styles.sectionTitle}>
             <Info size={22} color="#0076ce" /> Lead Information
           </div>
-          
+
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>Full Name <span style={{ color: "#ef4444" }}>*</span></label>
@@ -184,7 +184,7 @@ export default function AddLeadPage() {
               </div>
             </div>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Street Address</label>
+              <label>Address</label>
               <div style={{ position: "relative" }}>
                 <input
                   name="street"

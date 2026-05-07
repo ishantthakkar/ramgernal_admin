@@ -219,7 +219,7 @@ export default function UsersPage() {
                       <div className={styles.userDetails}>
                         <span
                           className={styles.userNameTable}
-                          style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                          style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
                           onClick={() => router.push(`/users/view/${user._id}`)}
                         >
                           {user.fullName}

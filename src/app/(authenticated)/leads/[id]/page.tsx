@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import ConfirmationModal from "@/components/modals/ConfirmationModal";
 
 export default function LeadDetailsPage() {
   const params = useParams();
@@ -31,6 +32,16 @@ export default function LeadDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [converting, setConverting] = useState(false);
   const [markingLost, setMarkingLost] = useState(false);
+
+  // Modal State
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    type: "convert" as "convert" | "lost",
+    title: "",
+    message: "",
+    confirmText: "",
+    btnType: "info" as "danger" | "success" | "warning" | "info"
+  });
 
   useEffect(() => {
     const fetchLead = async () => {
@@ -47,9 +58,38 @@ export default function LeadDetailsPage() {
     if (id) fetchLead();
   }, [id]);
 
-  const handleConvert = async () => {
-    if (!window.confirm("Are you sure you want to convert this lead to a customer?")) return;
+  const handleConvertClick = () => {
+    setModalConfig({
+      type: "convert",
+      title: "Convert to Customer",
+      message: "Are you sure you want to convert this lead to a customer? This will create a new customer record and workflow.",
+      confirmText: "Yes, Convert",
+      btnType: "success"
+    });
+    setShowConfirmModal(true);
+  };
 
+  const handleLostClick = () => {
+    setModalConfig({
+      type: "lost",
+      title: "Mark as Lost",
+      message: "Are you sure you want to mark this lead as lost? This action can be reversed by changing the status later.",
+      confirmText: "Yes, Mark Lost",
+      btnType: "danger"
+    });
+    setShowConfirmModal(true);
+  };
+
+  const handleModalConfirm = async () => {
+    setShowConfirmModal(false);
+    if (modalConfig.type === "convert") {
+      await handleConvert();
+    } else {
+      await handleLost();
+    }
+  };
+
+  const handleConvert = async () => {
     setConverting(true);
     try {
       await adminApi.convertLead(id);
@@ -63,8 +103,6 @@ export default function LeadDetailsPage() {
   };
 
   const handleLost = async () => {
-    if (!window.confirm("Are you sure you want to mark this lead as lost?")) return;
-
     setMarkingLost(true);
     try {
       await adminApi.updateLeadStatus(id, "Lost Leads");
@@ -80,7 +118,7 @@ export default function LeadDetailsPage() {
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
+        <Loader2 size={48} className={styles.spinner} />
       </div>
     );
   }
@@ -145,7 +183,7 @@ export default function LeadDetailsPage() {
         <div style={{ display: "flex", gap: "1rem" }}>
           <button
             className={styles.createBtn}
-            onClick={handleConvert}
+            onClick={handleConvertClick}
             disabled={converting || markingLost || lead.status === "Converted To Customer" || lead.status === "Lost Leads"}
             style={{ background: "#10b981" }}
           >
@@ -155,7 +193,7 @@ export default function LeadDetailsPage() {
 
           <button
             className={styles.createBtn}
-            onClick={handleLost}
+            onClick={handleLostClick}
             disabled={converting || markingLost || lead.status === "Converted To Customer" || lead.status === "Lost Leads"}
             style={{ background: "#ef4444" }}
           >
@@ -196,7 +234,7 @@ export default function LeadDetailsPage() {
             </div>
           </div>
           <div className={styles.formGroup}>
-            <label>Assigned Salesperson</label>
+            <label>Salesperson</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <div style={{
@@ -263,7 +301,7 @@ export default function LeadDetailsPage() {
             </div>
           </div>
           <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            <label>Physical Address</label>
+            <label>Address</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0", minHeight: "3rem" }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
                 <MapPin size={16} color="#64748b" style={{ marginTop: "0.2rem" }} />
@@ -279,7 +317,7 @@ export default function LeadDetailsPage() {
           </div>
           {lead.notes && lead.notes.length > 0 && (
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Additional Notes</label>
+              <label>Notes</label>
               <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 500, border: "1px solid #e2e8f0", minHeight: "5rem", whiteSpace: "pre-wrap", display: "flex", flexDirection: "column", gap: "0.75rem", padding: "1rem" }}>
                 {Array.isArray(lead.notes) ? (
                   lead.notes.map((n: any, index: number) => (
@@ -310,6 +348,17 @@ export default function LeadDetailsPage() {
           <X size={20} /> Close
         </button>
       </div>
+
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleModalConfirm}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.confirmText}
+        type={modalConfig.btnType}
+        isLoading={converting || markingLost}
+      />
     </div>
   );
 }

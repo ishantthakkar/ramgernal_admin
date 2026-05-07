@@ -8,7 +8,13 @@ import {
   ShieldCheck,
   X,
   Loader2,
-  Edit2
+  Edit2,
+  Phone,
+  Mail,
+  Building,
+  User,
+  Shield,
+  Activity
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -41,7 +47,7 @@ export default function ViewUserPage() {
   if (fetching) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
+        <Loader2 size={48} className={styles.spinner} />
       </div>
     );
   }
@@ -73,25 +79,37 @@ export default function ViewUserPage() {
           <div className={styles.formGroup}>
             <label>Name</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {user.fullName || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <User size={16} color="#64748b" />
+                {user.fullName || "N/A"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Mobile Number</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {user.mobileNumber || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Phone size={16} color="#64748b" />
+                {user.mobileNumber || "N/A"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Email Address</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {user.email || "N/A"}
+            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#0076ce", fontWeight: 600, border: "1px solid #e2e8f0", textDecoration: "underline" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Mail size={16} color="#64748b" />
+                {user.email || "N/A"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Company</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {user.company || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Building size={16} color="#64748b" />
+                {user.company || "N/A"}
+              </div>
             </div>
           </div>
         </div>
@@ -109,13 +127,19 @@ export default function ViewUserPage() {
           <div className={styles.formGroup}>
             <label>User Role</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0", textTransform: "capitalize" }}>
-              {user.userRole?.replace("_", " ") || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Shield size={16} color="#64748b" />
+                {user.userRole?.replace("_", " ") || "N/A"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Status</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: user.status === "active" ? "#059669" : "#dc2626", fontWeight: 700, border: "1px solid #e2e8f0", textTransform: "capitalize" }}>
-              {user.status || "Inactive"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Activity size={16} color={user.status === "active" ? "#059669" : "#dc2626"} />
+                {user.status || "Inactive"}
+              </div>
             </div>
           </div>
         </div>

@@ -49,7 +49,7 @@ export default function EditCustomerPage() {
             email: customer.email || "",
             mobileNumber: customer.mobileNumber || "",
             leadSource: customer.leadSource || "",
-            salesPerson: customer.salesPerson || "",
+            salesPerson: customer.user_id?.fullName || customer.salesPerson || "",
             contractor: customer.contractor || "",
             address: {
               street: customer.address?.street || "",
@@ -174,6 +174,17 @@ export default function EditCustomerPage() {
                 onChange={handleChange}
               />
             </div>
+            <div className={styles.formGroup}>
+              <label>Salesperson</label>
+              <input
+                type="text"
+                className={styles.formInput}
+                value={formData.salesPerson || "Not Assigned"}
+                readOnly
+                disabled
+                style={{ backgroundColor: "#f8fafc", cursor: "not-allowed", color: "#64748b" }}
+              />
+            </div>
           </div>
         </section>
 
@@ -182,7 +193,7 @@ export default function EditCustomerPage() {
           <h2 className={styles.sectionHeading}>Location Details</h2>
           <div className={styles.formGrid}>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Street Address <span className={styles.requiredStar}>*</span></label>
+              <label>Address <span className={styles.requiredStar}>*</span></label>
               <input
                 type="text"
                 name="address.street"

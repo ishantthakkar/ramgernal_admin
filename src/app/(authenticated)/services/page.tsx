@@ -114,7 +114,7 @@ export default function ServicesPage() {
       return;
     }
   }, [router]);
-  
+
   // Form State for Add Service
   const [formData, setFormData] = useState({
     customerId: "",
@@ -210,12 +210,12 @@ export default function ServicesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Filter out items that don't need fixing if necessary, or just send all
     // Based on the user's curl example, they send specific items.
     // Let's only send items where toFix > 0
     const toFixItems = formData.toFixItems.filter(item => item.toFix > 0);
-    
+
     if (toFixItems.length === 0) {
       toast.warning("Please specify at least one item to fix.");
       return;
@@ -261,7 +261,7 @@ export default function ServicesPage() {
 
         <div className={styles.pageHeader}>
           <div>
-            <h1 className={styles.welcomeText}>Service Tracking</h1>
+            <h1 className={styles.welcomeText}>Service</h1>
             <p style={{ color: "#64748b", marginTop: "4px" }}>Manage post-installation service workflows</p>
           </div>
         </div>
@@ -274,7 +274,7 @@ export default function ServicesPage() {
             </div>
             <div style={{ marginTop: "1.5rem", maxWidth: "500px" }}>
               <div style={{ position: "relative" }}>
-                <select 
+                <select
                   className={styles.formSelect}
                   value={formData.customerId}
                   onChange={(e) => handleCustomerChange(e.target.value)}
@@ -351,7 +351,7 @@ export default function ServicesPage() {
                       <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 600 }}>{selectedCustomer.customer.company}</div>
                     </div>
                     <div className={styles.formGroup}>
-                      <label>Street Address</label>
+                      <label>Address</label>
                       <div className={styles.formInput} style={{ background: "#f8fafc", color: "black", fontWeight: 500 }}>{selectedCustomer.customer.address?.street || "N/A"}</div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem" }}>
@@ -395,8 +395,8 @@ export default function ServicesPage() {
                           <td style={{ color: "#0076ce", fontWeight: 500 }}>{item.fixtureType}</td>
                           <td style={{ textAlign: "center", fontWeight: 700, color: "black" }}>{item.proposedQty}</td>
                           <td>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               className={styles.formInput}
                               value={item.toFix || 0}
                               onChange={(e) => {
@@ -408,7 +408,7 @@ export default function ServicesPage() {
                             />
                           </td>
                           <td>
-                            <textarea 
+                            <textarea
                               className={styles.formInput}
                               value={item.issueNote}
                               onChange={(e) => handleToFixChange(idx, "issueNote", e.target.value)}
@@ -432,7 +432,7 @@ export default function ServicesPage() {
                   <div className={styles.formGroup}>
                     <label>Assign to Contractor</label>
                     <div style={{ position: "relative" }}>
-                      <select 
+                      <select
                         className={styles.formSelect}
                         value={formData.assignedTo}
                         onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value }))}
@@ -449,9 +449,9 @@ export default function ServicesPage() {
                     <label>Logistics Status</label>
                     <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
                       <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                        <input 
-                          type="checkbox" 
-                          checked={formData.materialDelivered} 
+                        <input
+                          type="checkbox"
+                          checked={formData.materialDelivered}
                           onChange={(e) => setFormData(prev => ({ ...prev, materialDelivered: e.target.checked }))}
                           style={{ width: "18px", height: "18px" }}
                         />
@@ -463,7 +463,7 @@ export default function ServicesPage() {
 
                 <div className={styles.formGroup} style={{ marginTop: "1.5rem" }}>
                   <label>Notes</label>
-                  <textarea 
+                  <textarea
                     className={styles.formInput}
                     value={formData.notes}
                     onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
@@ -474,9 +474,9 @@ export default function ServicesPage() {
               </section>
 
               <div className={styles.actionFooter} style={{ background: "#f8fafc", padding: "2rem", borderRadius: "12px", marginTop: "3rem" }}>
-                <button 
-                  type="button" 
-                  className={styles.cancelBtn} 
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
                   onClick={() => setView("list")}
                   style={{ padding: "0.875rem 3rem" }}
                 >
@@ -502,92 +502,96 @@ export default function ServicesPage() {
       </div>
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.welcomeText}>Service Tracking</h1>
+          <h1 className={styles.welcomeText}>Service</h1>
           <p style={{ color: "#64748b", marginTop: "4px" }}>Manage post-installation service workflows</p>
         </div>
-        {/* {hasPermission("Services", "create") && (
+        {hasPermission("Services", "create") && (
           <button className={styles.createBtn} onClick={() => setView("add")}>
             <Plus size={20} /> Add Service
           </button>
-        )} */}
+        )}
       </div>
 
       <div style={{ marginTop: "2rem" }}>
-         {/* List View Table */}
-         <div className={styles.userTableContainer} style={{ borderRadius: "16px", border: "1px solid #e2e8f0" }}>
-           <table className={styles.userTable}>
-             <thead>
-               <tr>
-                 <th>Ticket ID</th>
-                 <th>Customer</th>
-                 <th>Company</th>
-                 <th>Logistics</th>
-                 <th>Status</th>
-                 <th>Date</th>
-                 <th>Actions</th>
-               </tr>
-             </thead>
-             <tbody>
-               {loading ? (
-                 <tr>
-                   <td colSpan={7} style={{ textAlign: "center", padding: "3rem" }}>
-                     <Loader2 className="animate-spin" style={{ margin: "0 auto" }} />
-                   </td>
-                 </tr>
-               ) : services.length === 0 ? (
-                 <tr>
-                   <td colSpan={7} style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>
-                     No service tickets found.
-                   </td>
-                 </tr>
-               ) : (
-                 services.map((item) => (
-                   <tr key={item._id}>
-                     <td style={{ fontWeight: 700, color: "#0076ce" }}>{item.ticketId || item._id}</td>
-                     <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.customerId?.name}</td>
-                     <td style={{ color: "#1e293b" }}>{item.customerId?.company}</td>
-                     <td>
-                       <span style={{ 
-                         padding: "4px 12px", 
-                         borderRadius: "20px", 
-                         fontSize: "0.75rem", 
-                         fontWeight: 700,
-                         background: item.materialDelivered ? "#dcfce7" : "#fef3c7",
-                         color: item.materialDelivered ? "#15803d" : "#92400e"
-                       }}>
-                         {item.materialDelivered ? "Delivered" : "Pending"}
-                       </span>
-                     </td>
-                     <td>
-                       <span style={{ 
-                         padding: "4px 12px", 
-                         borderRadius: "6px", 
-                         fontSize: "0.75rem", 
-                         fontWeight: 600,
-                         background: item.status === "Completed" ? "#f0fdf4" : item.status === "Assigned" ? "#eff6ff" : "#f1f5f9",
-                         color: item.status === "Completed" ? "#16a34a" : item.status === "Assigned" ? "#2563eb" : "#475569",
-                         border: `1px solid ${item.status === "Completed" ? "#bbf7d0" : item.status === "Assigned" ? "#bfdbfe" : "#e2e8f0"}`
-                       }}>
-                         {item.status}
-                       </span>
-                     </td>
-                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                        {new Date(item.createdAt).toLocaleDateString()}
-                     </td>
-                     <td>
-                        <button 
-                          className={styles.assignBtn}
-                          onClick={() => toast.info(`View details for ${item.ticketId}`)}
-                        >
-                          View
-                        </button>
-                     </td>
-                   </tr>
-                 ))
-               )}
-             </tbody>
-           </table>
-         </div>
+        {/* List View Table */}
+        <div className={styles.userTableContainer} style={{ borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+          <table className={styles.userTable}>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Company</th>
+                <th>Contractor</th>
+                <th>Material</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "3rem" }}>
+                    <Loader2 className="animate-spin" style={{ margin: "0 auto" }} />
+                  </td>
+                </tr>
+              ) : services.length === 0 ? (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>
+                    No service tickets found.
+                  </td>
+                </tr>
+              ) : (
+                services.map((item) => (
+                  <tr key={item._id}>
+                    <td style={{ fontWeight: 700, color: "#0076ce" }}>{item.ticketId || item._id}</td>
+                    <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.customerId?.name}</td>
+                    <td style={{ color: "#1e293b" }}>{item.customerId?.company}</td>
+                    <td style={{ fontWeight: 600, color: "#475569" }}>
+                      {item.assignedTo?.fullName || item.customerId?.assignToContractor?.fullName || "Unassigned"}
+                    </td>
+                    <td>
+                      <span style={{
+                        padding: "4px 12px",
+                        borderRadius: "20px",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        background: item.materialDelivered ? "#dcfce7" : "#fef3c7",
+                        color: item.materialDelivered ? "#15803d" : "#92400e"
+                      }}>
+                        {item.materialDelivered ? "Delivered" : "Pending"}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{
+                        padding: "4px 12px",
+                        borderRadius: "6px",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        background: item.status === "Completed" ? "#f0fdf4" : item.status === "Assigned" ? "#eff6ff" : "#f1f5f9",
+                        color: item.status === "Completed" ? "#16a34a" : item.status === "Assigned" ? "#2563eb" : "#475569",
+                        border: `1px solid ${item.status === "Completed" ? "#bbf7d0" : item.status === "Assigned" ? "#bfdbfe" : "#e2e8f0"}`
+                      }}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </td>
+                    <td>
+                      <button
+                        className={styles.assignBtn}
+                        onClick={() => toast.info(`View details for ${item.ticketId}`)}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -89,7 +89,7 @@ export default function EditUserPage() {
   if (fetching) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
+        <Loader2 size={48} className={styles.spinner} />
       </div>
     );
   }

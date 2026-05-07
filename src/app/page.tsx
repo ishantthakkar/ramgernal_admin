@@ -14,6 +14,7 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // Auto-redirect if already logged in
   useEffect(() => {
@@ -23,8 +24,33 @@ export default function Home() {
     }
   }, [router]);
 
-  const handleLogin = async () => {
-    if (!email || !password) return;
+  const validateForm = () => {
+    if (!email) {
+      setError("Please enter your email address.");
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      return false;
+    }
+    if (!password) {
+      setError("Please enter your password.");
+      return false;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setError("");
+    
+    if (!validateForm()) return;
+    
     setLoading(true);
 
     try {
@@ -58,12 +84,13 @@ export default function Home() {
         toast.success("Login successful! Welcome back.");
         router.push("/dashboard");
       } else {
-        const keys = Object.keys(response).join(", ");
-        toast.error(`Authentication error: Token not found.`);
-        console.warn(`Response keys found: ${keys}`);
+        setError("Authentication failed: No access token received.");
       }
     } catch (err: any) {
-      toast.error(err.message || "Invalid credentials. Please try again.");
+      console.error("Login Error:", err);
+      const errorMessage = err.message || "Invalid email or password. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -71,8 +98,6 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-
-
       <header className={styles.logoWrapper}>
         <Image
           src="/ram-logo.png"
@@ -85,33 +110,49 @@ export default function Home() {
       </header>
 
       <div className={styles.cardWrapper}>
-        <main className={styles.card}>
+        <form 
+          className={styles.card} 
+          onSubmit={handleLogin}
+        >
           <h1 className={styles.heading}>Admin Login</h1>
+
+          {error && (
+            <div className={styles.errorAlert}>
+              <ArrowRight size={16} style={{ transform: "rotate(180deg)", flexShrink: 0 }} />
+              <span>{error}</span>
+            </div>
+          )}
 
           <div className={styles.formGroup}>
             <label className={styles.label}>Email Address</label>
-            <div className={styles.inputWrapper}>
+            <div className={`${styles.inputWrapper} ${error && !email ? styles.inputError : ""}`}>
               <Mail size={18} className={styles.inputIcon} />
               <input
                 type="email"
-                placeholder="abc@gmai.com"
+                placeholder="abc@gmail.com"
                 className={styles.input}
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError("");
+                }}
               />
             </div>
           </div>
 
           <div className={styles.formGroup}>
             <label className={styles.label}>Password</label>
-            <div className={styles.inputWrapper}>
+            <div className={`${styles.inputWrapper} ${error && !password ? styles.inputError : ""}`}>
               <Lock size={18} className={styles.inputIcon} />
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••••••"
                 className={styles.input}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError("");
+                }}
               />
               <div
                 className={styles.eyeIcon}
@@ -122,20 +163,15 @@ export default function Home() {
             </div>
           </div>
 
-
           <button
+            type="submit"
             className={styles.button}
-            onClick={handleLogin}
             disabled={loading}
           >
-            {loading ? "Login..." : <>Login <ArrowRight size={18} /></>}
+            {loading ? "Logging in..." : <>Login <ArrowRight size={18} /></>}
           </button>
-
-
-        </main>
+        </form>
       </div>
-
-
     </div>
   );
 }

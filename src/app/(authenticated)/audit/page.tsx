@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Clock,
   Tag,
-  Hash
+  Hash,
+  Loader2
 } from "lucide-react";
 
 interface AuditLog {
@@ -128,7 +129,7 @@ export default function AuditLogsPage() {
         <div className={styles.userTableContainer}>
           {loading ? (
             <div style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
-              <div className={styles.spinner} style={{ margin: "0 auto 1rem" }}></div>
+              <Loader2 size={32} className={styles.spinner} style={{ margin: "0 auto 1rem" }} />
               Loading audit trails...
             </div>
           ) : paginatedLogs.length === 0 ? (

@@ -268,7 +268,7 @@ export default function WorkflowPage() {
           accountNumber: c.accountNumber || "N/A",
           customerName: c.name || "Unknown",
           company: c.company || "N/A",
-          salesPerson: c.salesPerson || "Unassigned",
+          salesPerson: c.user_id?.fullName || "Unassigned",
           contractor: c.contractorName || c.assignToContractor?.fullName || "Unassigned",
           projectManager: c.assignedTo?.fullName || "Unassigned",
           status: c.status || "-"
@@ -511,7 +511,7 @@ export default function WorkflowPage() {
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td>
                           <span
-                            style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                            style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
                             onClick={() => router.push(`/workflow/view/${item._id}?from=Surveys`)}
                           >
                             {item.customerName}
@@ -575,7 +575,7 @@ export default function WorkflowPage() {
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td
-                          style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                          style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
                           onClick={() => router.push(`/workflow/view/${item._id}?from=Installations`)}
                         >
                           {item.customerName}
@@ -643,7 +643,7 @@ export default function WorkflowPage() {
                       <>
                         <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
                         <td
-                          style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                          style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
                           onClick={() => router.push(`/workflow/view/${item._id}?from=Inspections`)}
                         >
                           {item.customerName}

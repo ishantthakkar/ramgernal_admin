@@ -105,7 +105,7 @@ export default function WorkflowEditPage() {
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
+        <Loader2 size={48} className={styles.spinner} />
       </div>
     );
   }
@@ -125,10 +125,10 @@ export default function WorkflowEditPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>Edit Workflow</h1>
-        
+
         <div className={styles.tabs} style={{ marginTop: "1.5rem", width: "fit-content" }}>
           {(fromTab !== "Installations") && (
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
               onClick={() => setActiveTab("survey")}
               style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -137,7 +137,7 @@ export default function WorkflowEditPage() {
             </button>
           )}
           {(fromTab !== "Surveys") && (
-            <button 
+            <button
               className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
               onClick={() => {
                 if (isContractorAssigned) {
@@ -146,10 +146,10 @@ export default function WorkflowEditPage() {
                   toast.warning("Assign a contractor first to manage materials.");
                 }
               }}
-              style={{ 
-                border: "none", 
-                display: "flex", 
-                alignItems: "center", 
+              style={{
+                border: "none",
+                display: "flex",
+                alignItems: "center",
                 gap: "0.5rem",
                 opacity: isContractorAssigned ? 1 : 0.5,
                 cursor: isContractorAssigned ? "pointer" : "not-allowed"
@@ -185,7 +185,7 @@ export default function WorkflowEditPage() {
           <div className={styles.formGroup}>
             <label>Sales Person</label>
             <div className={styles.formInput} style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-              {customer.salesPerson}
+              {customer.user_id?.fullName}
             </div>
           </div>
         </div>
@@ -221,91 +221,91 @@ export default function WorkflowEditPage() {
                   {surveys.map((survey, index) => (
                     <tr key={survey._id || index}>
                       <td>
-                        <input 
-                          type="text" 
-                          className={styles.formInput} 
-                          value={survey.area || ""} 
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          value={survey.area || ""}
                           onChange={(e) => handleInputChange(index, "area", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                         />
                       </td>
                       <td>
-                        <input 
-                          type="text" 
-                          className={styles.formInput} 
-                          value={survey.heightInInches || ""} 
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          value={survey.heightInInches || ""}
                           onChange={(e) => handleInputChange(index, "heightInInches", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                           placeholder="in"
                         />
                       </td>
                       <td>
-                        <input 
-                          type="text" 
-                          className={styles.formInput} 
-                          value={survey.existingFixtureType || ""} 
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          value={survey.existingFixtureType || ""}
                           onChange={(e) => handleInputChange(index, "existingFixtureType", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                         />
                       </td>
                       <td>
-                        <input 
-                          type="text" 
-                          className={styles.formInput} 
-                          value={survey.existingBulbs || ""} 
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          value={survey.existingBulbs || ""}
                           onChange={(e) => handleInputChange(index, "existingBulbs", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                         />
                       </td>
                       <td>
-                        <input 
-                          type="number" 
-                          className={styles.formInput} 
-                          value={survey.existingQuantity || 0} 
+                        <input
+                          type="number"
+                          className={styles.formInput}
+                          value={survey.existingQuantity || 0}
                           onChange={(e) => handleInputChange(index, "existingQuantity", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                         />
                       </td>
                       <td>
-                        <input 
-                          type="text" 
-                          className={styles.formInput} 
-                          value={survey.proposedFixture || ""} 
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          value={survey.proposedFixture || ""}
                           onChange={(e) => handleInputChange(index, "proposedFixture", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem", color: "#0076ce", fontWeight: 600 }}
                         />
                       </td>
                       <td>
-                        <input 
-                          type="number" 
-                          className={styles.formInput} 
-                          value={survey.proposedQuantity || 0} 
+                        <input
+                          type="number"
+                          className={styles.formInput}
+                          value={survey.proposedQuantity || 0}
                           onChange={(e) => handleInputChange(index, "proposedQuantity", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                         />
                       </td>
                       <td>
-                        <input 
-                          type="text" 
-                          className={styles.formInput} 
-                          value={survey.pricePerUnit || ""} 
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          value={survey.pricePerUnit || ""}
                           onChange={(e) => handleInputChange(index, "pricePerUnit", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem" }}
                         />
                       </td>
                       <td>
-                        <input 
-                          type="text" 
-                          className={styles.formInput} 
-                          value={survey.totalPrice || ""} 
+                        <input
+                          type="text"
+                          className={styles.formInput}
+                          value={survey.totalPrice || ""}
                           onChange={(e) => handleInputChange(index, "totalPrice", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.85rem", fontWeight: 700 }}
                         />
                       </td>
                       <td>
-                        <textarea 
-                          className={styles.formInput} 
-                          value={survey.note || ""} 
+                        <textarea
+                          className={styles.formInput}
+                          value={survey.note || ""}
                           onChange={(e) => handleInputChange(index, "note", e.target.value)}
                           style={{ padding: "0.4rem", fontSize: "0.8rem", height: "35px", resize: "none" }}
                         />
@@ -338,7 +338,7 @@ export default function WorkflowEditPage() {
               </div>
               <p className={styles.sectionSubtitle}>Manage items and quantities issued for installation.</p>
             </div>
-            <button 
+            <button
               onClick={handleAddMaterial}
               className={styles.addBtn}
               style={{ padding: "0.6rem 1.2rem", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.4rem" }}
@@ -363,20 +363,20 @@ export default function WorkflowEditPage() {
                   <tr key={index}>
                     <td style={{ fontWeight: 600, color: "#64748b" }}>{index + 1}</td>
                     <td>
-                      <input 
-                        type="text" 
-                        className={styles.formInput} 
-                        value={item.item_name || ""} 
+                      <input
+                        type="text"
+                        className={styles.formInput}
+                        value={item.item_name || ""}
                         onChange={(e) => handleMaterialChange(index, "item_name", e.target.value)}
                         placeholder="e.g. LED Panel 60x60"
                         style={{ padding: "0.6rem" }}
                       />
                     </td>
                     <td>
-                      <input 
-                        type="number" 
-                        className={styles.formInput} 
-                        value={item.issued_qty || 0} 
+                      <input
+                        type="number"
+                        className={styles.formInput}
+                        value={item.issued_qty || 0}
                         onChange={(e) => handleMaterialChange(index, "issued_qty", parseInt(e.target.value))}
                         style={{ padding: "0.6rem" }}
                       />
@@ -388,8 +388,8 @@ export default function WorkflowEditPage() {
                             <img src={item.image} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           </div>
                         )}
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           onChange={(e) => e.target.files && handleImageUpload(index, e.target.files[0])}
                           style={{ fontSize: "0.8rem" }}
@@ -397,7 +397,7 @@ export default function WorkflowEditPage() {
                       </div>
                     </td>
                     <td>
-                      <button 
+                      <button
                         onClick={() => handleRemoveMaterial(index)}
                         style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}
                         title="Remove Item"

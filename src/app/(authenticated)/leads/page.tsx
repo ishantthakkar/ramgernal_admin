@@ -208,7 +208,7 @@ export default function LeadsPage() {
                     <td className={styles.idCell}>{globalIndex + 1}</td>
                     <td
                       className={styles.nameCell}
-                      style={{ cursor: "pointer", fontWeight: 600, color: "#1e293b", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                      style={{ cursor: "pointer", fontWeight: 700, color: "#0076ce", textDecoration: "underline", textDecorationColor: "#0076ce" }}
                       onClick={() => router.push(`/leads/${lead.id}`)}
                     >
                       {lead.name}

@@ -23,7 +23,10 @@ import {
   Calendar,
   Hammer,
   ArrowLeft,
-  Plus
+  Plus,
+  Hash,
+  Briefcase,
+  Activity
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -60,7 +63,7 @@ export default function WorkflowViewPage() {
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
+        <Loader2 size={48} className={styles.spinner} />
       </div>
     );
   }
@@ -123,43 +126,60 @@ export default function WorkflowViewPage() {
         <div className={styles.sectionTitle}>
           <User size={22} color="#0076ce" /> Customer Information
         </div>
-        <p className={styles.sectionSubtitle}>Primary contact and company details.</p>
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label>Name</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.name}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <User size={16} color="#64748b" />
+                {customer.name}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Account Number</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#64748b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              #{customer.accountNumber || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Hash size={16} color="#64748b" />
+                {customer.accountNumber || "N/A"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Company</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.company}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Building size={16} color="#64748b" />
+                {customer.company}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Mobile Number</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.mobileNumber}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Phone size={16} color="#64748b" />
+                {customer.mobileNumber}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Sales Person</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.user_id.fullName}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Briefcase size={16} color="#64748b" />
+                {customer.user_id?.fullName || "N/A"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Current Status</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#0076ce", fontWeight: 700, border: "1px solid #e2e8f0", textTransform: "uppercase" }}>
-              {customer.status}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Activity size={16} color="#0076ce" />
+                {customer.status}
+              </div>
             </div>
           </div>
         </div>
@@ -380,7 +400,6 @@ export default function WorkflowViewPage() {
         <div className={styles.sectionTitle}>
           <FileText size={22} color="#f59e0b" /> Internal Notes
         </div>
-        <p className={styles.sectionSubtitle}>System and manual notes regarding this customer.</p>
 
         {customer.notes && customer.notes.length > 0 ? (
           <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>

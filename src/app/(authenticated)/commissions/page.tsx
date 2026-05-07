@@ -191,7 +191,7 @@ export default function CommissionsPage() {
                   <td style={{ fontWeight: 600, color: "#94a3b8" }}>{idx + 1}</td>
                   <td>
                     <span
-                      style={{ color: "#1e293b", fontWeight: 600, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#94a3b8" }}
+                      style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
                       onClick={() => router.push(`/commissions/view/${item.id}`)}
                     >
                       {item.name}

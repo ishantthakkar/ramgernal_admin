@@ -3,12 +3,17 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import dashboardStyles from "../../dashboard.module.css";
-import { 
-  Info, 
+import {
+  Info,
   Loader2,
   MapPin,
   ClipboardList,
-  X
+  X,
+  Building,
+  Hash,
+  Calendar,
+  Mail,
+  Phone
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 
@@ -39,7 +44,7 @@ export default function CustomerDetailsPage() {
   if (loading) {
     return (
       <div style={{ display: "flex", flex: 1, height: "100%", minHeight: "400px", alignItems: "center", justifyContent: "center" }}>
-        <Loader2 size={48} className={dashboardStyles.spinner} color="#0076ce" />
+        <Loader2 size={48} className={dashboardStyles.spinner} />
       </div>
     );
   }
@@ -97,19 +102,28 @@ export default function CustomerDetailsPage() {
           <div className={dashboardStyles.formGroup}>
             <label>Account Number</label>
             <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 700, border: "1px solid #e2e8f0" }}>
-              {customer.accountNumber || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Hash size={16} color="#64748b" />
+                {customer.accountNumber || "N/A"}
+              </div>
             </div>
           </div>
           <div className={dashboardStyles.formGroup}>
             <label>Company Name</label>
             <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.company || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Building size={16} color="#64748b" />
+                {customer.company || "N/A"}
+              </div>
             </div>
           </div>
           <div className={dashboardStyles.formGroup}>
             <label>Converted Date</label>
             <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.convertedDate ? new Date(customer.convertedDate).toLocaleDateString() : "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Calendar size={16} color="#64748b" />
+                {customer.convertedDate ? new Date(customer.convertedDate).toLocaleDateString() : "N/A"}
+              </div>
             </div>
           </div>
           <div className={dashboardStyles.formGroup}>
@@ -127,9 +141,9 @@ export default function CustomerDetailsPage() {
                 fontSize: "0.65rem",
                 borderRadius: "50%"
               }}>
-                {customer.salesPerson?.charAt(0) || "S"}
+                {customer.user_id?.fullName?.charAt(0) || "S"}
               </div>
-              {customer.salesPerson || "Unassigned"}
+              {customer.user_id?.fullName || "Unassigned"}
             </div>
           </div>
         </div>
@@ -146,22 +160,33 @@ export default function CustomerDetailsPage() {
           <div className={dashboardStyles.formGroup}>
             <label>Email Address</label>
             <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#0076ce", fontWeight: 600, border: "1px solid #e2e8f0", textDecoration: "underline" }}>
-              {customer.email || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Mail size={16} color="#64748b" />
+                {customer.email || "N/A"}
+              </div>
             </div>
           </div>
           <div className={dashboardStyles.formGroup}>
             <label>Mobile Number</label>
             <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {customer.mobileNumber || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Phone size={16} color="#64748b" />
+                {customer.mobileNumber || "N/A"}
+              </div>
             </div>
           </div>
           <div className={dashboardStyles.formGroup} style={{ gridColumn: "span 2" }}>
             <label>Full Site Address</label>
             <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0", minHeight: "auto" }}>
-              {customer.address?.street ? `${customer.address.street}, ` : ""}
-              {customer.address?.city ? `${customer.address.city}, ` : ""}
-              {customer.address?.state ? `${customer.address.state} ` : ""}
-              {customer.address?.zip || ""}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <MapPin size={16} color="#64748b" />
+                <span>
+                  {customer.address?.street ? `${customer.address.street}, ` : ""}
+                  {customer.address?.city ? `${customer.address.city}, ` : ""}
+                  {customer.address?.state ? `${customer.address.state} ` : ""}
+                  {customer.address?.zip || ""}
+                </span>
+              </div>
             </div>
           </div>
         </div>

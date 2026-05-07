@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import ConfirmationModal from "@/components/modals/ConfirmationModal";
 
 export default function EditLeadPage() {
   const router = useRouter();
@@ -32,6 +33,16 @@ export default function EditLeadPage() {
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
   const [markingLost, setMarkingLost] = useState(false);
+
+  // Modal State
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    type: "convert" as "convert" | "lost",
+    title: "",
+    message: "",
+    confirmText: "",
+    btnType: "info" as "danger" | "success" | "warning" | "info"
+  });
 
   const [existingNotes, setExistingNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState("");
@@ -87,10 +98,10 @@ export default function EditLeadPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await adminApi.updateLead({ 
-        id, 
-        ...formData, 
-        notes: newNote.trim() || undefined 
+      await adminApi.updateLead({
+        id,
+        ...formData,
+        notes: newNote.trim() || undefined
       });
       toast.success("Lead updated successfully!");
       router.push("/leads");
@@ -101,8 +112,38 @@ export default function EditLeadPage() {
     }
   };
 
+  const handleConvertClick = () => {
+    setModalConfig({
+      type: "convert",
+      title: "Convert to Customer",
+      message: "Are you sure you want to convert this lead to a customer? This will create a new customer record and workflow.",
+      confirmText: "Yes, Convert",
+      btnType: "success"
+    });
+    setShowConfirmModal(true);
+  };
+
+  const handleLostClick = () => {
+    setModalConfig({
+      type: "lost",
+      title: "Mark as Lost",
+      message: "Are you sure you want to mark this lead as lost? This action can be reversed by changing the status later.",
+      confirmText: "Yes, Mark Lost",
+      btnType: "danger"
+    });
+    setShowConfirmModal(true);
+  };
+
+  const handleModalConfirm = async () => {
+    setShowConfirmModal(false);
+    if (modalConfig.type === "convert") {
+      await handleConvert();
+    } else {
+      await handleLost();
+    }
+  };
+
   const handleConvert = async () => {
-    if (!window.confirm("Are you sure you want to convert this lead to a customer?")) return;
     setConverting(true);
     try {
       await adminApi.convertLead(id);
@@ -116,7 +157,6 @@ export default function EditLeadPage() {
   };
 
   const handleLost = async () => {
-    if (!window.confirm("Are you sure you want to mark this lead as lost?")) return;
     setMarkingLost(true);
     try {
       await adminApi.updateLeadStatus(id, "Lost Leads");
@@ -132,7 +172,7 @@ export default function EditLeadPage() {
   if (fetching) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={styles.spinner} color="#0076ce" />
+        <Loader2 size={48} className={styles.spinner} />
       </div>
     );
   }
@@ -178,7 +218,7 @@ export default function EditLeadPage() {
           <button
             type="button"
             className={styles.createBtn}
-            onClick={handleConvert}
+            onClick={handleConvertClick}
             disabled={converting || markingLost || formData.status === "Converted To Customer" || formData.status === "Lost Leads"}
             style={{ background: "#10b981" }}
           >
@@ -188,7 +228,7 @@ export default function EditLeadPage() {
           <button
             type="button"
             className={styles.createBtn}
-            onClick={handleLost}
+            onClick={handleLostClick}
             disabled={converting || markingLost || formData.status === "Converted To Customer" || formData.status === "Lost Leads"}
             style={{ background: "#ef4444" }}
           >
@@ -307,7 +347,7 @@ export default function EditLeadPage() {
               </div>
             </div>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Street Address</label>
+              <label>Address</label>
               <div style={{ position: "relative" }}>
                 <input
                   name="street"
@@ -361,7 +401,7 @@ export default function EditLeadPage() {
           <div className={styles.sectionTitle}>
             <FileText size={22} color="#0076ce" /> Internal Notes & History
           </div>
-          
+
           {/* Historical Notes */}
           {existingNotes.length > 0 && (
             <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
@@ -408,6 +448,17 @@ export default function EditLeadPage() {
           </button>
         </div>
       </form>
+
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleModalConfirm}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        confirmText={modalConfig.confirmText}
+        type={modalConfig.btnType}
+        isLoading={converting || markingLost}
+      />
     </div>
   );
 }

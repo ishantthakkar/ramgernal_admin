@@ -91,7 +91,7 @@ export const adminApi = {
     method: "GET",
   }),
   updateCustomerWorkflow: (id: string, data: any) => apiRequest(`/customer/customers/${id}`, {
-    method: "PUT",
+    method: "POST",
     body: JSON.stringify(data),
   }),
   getInstallations: () => apiRequest("/installation", {
