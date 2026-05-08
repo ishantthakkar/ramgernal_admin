@@ -145,6 +145,13 @@ export const adminApi = {
   getServices: () => apiRequest("/services", {
     method: "GET",
   }),
+  getServiceById: (id: string) => apiRequest(`/services/${id}`, {
+    method: "GET",
+  }),
+  updateServiceTicket: (id: string, data: any) => apiRequest(`/services/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  }),
   getActivityLogs: () => apiRequest("/activities", {
     method: "GET",
   }),
