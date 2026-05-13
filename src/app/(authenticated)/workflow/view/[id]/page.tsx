@@ -291,13 +291,20 @@ export default function WorkflowViewPage() {
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.item_name}</td>
                         <td style={{ fontWeight: 700, color: "#0076ce" }}>{item.issued_qty}</td>
                         <td>
-                          {item.image ? (
-                            <div style={{ width: "60px", height: "60px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                              <img src={item.image} alt={item.item_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            </div>
-                          ) : (
-                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No image</span>
-                          )}
+                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                            {(item.images || item.image ? [item.image || item.images].flat().filter(Boolean) : []).map((img: string, i: number) => (
+                              <div key={i} style={{ width: "50px", height: "50px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                                <img 
+                                  src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`} 
+                                  alt="Material" 
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                />
+                              </div>
+                            ))}
+                            {(!item.image && (!item.images || item.images.length === 0)) && (
+                              <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No image</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

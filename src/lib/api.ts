@@ -3,10 +3,11 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
-  const headers = {
-    "Content-Type": "application/json",
+  const isFormData = options.body instanceof FormData;
+  const headers: Record<string, string> = {
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -106,7 +107,7 @@ export const adminApi = {
   }),
   updateCustomerMaterials: (id: string, data: any) => apiRequest(`/customer/customers/${id}/materials`, {
     method: "POST",
-    body: JSON.stringify(data),
+    body: data instanceof FormData ? data : JSON.stringify(data),
   }),
   getInspections: () => apiRequest("/customer/customers/inspections", {
     method: "GET",

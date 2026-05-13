@@ -13,10 +13,12 @@ import {
   Trash2,
   Hammer,
   Plus,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle2
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import modalStyles from "../../../commissions/commissions-modal.module.css";
 
 export default function WorkflowEditPage() {
   const router = useRouter();
@@ -32,6 +34,15 @@ export default function WorkflowEditPage() {
   const [surveys, setSurveys] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"survey" | "installations">(fromTab?.toLowerCase() === "installations" ? "installations" : "survey");
+
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMaterial, setNewMaterial] = useState({
+    item_name: "",
+    issued_qty: "",
+    images: [] as File[],
+    imagePreviews: [] as string[]
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +68,13 @@ export default function WorkflowEditPage() {
   };
 
   const handleAddMaterial = () => {
-    setMaterials([...materials, { item_name: "", issued_qty: 0, image: "" }]);
+    setNewMaterial({
+      item_name: "",
+      issued_qty: "",
+      images: [],
+      imagePreviews: []
+    });
+    setShowAddModal(true);
   };
 
   const handleRemoveMaterial = (index: number) => {
@@ -72,12 +89,52 @@ export default function WorkflowEditPage() {
     setMaterials(updated);
   };
 
-  const handleImageUpload = (index: number, file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      handleMaterialChange(index, "image", reader.result);
-    };
-    reader.readAsDataURL(file);
+  const handleModalImageUpload = (files: FileList) => {
+    const fileArray = Array.from(files);
+    const previews = fileArray.map(file => URL.createObjectURL(file));
+    setNewMaterial(prev => ({ 
+      ...prev, 
+      images: [...prev.images, ...fileArray], 
+      imagePreviews: [...prev.imagePreviews, ...previews] 
+    }));
+  };
+
+  const removeNewImage = (index: number) => {
+    setNewMaterial(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+      imagePreviews: prev.imagePreviews.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSaveNewMaterial = async () => {
+    if (!newMaterial.item_name || !newMaterial.issued_qty) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const formData = new FormData();
+      formData.append("item_name", newMaterial.item_name);
+      formData.append("issued_qty", newMaterial.issued_qty);
+      newMaterial.images.forEach(image => {
+        formData.append("images", image);
+      });
+
+      await adminApi.updateCustomerMaterials(id, formData);
+      toast.success("Material added successfully!");
+      
+      // Refresh materials list
+      const result = await adminApi.getCustomerWorkflowDetails(id);
+      setMaterials(result.materials || []);
+      
+      setShowAddModal(false);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add material.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSave = async () => {
@@ -86,15 +143,13 @@ export default function WorkflowEditPage() {
       if (activeTab === "survey") {
         await adminApi.updateCustomerWorkflow(id, { customer, surveys });
         toast.success("Survey workflow updated successfully!");
+        router.push(`/workflow?tab=${fromTab || "Surveys"}`);
       } else {
-        // Only send new materials to prevent duplication (backend appends)
-        const newMaterials = materials.filter(m => !m._id && m.item_name.trim() !== "");
-        if (newMaterials.length > 0) {
-          await adminApi.updateCustomerMaterials(id, { materials: newMaterials });
-        }
-        toast.success("New materials added successfully!");
+        // For installations, we now save individually via popup, 
+        // but we might still want to save other changes if any.
+        // For now, just redirect back.
+        router.push(`/workflow?tab=${fromTab || "Installations"}`);
       }
-      router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`);
     } catch (err: any) {
       toast.error(err.message || "Failed to save changes.");
     } finally {
@@ -355,55 +410,29 @@ export default function WorkflowEditPage() {
                   <th style={{ minWidth: "250px" }}>Item Name</th>
                   <th style={{ minWidth: "150px" }}>Issued Qty</th>
                   <th style={{ minWidth: "200px" }}>Image</th>
-                  <th style={{ width: "100px" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {materials.map((item, index) => (
-                  <tr key={index}>
+                  <tr key={item._id || index}>
                     <td style={{ fontWeight: 600, color: "#64748b" }}>{index + 1}</td>
+                    <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.item_name}</td>
+                    <td style={{ fontWeight: 600, color: "#0076ce" }}>{item.issued_qty}</td>
                     <td>
-                      <input
-                        type="text"
-                        className={styles.formInput}
-                        value={item.item_name || ""}
-                        onChange={(e) => handleMaterialChange(index, "item_name", e.target.value)}
-                        placeholder="e.g. LED Panel 60x60"
-                        style={{ padding: "0.6rem" }}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className={styles.formInput}
-                        value={item.issued_qty || 0}
-                        onChange={(e) => handleMaterialChange(index, "issued_qty", parseInt(e.target.value))}
-                        style={{ padding: "0.6rem" }}
-                      />
-                    </td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                        {item.image && (
-                          <div style={{ width: "40px", height: "40px", borderRadius: "6px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                            <img src={item.image} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", maxWidth: "200px" }}>
+                        {(item.images || item.image ? [item.image || item.images].flat().filter(Boolean) : []).map((img: string, i: number) => (
+                          <div key={i} style={{ width: "40px", height: "40px", borderRadius: "4px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                            <img 
+                              src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`} 
+                              alt="Material" 
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                            />
                           </div>
+                        ))}
+                        {(!item.image && (!item.images || item.images.length === 0)) && (
+                          <div style={{ color: "#94a3b8", fontSize: "0.75rem" }}>No image</div>
                         )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => e.target.files && handleImageUpload(index, e.target.files[0])}
-                          style={{ fontSize: "0.8rem" }}
-                        />
                       </div>
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => handleRemoveMaterial(index)}
-                        style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}
-                        title="Remove Item"
-                      >
-                        <Trash2 size={20} />
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -477,6 +506,114 @@ export default function WorkflowEditPage() {
           {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
+      {/* Add Material Modal */}
+      {showAddModal && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowAddModal(false)}>
+          <div className={`${modalStyles.modalContent} ${modalStyles.modalMedium}`} onClick={(e) => e.stopPropagation()}>
+            <div className={modalStyles.modalHeader}>
+              <div>
+                <h3>Add Installation Material</h3>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
+                  Record new items issued for installation.
+                </div>
+              </div>
+              <button className={modalStyles.closeBtn} onClick={() => setShowAddModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className={modalStyles.modalBody}>
+              <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
+                <div className={modalStyles.formGroup}>
+                  <label>Item Name <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g. LED Panel 60x60"
+                    className={modalStyles.formInput}
+                    value={newMaterial.item_name}
+                    onChange={(e) => setNewMaterial(prev => ({ ...prev, item_name: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Issued Quantity <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className={modalStyles.formInput}
+                    value={newMaterial.issued_qty}
+                    onChange={(e) => setNewMaterial(prev => ({ ...prev, issued_qty: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Material Images</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {newMaterial.imagePreviews.length > 0 && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "1rem", maxHeight: "300px", overflowY: "auto", padding: "0.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #f1f5f9" }}>
+                        {newMaterial.imagePreviews.map((preview, idx) => (
+                          <div key={idx} style={{ position: "relative", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                            <img src={preview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); removeNewImage(idx); }}
+                              style={{ position: "absolute", top: "4px", right: "4px", background: "rgba(239, 68, 68, 0.9)", color: "white", border: "none", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div 
+                      onClick={() => document.getElementById('materialImages')?.click()}
+                      style={{ 
+                        border: "2px dashed #e2e8f0", 
+                        borderRadius: "12px", 
+                        padding: "2rem", 
+                        textAlign: "center", 
+                        cursor: "pointer",
+                        background: "#f8fafc",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.borderColor = "#0076ce"}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = "#e2e8f0"}
+                    >
+                      <ImageIcon size={32} color="#94a3b8" style={{ margin: "0 auto 1rem" }} />
+                      <div style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                        Click to upload material photos (Multiple allowed)
+                      </div>
+                      <input
+                        id="materialImages"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => e.target.files && handleModalImageUpload(e.target.files)}
+                        style={{ display: "none" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={modalStyles.modalFooter}>
+              <button className={modalStyles.cancelBtn} onClick={() => setShowAddModal(false)}>
+                <X size={18} /> Cancel
+              </button>
+              <button
+                className={modalStyles.saveBtn}
+                onClick={handleSaveNewMaterial}
+                disabled={!newMaterial.item_name || !newMaterial.issued_qty || saving}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                {saving ? <Loader2 size={18} className={styles.spinner} /> : <CheckCircle2 size={18} />}
+                {saving ? "Saving..." : "Save Material"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

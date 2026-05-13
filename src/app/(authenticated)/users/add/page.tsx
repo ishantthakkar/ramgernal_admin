@@ -102,17 +102,11 @@ export default function AddUserPage() {
                   onChange={handleChange}
                   required
                 >
-                  <option value="" disabled>Select a Role</option>
-                  <option value="Sales Person">Sales Person</option>
-                  <option value="Contractor">Contractor</option>
-                  {roles.map((role) => {
-                    if (role.roleName === "Sales Person" || role.roleName === "Contractor") return null;
-                    return (
-                      <option key={role._id} value={role._id}>
-                        {role.roleName}
-                      </option>
-                    );
-                  })}
+                  {roles.map((role) => (
+                    <option key={role._id} value={role._id}>
+                      {role.roleName}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
               </div>

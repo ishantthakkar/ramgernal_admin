@@ -30,7 +30,12 @@ export default function RolesPermissionsPage() {
     try {
       setLoading(true);
       const data = await adminApi.getRoles();
-      setRoles(data.roles || []);
+      const allRoles = data.roles || [];
+      const visibleRoles = allRoles.filter((role: any) => {
+        const name = role.roleName?.toLowerCase();
+        return name !== "sales person" && name !== "contractor";
+      });
+      setRoles(visibleRoles);
     } catch (error: any) {
       toast.error(error.message || "Failed to fetch roles");
     } finally {
