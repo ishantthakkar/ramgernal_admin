@@ -37,7 +37,7 @@ export default function AddServicePage() {
     notes: "",
     status: "Assigned",
     serviceDateTime: "",
-    materials: [] as { name: string; quantity: number }[]
+    material: [] as { item_name: string; issued_qty: number }[]
   });
 
   useEffect(() => {
@@ -111,22 +111,22 @@ export default function AddServicePage() {
   };
 
   const handleMaterialChange = (idx: number, field: string, value: any) => {
-    const updated = [...formData.materials];
+    const updated = [...formData.material];
     updated[idx] = { ...updated[idx], [field]: value };
-    setFormData(prev => ({ ...prev, materials: updated }));
+    setFormData(prev => ({ ...prev, material: updated }));
   };
 
   const addMaterial = () => {
     setFormData(prev => ({
       ...prev,
-      materials: [...prev.materials, { name: "", quantity: 1 }]
+      material: [...prev.material, { item_name: "", issued_qty: 1 }]
     }));
   };
 
   const removeMaterial = (idx: number) => {
     setFormData(prev => ({
       ...prev,
-      materials: prev.materials.filter((_, i) => i !== idx)
+      material: prev.material.filter((_, i) => i !== idx)
     }));
   };
 
@@ -157,7 +157,7 @@ export default function AddServicePage() {
         materialDelivered: formData.materialDelivered,
         status: formData.status,
         serviceDateTime: formData.serviceDateTime,
-        materials: formData.materials
+        material: formData.material
       };
       const response = await adminApi.createServiceTicket(payload);
       if (response.success) {
@@ -392,21 +392,22 @@ export default function AddServicePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {formData.materials.length === 0 ? (
+                    {formData.material.length === 0 ? (
                       <tr>
                         <td colSpan={3} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
                           No materials added yet.
                         </td>
                       </tr>
                     ) : (
-                      formData.materials.map((mat, idx) => (
+                      formData.material.map((mat, idx) => (
                         <tr key={idx}>
                           <td>
                             <input
                               type="text"
                               className={styles.formInput}
-                              value={mat.name}
-                              onChange={(e) => handleMaterialChange(idx, "name", e.target.value)}
+                              style={{ color: "#0f172a", fontWeight: 600 }}
+                              value={mat.item_name}
+                              onChange={(e) => handleMaterialChange(idx, "item_name", e.target.value)}
                               placeholder="e.g. LED Driver 50W"
                             />
                           </td>
@@ -414,10 +415,10 @@ export default function AddServicePage() {
                             <input
                               type="number"
                               className={styles.formInput}
-                              value={mat.quantity}
-                              onChange={(e) => handleMaterialChange(idx, "quantity", parseInt(e.target.value))}
+                              style={{ color: "#0f172a", fontWeight: 600, textAlign: "center" }}
+                              value={mat.issued_qty}
+                              onChange={(e) => handleMaterialChange(idx, "issued_qty", parseInt(e.target.value))}
                               min="1"
-                              style={{ textAlign: "center" }}
                             />
                           </td>
                           <td style={{ textAlign: "center" }}>

@@ -85,8 +85,7 @@ export default function ViewServicePage() {
           <div className={styles.sectionTitle}>
             <User size={22} color="#0076ce" /> Customer Information
           </div>
-          <p className={styles.sectionSubtitle}>Primary identification details for this service ticket.</p>
-          
+
           <div className={styles.formGrid} style={{ gridTemplateColumns: "1fr 1fr" }}>
             <div className={styles.formGroup}>
               <label>Name</label>
@@ -132,11 +131,10 @@ export default function ViewServicePage() {
           <div className={styles.sectionTitle}>
             <MapPin size={22} color="#0076ce" /> Address Details
           </div>
-          <p className={styles.sectionSubtitle}>Installation location and site address.</p>
 
           <div className={styles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
             <div className={styles.formGroup}>
-              <label>Full Address</label>
+              <label>Address</label>
               <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <MapPin size={16} color="#64748b" />
@@ -152,17 +150,16 @@ export default function ViewServicePage() {
         <div className={styles.sectionTitle}>
           <ClipboardCheck size={22} color="#0076ce" /> Service Items (Survey Reference)
         </div>
-        <p className={styles.sectionSubtitle}>Specific items from the original survey identified for rectification.</p>
-        
+
         <div className={styles.userTableContainer} style={{ marginTop: "1rem" }}>
           <table className={styles.userTable}>
             <thead>
               <tr>
                 <th>Area</th>
-                <th>Type of Fixture</th>
-                <th>Original Qty</th>
+                <th>Fixture</th>
+                <th>Qty</th>
                 <th>To Fix</th>
-                <th>Issue Note</th>
+                <th>Note</th>
               </tr>
             </thead>
             <tbody>
@@ -184,7 +181,6 @@ export default function ViewServicePage() {
         <div className={styles.sectionTitle}>
           <ShieldCheck size={22} color="#0076ce" /> Assignment & Logistics
         </div>
-        <p className={styles.sectionSubtitle}>Assigned contractor and scheduling details.</p>
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
@@ -207,10 +203,17 @@ export default function ViewServicePage() {
           </div>
           <div className={styles.formGroup}>
             <label>Material Status</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: service.materialDelivered ? "#059669" : "#dc2626", fontWeight: 700, border: "1px solid #e2e8f0" }}>
+            <div className={styles.formInput} style={{
+              background: "#f8fafc",
+              color: service.materialDelivered ? "#059669" : "#d97706",
+              fontWeight: 600,
+              border: "1px solid #e2e8f0",
+              letterSpacing: "0.05em",
+              fontSize: "0.85rem"
+            }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Package size={16} color={service.materialDelivered ? "#059669" : "#dc2626"} />
-                {service.materialDelivered ? "Delivered to Site" : "Pending Delivery"}
+                <Package size={16} />
+                {service.materialDelivered ? "DELIVERED TO SITE" : "PENDING DELIVERY"}
               </div>
             </div>
           </div>
@@ -221,7 +224,6 @@ export default function ViewServicePage() {
         <div className={styles.sectionTitle}>
           <Package size={22} color="#0076ce" /> Required Materials
         </div>
-        <p className={styles.sectionSubtitle}>List of additional materials required for the service.</p>
 
         <div className={styles.userTableContainer} style={{ marginTop: "1.5rem" }}>
           <table className={styles.userTable}>
@@ -232,17 +234,17 @@ export default function ViewServicePage() {
               </tr>
             </thead>
             <tbody>
-              {(!service.materials || service.materials.length === 0) ? (
+              {(!service.material || service.material.length === 0) ? (
                 <tr>
                   <td colSpan={2} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
                     No specific materials listed.
                   </td>
                 </tr>
               ) : (
-                service.materials.map((mat: any, idx: number) => (
+                service.material.map((mat: any, idx: number) => (
                   <tr key={idx}>
-                    <td style={{ fontWeight: 600 }}>{mat.name}</td>
-                    <td style={{ textAlign: "center", fontWeight: 700, color: "#0076ce" }}>{mat.quantity}</td>
+                    <td style={{ fontWeight: 600, color: "#0f172a" }}>{mat.item_name}</td>
+                    <td style={{ textAlign: "center", fontWeight: 700, color: "#0076ce" }}>{mat.issued_qty}</td>
                   </tr>
                 ))
               )}
@@ -253,25 +255,11 @@ export default function ViewServicePage() {
 
       <section className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <Clock size={22} color="#0076ce" /> Status & Notes
-        </div>
-        <p className={styles.sectionSubtitle}>Current progress and additional documentation.</p>
-
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label>Ticket Status</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: service.status === "Completed" ? "#059669" : "#3b82f6", fontWeight: 700, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Settings size={16} color={service.status === "Completed" ? "#059669" : "#3b82f6"} />
-                {service.status}
-              </div>
-            </div>
-          </div>
+          <Clock size={22} color="#0076ce" /> Service Notes
         </div>
 
-        <div className={styles.formGroup} style={{ marginTop: "1.5rem" }}>
-          <label>Service Notes</label>
-          <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", minHeight: "100px", whiteSpace: "pre-wrap", border: "1px solid #e2e8f0", padding: "1rem" }}>
+        <div className={styles.formGroup} style={{ marginTop: "1rem" }}>
+          <div className={styles.formInput} style={{ background: "#f8fafc", color: "#0f172a", minHeight: "120px", whiteSpace: "pre-wrap", border: "1px solid #e2e8f0", padding: "1.25rem", fontSize: "1rem", fontWeight: 500, lineHeight: "1.6" }}>
             {service.notes || "No additional notes provided."}
           </div>
         </div>

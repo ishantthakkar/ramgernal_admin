@@ -337,6 +337,50 @@ export default function LeadDetailsPage() {
           )}
         </div>
       </div>
+      {/* Activity Log Section */}
+      {lead.activityLog && lead.activityLog.length > 0 && (
+        <div className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Clock size={22} color="#0076ce" /> Activity Log
+          </div>
+          <div className={styles.userTableContainer} style={{ border: "1px solid #f1f5f9", borderRadius: "12px", overflow: "hidden", marginTop: "1rem" }}>
+            <table className={styles.userTable}>
+              <thead>
+                <tr>
+                  <th>Activity</th>
+                  <th>Date</th>
+                  <th>Outcome</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lead.activityLog.map((log: any) => (
+                  <tr key={log._id}>
+                    <td style={{ fontWeight: 600, color: "#1e293b" }}>
+                      <span style={{ 
+                        padding: "0.25rem 0.75rem", 
+                        borderRadius: "99px", 
+                        fontSize: "0.7rem", 
+                        background: "#f1f5f9", 
+                        color: "#475569",
+                        textTransform: "uppercase",
+                        fontWeight: 700
+                      }}>
+                        {log.activityType || "UPDATE"}
+                      </span>
+                    </td>
+                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                      {log.date ? new Date(log.date).toLocaleDateString() : new Date(log.createdAt).toLocaleDateString()}
+                    </td>
+                    <td style={{ color: "#1e293b", fontWeight: 500 }}>{log.outcome || "N/A"}</td>
+                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>{log.notes || "No additional notes"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
         <button

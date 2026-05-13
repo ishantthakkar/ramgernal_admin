@@ -40,7 +40,7 @@ export default function EditServicePage() {
     notes: "",
     status: "Assigned",
     serviceDateTime: "",
-    materials: [] as { name: string; quantity: number }[]
+    material: [] as { item_name: string; issued_qty: number }[]
   });
 
   const [customerInfo, setCustomerInfo] = useState<any>(null);
@@ -73,7 +73,7 @@ export default function EditServicePage() {
           notes: service.notes || "",
           status: service.status || "Assigned",
           serviceDateTime: service.serviceDateTime || "",
-          materials: service.materials || []
+          material: service.material || []
         });
         setCustomerInfo(service.customerId);
       }
@@ -92,22 +92,22 @@ export default function EditServicePage() {
   };
 
   const handleMaterialChange = (idx: number, field: string, value: any) => {
-    const updated = [...formData.materials];
+    const updated = [...formData.material];
     updated[idx] = { ...updated[idx], [field]: value };
-    setFormData(prev => ({ ...prev, materials: updated }));
+    setFormData(prev => ({ ...prev, material: updated }));
   };
 
   const addMaterial = () => {
     setFormData(prev => ({
       ...prev,
-      materials: [...prev.materials, { name: "", quantity: 1 }]
+      material: [...prev.material, { item_name: "", issued_qty: 1 }]
     }));
   };
 
   const removeMaterial = (idx: number) => {
     setFormData(prev => ({
       ...prev,
-      materials: prev.materials.filter((_, i) => i !== idx)
+      material: prev.material.filter((_, i) => i !== idx)
     }));
   };
 
@@ -123,7 +123,7 @@ export default function EditServicePage() {
         materialDelivered: formData.materialDelivered,
         toFixItems: formData.toFixItems,
         serviceDateTime: formData.serviceDateTime,
-        materials: formData.materials
+        material: formData.material
       };
       const response = await adminApi.updateServiceTicket(id, payload);
       if (response.success) {
@@ -165,8 +165,7 @@ export default function EditServicePage() {
               <div className={styles.sectionTitle}>
                 <User size={22} color="#0076ce" /> Customer Information
               </div>
-              <p className={styles.sectionSubtitle}>Primary identification details for this service ticket.</p>
-              
+
               <div className={styles.formGrid} style={{ gridTemplateColumns: "1fr 1fr" }}>
                 <div className={styles.formGroup}>
                   <label>Name</label>
@@ -183,11 +182,10 @@ export default function EditServicePage() {
               <div className={styles.sectionTitle}>
                 <MapPin size={22} color="#0076ce" /> Site Address
               </div>
-              <p className={styles.sectionSubtitle}>Installation location and site address.</p>
-              
+
               <div className={styles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
                 <div className={styles.formGroup}>
-                  <label>Full Address</label>
+                  <label>Address</label>
                   <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600 }}>
                     {customerInfo.address?.street}, {customerInfo.address?.city}, {customerInfo.address?.state} {customerInfo.address?.zip}
                   </div>
@@ -201,17 +199,16 @@ export default function EditServicePage() {
           <div className={styles.sectionTitle}>
             <ClipboardCheck size={22} color="#0076ce" /> Service Items (Survey Reference)
           </div>
-          <p className={styles.sectionSubtitle}>Update which items from the original survey need fixing.</p>
-          
+
           <div className={styles.userTableContainer} style={{ marginTop: "1rem" }}>
             <table className={styles.userTable}>
               <thead>
                 <tr>
                   <th>Area</th>
-                  <th>Type of Fixture</th>
-                  <th>Original Qty</th>
+                  <th>Fixture</th>
+                  <th>Qty</th>
                   <th style={{ width: "120px" }}>To Fix</th>
-                  <th>Issue Note</th>
+                  <th>Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -253,8 +250,7 @@ export default function EditServicePage() {
           <div className={styles.sectionTitle}>
             <ShieldCheck size={22} color="#0076ce" /> Status & Assignment
           </div>
-          <p className={styles.sectionSubtitle}>Modify the current progress and assigned contractor.</p>
-          
+
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>Service Status</label>
@@ -274,7 +270,7 @@ export default function EditServicePage() {
               </div>
             </div>
             <div className={styles.formGroup}>
-              <label>Assign to Contractor</label>
+              <label>Contractor</label>
               <div style={{ position: "relative" }}>
                 <select
                   className={styles.formSelect}
@@ -331,7 +327,6 @@ export default function EditServicePage() {
               + Add Material
             </button>
           </div>
-          <p className={styles.sectionSubtitle}>Manage additional materials for this service ticket.</p>
 
           <div className={styles.userTableContainer} style={{ marginTop: "1.5rem" }}>
             <table className={styles.userTable}>
@@ -343,22 +338,22 @@ export default function EditServicePage() {
                 </tr>
               </thead>
               <tbody>
-                {formData.materials.length === 0 ? (
+                {formData.material.length === 0 ? (
                   <tr>
                     <td colSpan={3} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
                       No materials added yet.
                     </td>
                   </tr>
                 ) : (
-                  formData.materials.map((mat, idx) => (
+                  formData.material.map((mat, idx) => (
                     <tr key={idx}>
                       <td>
                         <input
                           type="text"
                           className={styles.formInput}
-                          style={{ background: "#eef1f4" }}
-                          value={mat.name}
-                          onChange={(e) => handleMaterialChange(idx, "name", e.target.value)}
+                          style={{ background: "#eef1f4", color: "#0f172a", fontWeight: 600 }}
+                          value={mat.item_name}
+                          onChange={(e) => handleMaterialChange(idx, "item_name", e.target.value)}
                           placeholder="e.g. LED Driver 50W"
                         />
                       </td>
@@ -366,9 +361,9 @@ export default function EditServicePage() {
                         <input
                           type="number"
                           className={styles.formInput}
-                          style={{ background: "#eef1f4" }}
-                          value={mat.quantity}
-                          onChange={(e) => handleMaterialChange(idx, "quantity", parseInt(e.target.value))}
+                          style={{ background: "#eef1f4", color: "#0f172a", fontWeight: 600 }}
+                          value={mat.issued_qty}
+                          onChange={(e) => handleMaterialChange(idx, "issued_qty", parseInt(e.target.value))}
                           min="1"
                         />
                       </td>
@@ -391,12 +386,11 @@ export default function EditServicePage() {
 
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Clock size={22} color="#0076ce" /> Status & Notes
+            <Clock size={22} color="#0076ce" /> Service Notes
           </div>
-          <p className={styles.sectionSubtitle}>Additional documentation and update logs.</p>
-          
+
           <div className={styles.formGroup} style={{ marginTop: "1.5rem" }}>
-            <label>Update Notes</label>
+            <label>Notes</label>
             <textarea
               className={styles.formInput}
               style={{ background: "#eef1f4", height: "100px", padding: "1rem" }}
