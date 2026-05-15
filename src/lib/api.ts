@@ -141,7 +141,7 @@ export const adminApi = {
   }),
   createServiceTicket: (serviceData: any) => apiRequest("/services", {
     method: "POST",
-    body: JSON.stringify(serviceData),
+    body: serviceData instanceof FormData ? serviceData : JSON.stringify(serviceData),
   }),
   getServices: () => apiRequest("/services", {
     method: "GET",
@@ -151,7 +151,11 @@ export const adminApi = {
   }),
   updateServiceTicket: (id: string, data: any) => apiRequest(`/services/${id}`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  }),
+  addServiceMaterial: (id: string, data: any) => apiRequest(`/services/${id}/material`, {
+    method: "PUT",
+    body: data instanceof FormData ? data : JSON.stringify(data),
   }),
   getActivityLogs: () => apiRequest("/activities", {
     method: "GET",

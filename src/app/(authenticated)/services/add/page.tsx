@@ -15,11 +15,15 @@ import {
   Clock,
   Package,
   Trash2,
-  X
+  X,
+  Image as ImageIcon,
+  Plus,
+  CheckCircle2
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { canViewModule } from "@/lib/permissions";
+import modalStyles from "../../commissions/commissions-modal.module.css";
 
 export default function AddServicePage() {
   const router = useRouter();
@@ -37,7 +41,16 @@ export default function AddServicePage() {
     notes: "",
     status: "Assigned",
     serviceDateTime: "",
-    material: [] as { item_name: string; issued_qty: number }[]
+    material: [] as any[]
+  });
+
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMaterial, setNewMaterial] = useState({
+    item_name: "",
+    issued_qty: "",
+    images: [] as File[],
+    imagePreviews: [] as string[]
   });
 
   useEffect(() => {
@@ -116,11 +129,50 @@ export default function AddServicePage() {
     setFormData(prev => ({ ...prev, material: updated }));
   };
 
-  const addMaterial = () => {
+  const handleAddMaterial = () => {
+    setNewMaterial({
+      item_name: "",
+      issued_qty: "",
+      images: [],
+      imagePreviews: []
+    });
+    setShowAddModal(true);
+  };
+
+  const handleModalImageUpload = (files: FileList) => {
+    const fileArray = Array.from(files);
+    const previews = fileArray.map(file => URL.createObjectURL(file));
+    setNewMaterial(prev => ({
+      ...prev,
+      images: [...prev.images, ...fileArray],
+      imagePreviews: [...prev.imagePreviews, ...previews]
+    }));
+  };
+
+  const removeNewImage = (index: number) => {
+    setNewMaterial(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+      imagePreviews: prev.imagePreviews.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSaveNewMaterial = () => {
+    if (!newMaterial.item_name || !newMaterial.issued_qty) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
-      material: [...prev.material, { item_name: "", issued_qty: 1 }]
+      material: [...prev.material, {
+        item_name: newMaterial.item_name,
+        issued_qty: parseInt(newMaterial.issued_qty),
+        images: newMaterial.images,
+        imagePreviews: newMaterial.imagePreviews
+      }]
     }));
+    setShowAddModal(false);
   };
 
   const removeMaterial = (idx: number) => {
@@ -142,24 +194,51 @@ export default function AddServicePage() {
 
     setLoading(true);
     try {
-      const payload = {
-        customerId: formData.customerId,
-        notes: formData.notes,
-        toFixItems: toFixItems.map(item => ({
-          surveyId: item.surveyId,
-          area: item.area,
-          fixtureType: item.fixtureType,
-          proposedQty: item.proposedQty,
-          toFix: item.toFix,
-          issueNote: item.issueNote
-        })),
-        assignedTo: formData.assignedTo || undefined,
-        materialDelivered: formData.materialDelivered,
-        status: formData.status,
-        serviceDateTime: formData.serviceDateTime,
-        material: formData.material
-      };
-      const response = await adminApi.createServiceTicket(payload);
+      // If we have materials with images, we need to send them.
+      // The current backend supports one material with multiple images via multipart/form-data.
+      // If there are multiple materials, we'll send the first one with images via multipart
+      // and the rest as JSON (though backend might need to be updated to handle that fully).
+      
+      const multipartData = new FormData();
+      multipartData.append("customerId", formData.customerId);
+      multipartData.append("notes", formData.notes);
+      multipartData.append("toFixItems", JSON.stringify(toFixItems.map(item => ({
+        surveyId: item.surveyId,
+        area: item.area,
+        fixtureType: item.fixtureType,
+        proposedQty: item.proposedQty,
+        toFix: item.toFix,
+        issueNote: item.issueNote
+      }))));
+      multipartData.append("assignedTo", formData.assignedTo || "");
+      multipartData.append("materialDelivered", String(formData.materialDelivered));
+      multipartData.append("status", formData.status);
+      multipartData.append("serviceDateTime", formData.serviceDateTime);
+
+      // If we have materials
+      if (formData.material.length > 0) {
+        // Send the first material's details in the top level as per curl
+        multipartData.append("item_name", formData.material[0].item_name);
+        multipartData.append("issued_qty", String(formData.material[0].issued_qty));
+        
+        // Add images for the first material
+        if (formData.material[0].images && formData.material[0].images.length > 0) {
+          formData.material[0].images.forEach((file: File) => {
+            multipartData.append("images", file);
+          });
+        }
+
+        // If there are more materials, send them as a JSON string in 'material' field
+        // The backend handles 'material' array too.
+        if (formData.material.length > 1) {
+          multipartData.append("material", JSON.stringify(formData.material.slice(1).map(m => ({
+            item_name: m.item_name,
+            issued_qty: m.issued_qty
+          }))));
+        }
+      }
+
+      const response = await adminApi.createServiceTicket(multipartData);
       if (response.success) {
         toast.success("Service ticket created successfully!");
         router.push("/services");
@@ -181,7 +260,7 @@ export default function AddServicePage() {
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Create Service Ticket</h1>
+        <h1 className={styles.welcomeText}>Create Service</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -191,25 +270,25 @@ export default function AddServicePage() {
             <Search size={22} color="#0076ce" /> Select Customer / Company
           </div>
           <p className={styles.sectionSubtitle}>Choose an eligible customer to begin the service workflow.</p>
-          
+
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>Customer Name <span style={{ color: "#ef4444" }}>*</span></label>
               <div style={{ position: "relative" }}>
-              <select
-                className={styles.formSelect}
-                value={formData.customerId}
-                onChange={(e) => handleCustomerChange(e.target.value)}
-                required
-                disabled={loading}
-              >
-                <option value="">Choose a customer...</option>
-                {eligibleCustomers.map(cust => (
-                  <option key={cust._id} value={cust._id}>
-                    {cust.name} {cust.company ? `- ${cust.company}` : ""}
-                  </option>
-                ))}
-              </select>
+                <select
+                  className={styles.formSelect}
+                  value={formData.customerId}
+                  onChange={(e) => handleCustomerChange(e.target.value)}
+                  required
+                  disabled={loading}
+                >
+                  <option value="">Choose a customer...</option>
+                  {eligibleCustomers.map(cust => (
+                    <option key={cust._id} value={cust._id}>
+                      {cust.name} {cust.company ? `- ${cust.company}` : ""}
+                    </option>
+                  ))}
+                </select>
                 <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", fontWeight: "bold", pointerEvents: "none", color: "#64748b" }} />
               </div>
             </div>
@@ -270,10 +349,10 @@ export default function AddServicePage() {
 
             <section className={styles.formSection}>
               <div className={styles.sectionTitle}>
-                <ClipboardCheck size={22} color="#8b5cf6" /> Service Items (Survey Reference)
+                <ClipboardCheck size={22} color="#8b5cf6" /> Service Items
               </div>
-              <p className={styles.sectionSubtitle}>Specify which items from the original survey need fixing.</p>
-              
+
+
               <div className={styles.userTableContainer} style={{ marginTop: "1rem" }}>
                 <table className={styles.userTable}>
                   <thead>
@@ -322,7 +401,7 @@ export default function AddServicePage() {
 
             <section className={styles.formSection}>
               <div className={styles.sectionTitle}>
-                <ShieldCheck size={22} color="#ef4444" /> Assignment & Logistics
+                <ShieldCheck size={22} color="#ef4444" />Assign Contractor
               </div>
               <div className={styles.formGrid}>
                 <div className={styles.formGroup}>
@@ -341,7 +420,7 @@ export default function AddServicePage() {
                     <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
                   </div>
                 </div>
-                <div className={styles.formGroup}>
+                {/* <div className={styles.formGroup}>
                   <label>Service Date</label>
                   <input
                     type="date"
@@ -349,8 +428,8 @@ export default function AddServicePage() {
                     value={formData.serviceDateTime}
                     onChange={(e) => setFormData(prev => ({ ...prev, serviceDateTime: e.target.value }))}
                   />
-                </div>
-                <div className={styles.formGroup}>
+                </div> */}
+                {/* <div className={styles.formGroup}>
                   <label>Logistics Status</label>
                   <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
@@ -363,7 +442,7 @@ export default function AddServicePage() {
                       <span style={{ fontWeight: 600, color: "#1e293b" }}>Material delivered to site</span>
                     </label>
                   </div>
-                </div>
+                </div> */}
               </div>
             </section>
 
@@ -374,61 +453,49 @@ export default function AddServicePage() {
                 </div>
                 <button
                   type="button"
-                  onClick={addMaterial}
-                  className={styles.assignBtn}
-                  style={{ padding: "0.5rem 1.5rem", borderRadius: "8px" }}
+                  onClick={handleAddMaterial}
+                  className={styles.addBtn}
+                  style={{ padding: "0.5rem 1.5rem", borderRadius: "8px", display: "flex", alignItems: "center", gap: "0.4rem" }}
                 >
-                  + Add Material
+                  <Plus size={18} /> Add Material
                 </button>
               </div>
-              
+
               <div className={styles.userTableContainer} style={{ marginTop: "1.5rem" }}>
                 <table className={styles.userTable}>
                   <thead>
                     <tr>
+                      <th style={{ width: "60px" }}>No.</th>
                       <th>Material Name</th>
                       <th style={{ width: "150px" }}>Quantity</th>
-                      <th style={{ width: "80px" }}>Actions</th>
+                      <th style={{ width: "150px" }}>Images</th>
                     </tr>
                   </thead>
                   <tbody>
                     {formData.material.length === 0 ? (
                       <tr>
-                        <td colSpan={3} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
-                          No materials added yet.
+                        <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
+                          No materials added yet. Click "+ Add Material" to begin.
                         </td>
                       </tr>
                     ) : (
                       formData.material.map((mat, idx) => (
                         <tr key={idx}>
+                          <td style={{ fontWeight: 600, color: "#64748b" }}>{idx + 1}</td>
+                          <td style={{ fontWeight: 600, color: "#1e293b" }}>{mat.item_name}</td>
+                          <td style={{ fontWeight: 700, color: "#0076ce" }}>{mat.issued_qty}</td>
                           <td>
-                            <input
-                              type="text"
-                              className={styles.formInput}
-                              style={{ color: "#0f172a", fontWeight: 600 }}
-                              value={mat.item_name}
-                              onChange={(e) => handleMaterialChange(idx, "item_name", e.target.value)}
-                              placeholder="e.g. LED Driver 50W"
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              className={styles.formInput}
-                              style={{ color: "#0f172a", fontWeight: 600, textAlign: "center" }}
-                              value={mat.issued_qty}
-                              onChange={(e) => handleMaterialChange(idx, "issued_qty", parseInt(e.target.value))}
-                              min="1"
-                            />
-                          </td>
-                          <td style={{ textAlign: "center" }}>
-                            <button
-                              type="button"
-                              onClick={() => removeMaterial(idx)}
-                              style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                            <div style={{ display: "flex", gap: "0.3rem" }}>
+                              {mat.imagePreviews && mat.imagePreviews.length > 0 ? (
+                                mat.imagePreviews.map((prev: string, i: number) => (
+                                  <div key={i} style={{ width: "30px", height: "30px", borderRadius: "4px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                                    <img src={prev} alt="Material" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                  </div>
+                                ))
+                              ) : (
+                                <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>No images</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -463,12 +530,121 @@ export default function AddServicePage() {
                 <X size={20} /> Cancel
               </button>
               <button type="submit" className={styles.createBtn} disabled={loading}>
-                {loading ? "Creating..." : <><SaveIcon size={20} /> Create Ticket</>}
+                {loading ? "Creating..." : <><SaveIcon size={20} /> Create Service</>}
               </button>
             </div>
           </>
         )}
       </form>
+
+      {/* Add Material Modal */}
+      {showAddModal && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowAddModal(false)}>
+          <div className={`${modalStyles.modalContent} ${modalStyles.modalMedium}`} onClick={(e) => e.stopPropagation()}>
+            <div className={modalStyles.modalHeader}>
+              <div>
+                <h3>Add Service Material</h3>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
+                  Record new items issued for this service.
+                </div>
+              </div>
+              <button className={modalStyles.closeBtn} onClick={() => setShowAddModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className={modalStyles.modalBody}>
+              <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
+                <div className={modalStyles.formGroup}>
+                  <label>Item Name <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Copper Pipe 15mm"
+                    className={modalStyles.formInput}
+                    value={newMaterial.item_name}
+                    onChange={(e) => setNewMaterial(prev => ({ ...prev, item_name: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Issued Quantity <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className={modalStyles.formInput}
+                    value={newMaterial.issued_qty}
+                    onChange={(e) => setNewMaterial(prev => ({ ...prev, issued_qty: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Material Images</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {newMaterial.imagePreviews.length > 0 && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "1rem", maxHeight: "200px", overflowY: "auto", padding: "0.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #f1f5f9" }}>
+                        {newMaterial.imagePreviews.map((preview, idx) => (
+                          <div key={idx} style={{ position: "relative", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                            <img src={preview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); removeNewImage(idx); }}
+                              style={{ position: "absolute", top: "4px", right: "4px", background: "rgba(239, 68, 68, 0.9)", color: "white", border: "none", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div
+                      onClick={() => document.getElementById('materialImages')?.click()}
+                      style={{
+                        border: "2px dashed #e2e8f0",
+                        borderRadius: "12px",
+                        padding: "2rem",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        background: "#f8fafc",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.borderColor = "#0076ce"}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = "#e2e8f0"}
+                    >
+                      <ImageIcon size={32} color="#94a3b8" style={{ margin: "0 auto 1rem" }} />
+                      <div style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                        Click to upload material photos (Multiple allowed)
+                      </div>
+                      <input
+                        id="materialImages"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => e.target.files && handleModalImageUpload(e.target.files)}
+                        style={{ display: "none" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={modalStyles.modalFooter}>
+              <button type="button" className={modalStyles.cancelBtn} onClick={() => setShowAddModal(false)}>
+                <X size={18} /> Cancel
+              </button>
+              <button
+                type="button"
+                className={modalStyles.saveBtn}
+                onClick={handleSaveNewMaterial}
+                disabled={!newMaterial.item_name || !newMaterial.issued_qty}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                <CheckCircle2 size={18} /> Save Material
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,11 +17,15 @@ import {
   Clock,
   Package,
   Trash2,
-  X
+  X,
+  Image as ImageIcon,
+  Plus,
+  CheckCircle2
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { canViewModule } from "@/lib/permissions";
+import modalStyles from "../../../commissions/commissions-modal.module.css";
 
 export default function EditServicePage() {
   const router = useRouter();
@@ -40,7 +44,16 @@ export default function EditServicePage() {
     notes: "",
     status: "Assigned",
     serviceDateTime: "",
-    material: [] as { item_name: string; issued_qty: number }[]
+    material: [] as any[]
+  });
+
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newMaterial, setNewMaterial] = useState({
+    item_name: "",
+    issued_qty: "",
+    images: [] as File[],
+    imagePreviews: [] as string[]
   });
 
   const [customerInfo, setCustomerInfo] = useState<any>(null);
@@ -97,18 +110,66 @@ export default function EditServicePage() {
     setFormData(prev => ({ ...prev, material: updated }));
   };
 
-  const addMaterial = () => {
-    setFormData(prev => ({
+  const handleAddMaterial = () => {
+    setNewMaterial({
+      item_name: "",
+      issued_qty: "",
+      images: [],
+      imagePreviews: []
+    });
+    setShowAddModal(true);
+  };
+
+  const handleModalImageUpload = (files: FileList) => {
+    const fileArray = Array.from(files);
+    const previews = fileArray.map(file => URL.createObjectURL(file));
+    setNewMaterial(prev => ({
       ...prev,
-      material: [...prev.material, { item_name: "", issued_qty: 1 }]
+      images: [...prev.images, ...fileArray],
+      imagePreviews: [...prev.imagePreviews, ...previews]
     }));
   };
 
-  const removeMaterial = (idx: number) => {
-    setFormData(prev => ({
+  const removeNewImage = (index: number) => {
+    setNewMaterial(prev => ({
       ...prev,
-      material: prev.material.filter((_, i) => i !== idx)
+      images: prev.images.filter((_, i) => i !== index),
+      imagePreviews: prev.imagePreviews.filter((_, i) => i !== index)
     }));
+  };
+
+  const handleSaveNewMaterial = async () => {
+    if (!newMaterial.item_name || !newMaterial.issued_qty) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const multipartData = new FormData();
+      multipartData.append("item_name", newMaterial.item_name);
+      multipartData.append("issued_qty", newMaterial.issued_qty);
+      newMaterial.images.forEach(image => {
+        multipartData.append("images", image);
+      });
+
+      const response = await adminApi.addServiceMaterial(id, multipartData);
+      if (response.success) {
+        toast.success("Material added successfully!");
+        setShowAddModal(false);
+        // Refresh data
+        fetchInitialData();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add material.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeMaterial = (idx: number) => {
+    const updated = formData.material.filter((_, i: number) => i !== idx);
+    setFormData(prev => ({ ...prev, material: updated }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,7 +216,7 @@ export default function EditServicePage() {
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Edit Service Ticket</h1>
+        <h1 className={styles.welcomeText}>Edit Service</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -197,7 +258,7 @@ export default function EditServicePage() {
 
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <ClipboardCheck size={22} color="#0076ce" /> Service Items (Survey Reference)
+            <ClipboardCheck size={22} color="#0076ce" /> Service Items
           </div>
 
           <div className={styles.userTableContainer} style={{ marginTop: "1rem" }}>
@@ -248,7 +309,7 @@ export default function EditServicePage() {
 
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <ShieldCheck size={22} color="#0076ce" /> Status & Assignment
+            <ShieldCheck size={22} color="#0076ce" /> Status & Contractor
           </div>
 
           <div className={styles.formGrid}>
@@ -286,7 +347,7 @@ export default function EditServicePage() {
                 <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
               </div>
             </div>
-            <div className={styles.formGroup}>
+            {/* <div className={styles.formGroup}>
               <label>Service Date</label>
               <input
                 type="date"
@@ -295,8 +356,8 @@ export default function EditServicePage() {
                 value={formData.serviceDateTime}
                 onChange={(e) => setFormData(prev => ({ ...prev, serviceDateTime: e.target.value }))}
               />
-            </div>
-            <div className={styles.formGroup}>
+            </div> */}
+            {/* <div className={styles.formGroup}>
               <label>Material Status</label>
               <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
@@ -309,7 +370,7 @@ export default function EditServicePage() {
                   <span style={{ fontWeight: 600, color: "#1e293b" }}>Material delivered to site</span>
                 </label>
               </div>
-            </div>
+            </div> */}
           </div>
         </section>
 
@@ -320,11 +381,11 @@ export default function EditServicePage() {
             </div>
             <button
               type="button"
-              onClick={addMaterial}
-              className={styles.assignBtn}
-              style={{ padding: "0.5rem 1.5rem", borderRadius: "8px" }}
+              onClick={handleAddMaterial}
+              className={styles.addBtn}
+              style={{ padding: "0.5rem 1.5rem", borderRadius: "8px", display: "flex", alignItems: "center", gap: "0.4rem" }}
             >
-              + Add Material
+              <Plus size={18} /> Add Material
             </button>
           </div>
 
@@ -332,49 +393,36 @@ export default function EditServicePage() {
             <table className={styles.userTable}>
               <thead>
                 <tr>
+                  <th style={{ width: "60px" }}>No.</th>
                   <th>Material Name</th>
                   <th style={{ width: "150px" }}>Quantity</th>
-                  <th style={{ width: "80px" }}>Actions</th>
+                  <th style={{ width: "180px" }}>Images</th>
                 </tr>
               </thead>
               <tbody>
                 {formData.material.length === 0 ? (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
-                      No materials added yet.
+                    <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
+                      No materials added yet. Click "+ Add Material" to begin.
                     </td>
                   </tr>
                 ) : (
                   formData.material.map((mat, idx) => (
                     <tr key={idx}>
+                      <td style={{ fontWeight: 600, color: "#64748b" }}>{idx + 1}</td>
+                      <td style={{ fontWeight: 600, color: "#1e293b" }}>{mat.item_name}</td>
+                      <td style={{ fontWeight: 700, color: "#0076ce" }}>{mat.issued_qty}</td>
                       <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          style={{ background: "#eef1f4", color: "#0f172a", fontWeight: 600 }}
-                          value={mat.item_name}
-                          onChange={(e) => handleMaterialChange(idx, "item_name", e.target.value)}
-                          placeholder="e.g. LED Driver 50W"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          className={styles.formInput}
-                          style={{ background: "#eef1f4", color: "#0f172a", fontWeight: 600 }}
-                          value={mat.issued_qty}
-                          onChange={(e) => handleMaterialChange(idx, "issued_qty", parseInt(e.target.value))}
-                          min="1"
-                        />
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <button
-                          type="button"
-                          onClick={() => removeMaterial(idx)}
-                          style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                          {(mat.images || []).map((img: string, i: number) => (
+                            <div key={i} style={{ width: "35px", height: "35px", borderRadius: "4px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                              <img src={img} alt="Material" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          ))}
+                          {(!mat.images || mat.images.length === 0) && (
+                            <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>No images</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -416,6 +464,116 @@ export default function EditServicePage() {
           </button>
         </div>
       </form>
+
+      {/* Add Material Modal */}
+      {showAddModal && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowAddModal(false)}>
+          <div className={`${modalStyles.modalContent} ${modalStyles.modalMedium}`} onClick={(e) => e.stopPropagation()}>
+            <div className={modalStyles.modalHeader}>
+              <div>
+                <h3>Add Service Material</h3>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
+                  Record new items issued for this service.
+                </div>
+              </div>
+              <button className={modalStyles.closeBtn} onClick={() => setShowAddModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className={modalStyles.modalBody}>
+              <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
+                <div className={modalStyles.formGroup}>
+                  <label>Item Name <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Copper Pipe 15mm"
+                    className={modalStyles.formInput}
+                    value={newMaterial.item_name}
+                    onChange={(e) => setNewMaterial(prev => ({ ...prev, item_name: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Issued Quantity <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className={modalStyles.formInput}
+                    value={newMaterial.issued_qty}
+                    onChange={(e) => setNewMaterial(prev => ({ ...prev, issued_qty: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Material Images</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    {newMaterial.imagePreviews.length > 0 && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "1rem", maxHeight: "200px", overflowY: "auto", padding: "0.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #f1f5f9" }}>
+                        {newMaterial.imagePreviews.map((preview, idx) => (
+                          <div key={idx} style={{ position: "relative", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                            <img src={preview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); removeNewImage(idx); }}
+                              style={{ position: "absolute", top: "4px", right: "4px", background: "rgba(239, 68, 68, 0.9)", color: "white", border: "none", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div
+                      onClick={() => document.getElementById('materialImages')?.click()}
+                      style={{
+                        border: "2px dashed #e2e8f0",
+                        borderRadius: "12px",
+                        padding: "2rem",
+                        textAlign: "center",
+                        cursor: "pointer",
+                        background: "#f8fafc",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.borderColor = "#0076ce"}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = "#e2e8f0"}
+                    >
+                      <ImageIcon size={32} color="#94a3b8" style={{ margin: "0 auto 1rem" }} />
+                      <div style={{ fontSize: "0.9rem", color: "#64748b" }}>
+                        Click to upload material photos (Multiple allowed)
+                      </div>
+                      <input
+                        id="materialImages"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => e.target.files && handleModalImageUpload(e.target.files)}
+                        style={{ display: "none" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={modalStyles.modalFooter}>
+              <button type="button" className={modalStyles.cancelBtn} onClick={() => setShowAddModal(false)}>
+                <X size={18} /> Cancel
+              </button>
+              <button
+                type="button"
+                className={modalStyles.saveBtn}
+                onClick={handleSaveNewMaterial}
+                disabled={!newMaterial.item_name || !newMaterial.issued_qty || saving}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                {saving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                {saving ? "Saving..." : "Save Material"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

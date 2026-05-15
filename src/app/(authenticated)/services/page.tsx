@@ -195,7 +195,7 @@ export default function ServicesPage() {
                 <th>Customer</th>
                 <th>Company</th>
                 <th>Contractor</th>
-                <th>Material</th>
+                {/* <th>Material</th> */}
                 <th>Status</th>
                 <th>Date</th>
                 <th>Actions</th>
@@ -236,7 +236,7 @@ export default function ServicesPage() {
                     <td style={{ fontWeight: 600, color: "#475569" }}>
                       {item.assignedTo?.fullName || item.customerId?.assignToContractor?.fullName || "Unassigned"}
                     </td>
-                    <td>
+                    {/* <td>
                       <span style={{
                         padding: "4px 12px",
                         borderRadius: "20px",
@@ -247,7 +247,7 @@ export default function ServicesPage() {
                       }}>
                         {item.materialDelivered ? "Delivered" : "Pending"}
                       </span>
-                    </td>
+                    </td> */}
                     <td>
                       <div className={styles.statusCell}>
                         <span className={item.status === "Completed" ? styles.statusDotActive : styles.statusDotInactive}

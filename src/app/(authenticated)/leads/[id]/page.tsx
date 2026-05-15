@@ -324,7 +324,7 @@ export default function LeadDetailsPage() {
                     <div key={n._id || index} style={{ paddingBottom: index !== lead.notes.length - 1 ? "0.75rem" : "0", borderBottom: index !== lead.notes.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                       <div style={{ color: "#64748b", fontSize: "0.7rem", marginBottom: "0.25rem", display: "flex", justifyContent: "space-between" }}>
                         <span>Note {index + 1}</span>
-                        <span>{n.createdAt ? new Date(n.createdAt).toLocaleDateString() : ""}</span>
+                        <span>{n.createdAt ? new Date(n.createdAt).toLocaleString() : ""}</span>
                       </div>
                       <div style={{ color: "#1e293b", fontSize: "0.9rem" }}>{n.note}</div>
                     </div>

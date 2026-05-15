@@ -76,7 +76,7 @@ export default function ViewServicePage() {
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Service Ticket Details</h1>
+        <h1 className={styles.welcomeText}>Service Details</h1>
       </div>
 
       <div className={styles.formGrid}>
@@ -129,7 +129,7 @@ export default function ViewServicePage() {
         {/* Address Details */}
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <MapPin size={22} color="#0076ce" /> Address Details
+            <MapPin size={22} color="#0076ce" /> Site Address
           </div>
 
           <div className={styles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
@@ -148,7 +148,7 @@ export default function ViewServicePage() {
 
       <section className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <ClipboardCheck size={22} color="#0076ce" /> Service Items (Survey Reference)
+          <ClipboardCheck size={22} color="#0076ce" /> Service Items
         </div>
 
         <div className={styles.userTableContainer} style={{ marginTop: "1rem" }}>
@@ -179,7 +179,7 @@ export default function ViewServicePage() {
 
       <section className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <ShieldCheck size={22} color="#0076ce" /> Assignment & Logistics
+          <ShieldCheck size={22} color="#0076ce" /> Contractor
         </div>
 
         <div className={styles.formGrid}>
@@ -192,7 +192,7 @@ export default function ViewServicePage() {
               </div>
             </div>
           </div>
-          <div className={styles.formGroup}>
+          {/* <div className={styles.formGroup}>
             <label>Service Date</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -200,7 +200,7 @@ export default function ViewServicePage() {
                 {service.serviceDateTime ? new Date(service.serviceDateTime).toLocaleDateString() : "Not Scheduled"}
               </div>
             </div>
-          </div>
+          </div> */}
           <div className={styles.formGroup}>
             <label>Material Status</label>
             <div className={styles.formInput} style={{
@@ -229,22 +229,37 @@ export default function ViewServicePage() {
           <table className={styles.userTable}>
             <thead>
               <tr>
+                <th style={{ width: "60px" }}>No.</th>
                 <th>Material Name</th>
-                <th style={{ width: "200px", textAlign: "center" }}>Quantity</th>
+                <th style={{ width: "150px", textAlign: "center" }}>Quantity</th>
+                <th style={{ width: "200px" }}>Images</th>
               </tr>
             </thead>
             <tbody>
               {(!service.material || service.material.length === 0) ? (
                 <tr>
-                  <td colSpan={2} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
+                  <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontStyle: "italic" }}>
                     No specific materials listed.
                   </td>
                 </tr>
               ) : (
                 service.material.map((mat: any, idx: number) => (
                   <tr key={idx}>
+                    <td style={{ fontWeight: 600, color: "#64748b" }}>{idx + 1}</td>
                     <td style={{ fontWeight: 600, color: "#0f172a" }}>{mat.item_name}</td>
                     <td style={{ textAlign: "center", fontWeight: 700, color: "#0076ce" }}>{mat.issued_qty}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                        {(mat.images || []).map((img: string, i: number) => (
+                          <div key={i} style={{ width: "40px", height: "40px", borderRadius: "4px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                            <img src={img} alt="Material" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          </div>
+                        ))}
+                        {(!mat.images || mat.images.length === 0) && (
+                          <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>No images</span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
