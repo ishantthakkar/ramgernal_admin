@@ -105,6 +105,10 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify({ status: "verified" }),
   }),
+  adminApproval: (id: string, status: "Approved" | "Rejected") => apiRequest(`/customer/${id}/admin-approval`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  }),
   updateCustomerMaterials: (id: string, data: any) => apiRequest(`/customer/customers/${id}/materials`, {
     method: "POST",
     body: data instanceof FormData ? data : JSON.stringify(data),

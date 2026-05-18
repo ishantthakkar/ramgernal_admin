@@ -27,6 +27,14 @@ export default function AddUserPage() {
     status: "active"
   });
 
+  // Determine if password is required based on the selected role name
+  const selectedRoleObj = roles.find(r => r._id === formData.userRole);
+  const selectedRoleName = selectedRoleObj
+    ? selectedRoleObj.roleName?.toLowerCase()
+    : formData.userRole?.toLowerCase();
+
+  const isPasswordRequired = selectedRoleName !== "sales person" && selectedRoleName !== "contractor";
+
   useEffect(() => {
     fetchRoles();
   }, []);
@@ -34,7 +42,18 @@ export default function AddUserPage() {
   const fetchRoles = async () => {
     try {
       const data = await adminApi.getRoles();
-      setRoles(data.roles || []);
+      const fetchedRoles = data.roles || [];
+      setRoles(fetchedRoles);
+
+      // Auto-select "Sales Person" role by default once roles are loaded
+      const salesPersonRole = fetchedRoles.find(
+        (r: any) => r.roleName?.toLowerCase() === "sales person"
+      );
+      if (salesPersonRole) {
+        setFormData(prev => ({ ...prev, userRole: salesPersonRole._id }));
+      } else if (fetchedRoles.length > 0) {
+        setFormData(prev => ({ ...prev, userRole: fetchedRoles[0]._id }));
+      }
     } catch (err: any) {
       toast.error("Failed to fetch roles");
     }
@@ -42,8 +61,14 @@ export default function AddUserPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name === "userRole" && (value === "Sales Person" || value === "Contractor")) {
-      setFormData(prev => ({ ...prev, [name]: value, password: "" }));
+    if (name === "userRole") {
+      const selectedRole = roles.find(r => r._id === value);
+      const roleName = selectedRole?.roleName?.toLowerCase() || "";
+      if (roleName === "sales person" || roleName === "contractor") {
+        setFormData(prev => ({ ...prev, [name]: value, password: "" }));
+      } else {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -186,7 +211,7 @@ export default function AddUserPage() {
                 required
               />
             </div>
-            {formData.userRole !== "Sales Person" && formData.userRole !== "Contractor" && (
+            {isPasswordRequired && (
               <div className={styles.formGroup}>
                 <label>Password <span style={{ color: "#ef4444" }}>*</span></label>
                 <input

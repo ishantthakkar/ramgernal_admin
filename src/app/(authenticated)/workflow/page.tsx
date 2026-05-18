@@ -234,7 +234,10 @@ export default function WorkflowPage() {
           surveyStatus: c.status || "Pending",
           verifyStatus: c.verifyStatus || "pending",
           date: c.convertedDate || c.createdDate
-        })).filter((item: any) => item.surveyStatus?.toLowerCase() === "completed");
+        })).filter((item: any) => {
+          const status = item.surveyStatus?.toLowerCase();
+          return status === "completed" || status === "reopened" || status === "reopen" || status === "pending_edit_approval";
+        });
         setData(normalizedData);
 
       } else if (activeTab === "Installations") {
@@ -374,6 +377,24 @@ export default function WorkflowPage() {
     }
   };
 
+  const handleAdminApproval = async (record: any, status: "Approved" | "Rejected") => {
+    if (!window.confirm(`Are you sure you want to ${status.toLowerCase()} the survey edits for ${record.customerName}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await adminApi.adminApproval(record._id, status);
+      toast.success(response.message || `Survey edits ${status.toLowerCase()} successfully!`);
+      fetchWorkflowData();
+    } catch (err: any) {
+      console.error(`Approval error (${status}):`, err);
+      toast.error(err.message || `Failed to ${status.toLowerCase()} survey edits.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const summaryStats = [
     { label: "Total Surveys", value: counts.Surveys.toLocaleString(), icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
     { label: "Total Installations", value: counts.installations.toLocaleString(), icon: Hammer, color: "#475569", bg: "#f1f5f9" },
@@ -382,7 +403,7 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["S.No", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "VERIFY", "ACTIONS"];
+      return ["S.No", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "VERIFY / APPROVAL", "ACTIONS"];
     }
 
     if (activeTab === "Installations") {
@@ -405,7 +426,9 @@ export default function WorkflowPage() {
       case "in progress":
       case "in-process":
       case "in process": return { color: "#10b981", bg: "#ecfdf5" };
-      case "reopened": return { color: "#fbbf24", bg: "#fffbeb" };
+      case "reopened":
+      case "reopen": return { color: "#fbbf24", bg: "#fffbeb" };
+      case "pending_edit_approval": return { color: "#d97706", bg: "#fef3c7" };
       case "new": return { color: "#8b5cf6", bg: "#f5f3ff" };
       default: return { color: "#64748b", bg: "#f8fafc" };
     }
@@ -529,7 +552,7 @@ export default function WorkflowPage() {
                                 return pmId === targetId && targetId !== "";
                               })?.fullName || item.projectManager || "Unknown PM"}
                             </div>
-                          ) : (item.surveyStatus?.toLowerCase() === "completed" && canCreateSurveys) ? (
+                          ) : ((item.surveyStatus?.toLowerCase() === "completed" || item.surveyStatus?.toLowerCase() === "reopened" || item.surveyStatus?.toLowerCase() === "reopen" || item.surveyStatus?.toLowerCase() === "pending_edit_approval") && canCreateSurveys) ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
@@ -542,7 +565,7 @@ export default function WorkflowPage() {
                             </button>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontStyle: "italic" }}>
-                              {item.surveyStatus?.toLowerCase() === "completed" ? "No Assign Permission" : "Awaiting Completion"}
+                              {(item.surveyStatus?.toLowerCase() === "completed" || item.surveyStatus?.toLowerCase() === "reopened" || item.surveyStatus?.toLowerCase() === "reopen" || item.surveyStatus?.toLowerCase() === "pending_edit_approval") ? "No Assign Permission" : "Awaiting Completion"}
                             </span>
                           )}
                         </td>
@@ -551,11 +574,34 @@ export default function WorkflowPage() {
                             {item.surveyStatus !== "-" && (
                               <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.surveyStatus).color }}></span>
                             )}
-                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>{item.surveyStatus || "N/A"}</span>
+                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
+                              {item.surveyStatus === "pending_edit_approval"
+                                ? "Pending Approval"
+                                : item.surveyStatus === "reopen" || item.surveyStatus === "reopened"
+                                ? "Reopened"
+                                : item.surveyStatus || "N/A"}
+                            </span>
                           </div>
                         </td>
                         <td>
-                          {item.verifyStatus === "verified" ? (
+                          {item.surveyStatus?.toLowerCase() === "pending_edit_approval" ? (
+                            <div style={{ display: "flex", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                className={styles.assignBtn}
+                                onClick={() => handleAdminApproval(item, "Approved")}
+                                style={{ background: "#10b981", color: "white", border: "none" }}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className={styles.assignBtn}
+                                onClick={() => handleAdminApproval(item, "Rejected")}
+                                style={{ background: "#ef4444", color: "white", border: "none" }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : item.verifyStatus === "verified" ? (
                             <span style={{ color: "#10b981", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Verified</span>
                           ) : canCreateSurveys ? (
                             <button
