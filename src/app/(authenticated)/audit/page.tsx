@@ -6,6 +6,7 @@ import styles from "../dashboard.module.css";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { canViewModule } from "@/lib/permissions";
+import { formatDateTimeWithSeconds } from "@/lib/dateUtils";
 import {
   User,
   Search as SearchIcon,
@@ -85,16 +86,7 @@ export default function AuditLogsPage() {
   const paginatedLogs = filteredLogs.slice(startIndex, startIndex + itemsPerPage);
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+    return formatDateTimeWithSeconds(dateString);
   };
 
   return (

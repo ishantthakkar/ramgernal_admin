@@ -22,6 +22,7 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { canViewModule } from "@/lib/permissions";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function ViewServicePage() {
   const router = useRouter();
@@ -197,7 +198,7 @@ export default function ViewServicePage() {
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Calendar size={16} color="#64748b" />
-                {service.serviceDateTime ? new Date(service.serviceDateTime).toLocaleDateString() : "Not Scheduled"}
+                {service.serviceDateTime ? formatDate(service.serviceDateTime) : "Not Scheduled"}
               </div>
             </div>
           </div> */}

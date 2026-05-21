@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
 import { adminApi } from "@/lib/api";
+import { formatDateTime } from "@/lib/dateUtils";
 import {
   BarChart3,
   Handshake,
@@ -141,13 +142,7 @@ export default function DashboardPage() {
                         {activity.logName}: <span>{activity.recordName}</span>
                       </div>
                       <div className={styles.activityMeta}>
-                        BY {activity.byPersonName?.toUpperCase()} • {new Date(activity.createdAt).toLocaleDateString(undefined, {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        BY {activity.byPersonName?.toUpperCase()} • {formatDateTime(activity.createdAt)}
                       </div>
                     </div>
                   </div>

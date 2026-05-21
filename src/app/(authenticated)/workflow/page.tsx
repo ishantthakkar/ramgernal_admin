@@ -255,7 +255,7 @@ export default function WorkflowPage() {
           salesPerson: inst.salesPersonName || (inst.customer?.salesPerson) || "Unassigned",
           contractor: inst.contractorName || inst.contractor?.fullName || inst.contractor || "Unassigned",
           projectManager: inst.assignedTo?.fullName || inst.projectManager?.fullName || inst.projectManager || "Unassigned",
-          status: inst.contractorStatus || "-"
+          status: inst.installationStatus || "-"
         }));
         setData(normalizedData);
 
@@ -578,8 +578,8 @@ export default function WorkflowPage() {
                               {item.surveyStatus === "pending_edit_approval"
                                 ? "Pending Approval"
                                 : item.surveyStatus === "reopen" || item.surveyStatus === "reopened"
-                                ? "Reopened"
-                                : item.surveyStatus || "N/A"}
+                                  ? "Reopened"
+                                  : item.surveyStatus || "N/A"}
                             </span>
                           </div>
                         </td>

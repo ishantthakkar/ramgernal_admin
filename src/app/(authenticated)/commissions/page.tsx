@@ -17,6 +17,7 @@ import {
 import modalStyles from "./commissions-modal.module.css";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import { formatDate } from "@/lib/dateUtils";
 
 interface ApiCommission {
   _id: string;
@@ -333,7 +334,7 @@ export default function CommissionsPage() {
                         <td style={{ fontWeight: 600 }}>
                           {row.paymentMethod}
                         </td>
-                        <td>{row.paymentDate ? new Date(row.paymentDate).toLocaleDateString() : "N/A"}</td>
+                        <td>{row.paymentDate ? formatDate(row.paymentDate) : "N/A"}</td>
                       </tr>
                     ))}
                   </tbody>

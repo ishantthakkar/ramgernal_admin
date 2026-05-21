@@ -28,6 +28,7 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { canViewModule, hasPermission } from "@/lib/permissions";
+import { formatDate } from "@/lib/dateUtils";
 
 const MOCK_SERVICES = [
   {
@@ -256,7 +257,7 @@ export default function ServicesPage() {
                       </div>
                     </td>
                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                      {new Date(item.createdAt).toLocaleDateString()}
+                      {formatDate(item.createdAt)}
                     </td>
                     <td>
                       <button

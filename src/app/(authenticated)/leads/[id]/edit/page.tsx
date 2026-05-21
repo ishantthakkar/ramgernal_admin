@@ -23,6 +23,7 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
+import { formatDateTime } from "@/lib/dateUtils";
 
 export default function EditLeadPage() {
   const router = useRouter();
@@ -411,7 +412,7 @@ export default function EditLeadPage() {
                   <div key={n._id || index} style={{ paddingBottom: index !== existingNotes.length - 1 ? "0.75rem" : "0", borderBottom: index !== existingNotes.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                     <div style={{ color: "#64748b", fontSize: "0.7rem", marginBottom: "0.25rem", display: "flex", justifyContent: "space-between" }}>
                       <span>Note {index + 1}</span>
-                      <span>{n.createdAt ? new Date(n.createdAt).toLocaleString() : ""}</span>
+                      <span>{n.createdAt ? formatDateTime(n.createdAt) : ""}</span>
                     </div>
                     <div style={{ color: "#475569", fontSize: "0.85rem", fontWeight: 500 }}>{n.note}</div>
                   </div>

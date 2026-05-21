@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -222,7 +223,7 @@ export default function LeadsPage() {
                         {lead.status}
                       </div>
                     </td>
-                    <td>{lead.lastActivity ? new Date(lead.lastActivity).toLocaleDateString() : "N/A"}</td>
+                     <td>{lead.lastActivity ? formatDate(lead.lastActivity) : "N/A"}</td>
                     <td>
                       {canEditLeads && (
                         <button

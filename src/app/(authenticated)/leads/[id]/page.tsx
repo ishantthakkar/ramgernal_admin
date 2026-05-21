@@ -23,6 +23,7 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
+import { formatDate, formatDateTime } from "@/lib/dateUtils";
 
 export default function LeadDetailsPage() {
   const params = useParams();
@@ -260,7 +261,7 @@ export default function LeadDetailsPage() {
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Calendar size={16} color="#64748b" />
-                {lead.createdDate ? new Date(lead.createdDate).toLocaleDateString() : "N/A"}
+                {lead.createdDate ? formatDate(lead.createdDate) : "N/A"}
               </div>
             </div>
           </div>
@@ -269,7 +270,7 @@ export default function LeadDetailsPage() {
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Clock size={16} color="#64748b" />
-                {lead.lastActivity ? new Date(lead.lastActivity).toLocaleDateString() : "N/A"}
+                {lead.lastActivity ? formatDate(lead.lastActivity) : "N/A"}
               </div>
             </div>
           </div>
@@ -324,7 +325,7 @@ export default function LeadDetailsPage() {
                     <div key={n._id || index} style={{ paddingBottom: index !== lead.notes.length - 1 ? "0.75rem" : "0", borderBottom: index !== lead.notes.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                       <div style={{ color: "#64748b", fontSize: "0.7rem", marginBottom: "0.25rem", display: "flex", justifyContent: "space-between" }}>
                         <span>Note {index + 1}</span>
-                        <span>{n.createdAt ? new Date(n.createdAt).toLocaleString() : ""}</span>
+                        <span>{n.createdAt ? formatDateTime(n.createdAt) : ""}</span>
                       </div>
                       <div style={{ color: "#1e293b", fontSize: "0.9rem" }}>{n.note}</div>
                     </div>
@@ -341,7 +342,7 @@ export default function LeadDetailsPage() {
       {lead.activityLog && lead.activityLog.length > 0 && (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Clock size={22} color="#0076ce" /> Activity Log
+            <Clock size={22} color="#0076ce" /> Activity
           </div>
           <div className={styles.userTableContainer} style={{ border: "1px solid #f1f5f9", borderRadius: "12px", overflow: "hidden", marginTop: "1rem" }}>
             <table className={styles.userTable}>
@@ -357,11 +358,11 @@ export default function LeadDetailsPage() {
                 {lead.activityLog.map((log: any) => (
                   <tr key={log._id}>
                     <td style={{ fontWeight: 600, color: "#1e293b" }}>
-                      <span style={{ 
-                        padding: "0.25rem 0.75rem", 
-                        borderRadius: "99px", 
-                        fontSize: "0.7rem", 
-                        background: "#f1f5f9", 
+                      <span style={{
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "99px",
+                        fontSize: "0.7rem",
+                        background: "#f1f5f9",
                         color: "#475569",
                         textTransform: "uppercase",
                         fontWeight: 700
@@ -370,7 +371,7 @@ export default function LeadDetailsPage() {
                       </span>
                     </td>
                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                      {log.date ? new Date(log.date).toLocaleDateString() : new Date(log.createdAt).toLocaleDateString()}
+                      {log.date ? formatDate(log.date) : formatDate(log.createdAt)}
                     </td>
                     <td style={{ color: "#1e293b", fontWeight: 500 }}>{log.outcome || "N/A"}</td>
                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>{log.notes || "No additional notes"}</td>

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import { formatDate, formatDateTime } from "@/lib/dateUtils";
 
 export default function WorkflowViewPage() {
   const router = useRouter();
@@ -70,8 +71,10 @@ export default function WorkflowViewPage() {
 
   if (!data?.customer) return null;
 
-  const { customer, surveys } = data;
+  const { customer, surveys, activities = [] } = data;
   const isContractorAssigned = !!(customer.assignToContractor || customer.contractorName || customer.contractor);
+
+  console.log(activities)
 
   return (
     <div className={styles.addUserPage}>
@@ -269,7 +272,7 @@ export default function WorkflowViewPage() {
         <>
           <div className={styles.formSection} style={{ marginTop: "2rem" }}>
             <div className={styles.sectionTitle}>
-              <Hammer size={22} color="#475569" /> Installation Materials
+              <Hammer size={22} color="#475569" /> Materials Deliverd to Site
             </div>
             <p className={styles.sectionSubtitle}>Items and quantities issued for this installation.</p>
 
@@ -294,10 +297,10 @@ export default function WorkflowViewPage() {
                           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                             {(item.images || item.image ? [item.image || item.images].flat().filter(Boolean) : []).map((img: string, i: number) => (
                               <div key={i} style={{ width: "50px", height: "50px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                                <img 
-                                  src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`} 
-                                  alt="Material" 
-                                  style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                <img
+                                  src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`}
+                                  alt="Material"
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                 />
                               </div>
                             ))}
@@ -420,7 +423,7 @@ export default function WorkflowViewPage() {
               <tbody>
                 {customer.notes.map((note: any) => (
                   <tr key={note._id}>
-                    <td style={{ color: "#64748b", fontWeight: 600 }}>{new Date(note.createdAt).toLocaleString()}</td>
+                    <td style={{ color: "#64748b", fontWeight: 600 }}>{formatDateTime(note.createdAt)}</td>
                     <td style={{ color: "#1e293b", fontWeight: 500 }}>{note.note}</td>
                   </tr>
                 ))}
@@ -437,11 +440,11 @@ export default function WorkflowViewPage() {
       {/* Activities Section */}
       <div className={styles.formSection} style={{ marginTop: "2rem" }}>
         <div className={styles.sectionTitle}>
-          <Calendar size={22} color="#8b5cf6" /> Recent Activities
+          <Calendar size={22} color="#8b5cf6" /> Activities
         </div>
         <p className={styles.sectionSubtitle}>Call logs, meetings, and follow-ups.</p>
 
-        {data.activities && data.activities.length > 0 ? (
+        {activities && activities.length > 0 ? (
           <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
             <table className={styles.userTable}>
               <thead>
@@ -453,9 +456,9 @@ export default function WorkflowViewPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.activities.map((activity: any) => (
+                {activities.map((activity: any) => (
                   <tr key={activity._id}>
-                    <td style={{ color: "#64748b", fontWeight: 600 }}>{new Date(activity.date).toLocaleDateString()}</td>
+                    <td style={{ color: "#64748b", fontWeight: 600 }}>{formatDate(activity.date)}</td>
                     <td>
                       <span style={{
                         padding: "0.25rem 0.6rem",
@@ -471,7 +474,7 @@ export default function WorkflowViewPage() {
                     </td>
                     <td style={{ color: "#1e293b", fontWeight: 500 }}>{activity.outcome}</td>
                     <td style={{ color: "#64748b" }}>
-                      {activity.nextFollowUpDate ? new Date(activity.nextFollowUpDate).toLocaleDateString() : "N/A"}
+                      {activity.nextFollowUpDate ? formatDate(activity.nextFollowUpDate) : "N/A"}
                     </td>
                   </tr>
                 ))}

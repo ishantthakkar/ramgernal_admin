@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import { formatDate } from "@/lib/dateUtils";
 
 interface ApiCommission {
   _id: string;
@@ -371,7 +372,7 @@ export default function EditCommissionPage() {
                     {comm.paymentMethod}
                   </td>
                   <td>
-                    {comm.paymentDate ? new Date(comm.paymentDate).toLocaleDateString() : "N/A"}
+                    {comm.paymentDate ? formatDate(comm.paymentDate) : "N/A"}
                   </td>
                 </tr>
               ))}

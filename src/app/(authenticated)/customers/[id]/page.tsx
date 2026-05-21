@@ -16,6 +16,7 @@ import {
   Phone
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { formatDate } from "@/lib/dateUtils";
 
 export default function CustomerDetailsPage() {
   const params = useParams();
@@ -24,6 +25,7 @@ export default function CustomerDetailsPage() {
 
   const [customer, setCustomer] = useState<any>(null);
   const [surveys, setSurveys] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function CustomerDetailsPage() {
         const response = await adminApi.getCustomerWorkflowDetails(id);
         setCustomer(response.customer || null);
         setSurveys(response.surveys || []);
+        setActivities(response.activities || []);
       } catch (err) {
         console.error("Failed to fetch customer details:", err);
       } finally {
@@ -122,7 +125,7 @@ export default function CustomerDetailsPage() {
             <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Calendar size={16} color="#64748b" />
-                {customer.convertedDate ? new Date(customer.convertedDate).toLocaleDateString() : "N/A"}
+                {customer.convertedDate ? formatDate(customer.convertedDate) : "N/A"}
               </div>
             </div>
           </div>
@@ -220,7 +223,7 @@ export default function CustomerDetailsPage() {
                     <td style={{ fontWeight: 700, color: "#1e293b" }}>${survey.totalPrice}</td>
 
                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                      {new Date(survey.createdAt).toLocaleDateString()}
+                      {formatDate(survey.createdAt)}
                     </td>
                   </tr>
                 ))}
@@ -231,10 +234,10 @@ export default function CustomerDetailsPage() {
       )}
 
       {/* Activity Log Section */}
-      {customer.activityLog && customer.activityLog.length > 0 && (
+      {activities && activities.length > 0 && (
         <div className={dashboardStyles.formSection}>
           <div className={dashboardStyles.sectionTitle}>
-            <Info size={22} color="#0076ce" /> Activity Log
+            <Info size={22} color="#0076ce" /> Activity
           </div>
           <div className={dashboardStyles.userTableContainer} style={{ border: "1px solid #f1f5f9", borderRadius: "12px", overflow: "hidden", marginTop: "1rem" }}>
             <table className={dashboardStyles.userTable}>
@@ -243,18 +246,18 @@ export default function CustomerDetailsPage() {
                   <th>Activity</th>
                   <th>Date</th>
                   <th>Outcome</th>
-                  <th>Notes</th>
+                  <th>Next Follow-up</th>
                 </tr>
               </thead>
               <tbody>
-                {customer.activityLog.map((log: any) => (
+                {activities.map((log: any) => (
                   <tr key={log._id}>
                     <td style={{ fontWeight: 600, color: "#1e293b" }}>
-                      <span style={{ 
-                        padding: "0.25rem 0.75rem", 
-                        borderRadius: "99px", 
-                        fontSize: "0.7rem", 
-                        background: "#f1f5f9", 
+                      <span style={{
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "99px",
+                        fontSize: "0.7rem",
+                        background: "#f1f5f9",
                         color: "#475569",
                         textTransform: "uppercase",
                         fontWeight: 700
@@ -263,10 +266,12 @@ export default function CustomerDetailsPage() {
                       </span>
                     </td>
                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                      {new Date(log.date).toLocaleDateString()}
+                      {formatDate(log.date)}
                     </td>
                     <td style={{ color: "#1e293b", fontWeight: 500 }}>{log.outcome || "N/A"}</td>
-                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>{log.notes || "No additional notes"}</td>
+                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
+                      {log.nextFollowUpDate ? formatDate(log.nextFollowUpDate) : "N/A"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
