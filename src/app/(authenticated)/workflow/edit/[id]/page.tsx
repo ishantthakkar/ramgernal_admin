@@ -92,10 +92,10 @@ export default function WorkflowEditPage() {
   const handleModalImageUpload = (files: FileList) => {
     const fileArray = Array.from(files);
     const previews = fileArray.map(file => URL.createObjectURL(file));
-    setNewMaterial(prev => ({ 
-      ...prev, 
-      images: [...prev.images, ...fileArray], 
-      imagePreviews: [...prev.imagePreviews, ...previews] 
+    setNewMaterial(prev => ({
+      ...prev,
+      images: [...prev.images, ...fileArray],
+      imagePreviews: [...prev.imagePreviews, ...previews]
     }));
   };
 
@@ -124,11 +124,11 @@ export default function WorkflowEditPage() {
 
       await adminApi.updateCustomerMaterials(id, formData);
       toast.success("Material added successfully!");
-      
+
       // Refresh materials list
       const result = await adminApi.getCustomerWorkflowDetails(id);
       setMaterials(result.materials || []);
-      
+
       setShowAddModal(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to add material.");
@@ -422,10 +422,10 @@ export default function WorkflowEditPage() {
                       <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", maxWidth: "200px" }}>
                         {(item.images || item.image ? [item.image || item.images].flat().filter(Boolean) : []).map((img: string, i: number) => (
                           <div key={i} style={{ width: "40px", height: "40px", borderRadius: "4px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                            <img 
-                              src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`} 
-                              alt="Material" 
-                              style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                            <img
+                              src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`}
+                              alt="Material"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
                             />
                           </div>
                         ))}
@@ -450,7 +450,7 @@ export default function WorkflowEditPage() {
           {/* Read-only Survey History for reference during Installation editing */}
           <div className={styles.formSection} style={{ marginTop: "2rem" }}>
             <div className={styles.sectionTitle}>
-              <ClipboardCheck size={22} color="#10b981" /> Survey History (Reference)
+              <ClipboardCheck size={22} color="#10b981" /> Survey Details
             </div>
             <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflowX: "auto" }}>
               <table className={styles.userTable}>
@@ -555,7 +555,7 @@ export default function WorkflowEditPage() {
                         {newMaterial.imagePreviews.map((preview, idx) => (
                           <div key={idx} style={{ position: "relative", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
                             <img src={preview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            <button 
+                            <button
                               onClick={(e) => { e.stopPropagation(); removeNewImage(idx); }}
                               style={{ position: "absolute", top: "4px", right: "4px", background: "rgba(239, 68, 68, 0.9)", color: "white", border: "none", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                             >
@@ -565,13 +565,13 @@ export default function WorkflowEditPage() {
                         ))}
                       </div>
                     )}
-                    <div 
+                    <div
                       onClick={() => document.getElementById('materialImages')?.click()}
-                      style={{ 
-                        border: "2px dashed #e2e8f0", 
-                        borderRadius: "12px", 
-                        padding: "2rem", 
-                        textAlign: "center", 
+                      style={{
+                        border: "2px dashed #e2e8f0",
+                        borderRadius: "12px",
+                        padding: "2rem",
+                        textAlign: "center",
                         cursor: "pointer",
                         background: "#f8fafc",
                         transition: "all 0.2s"

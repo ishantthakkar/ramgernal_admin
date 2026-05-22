@@ -192,7 +192,7 @@ export default function WorkflowViewPage() {
       {activeTab === "survey" ? (
         <div className={styles.formSection} style={{ marginTop: "2rem" }}>
           <div className={styles.sectionTitle}>
-            <ClipboardCheck size={22} color="#10b981" /> Survey History
+            <ClipboardCheck size={22} color="#10b981" /> Survey Details
           </div>
 
           {surveys && surveys.length > 0 ? (
@@ -324,7 +324,7 @@ export default function WorkflowViewPage() {
           {/* Also show Survey History in Installations view if requested */}
           <div className={styles.formSection} style={{ marginTop: "2rem" }}>
             <div className={styles.sectionTitle}>
-              <ClipboardCheck size={22} color="#10b981" /> Survey History
+              <ClipboardCheck size={22} color="#10b981" /> Survey Details
             </div>
             {surveys && surveys.length > 0 ? (
               <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
