@@ -19,6 +19,7 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import modalStyles from "../../../commissions/commissions-modal.module.css";
+import { hasPermission } from "@/lib/permissions";
 
 export default function WorkflowEditPage() {
   const router = useRouter();
@@ -157,6 +158,24 @@ export default function WorkflowEditPage() {
     }
   };
 
+  const handleVerify = async () => {
+    if (!window.confirm(`Are you sure you want to verify the survey for ${customer.name}?`)) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await adminApi.verifyCustomerSurvey(id);
+      toast.success(response.message || "Survey verified successfully!");
+      router.push(`/workflow?tab=${fromTab || "Surveys"}`);
+    } catch (err: any) {
+      console.error("Verification error:", err);
+      toast.error(err.message || "Failed to verify survey.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
@@ -178,43 +197,69 @@ export default function WorkflowEditPage() {
         <span style={{ color: "#0076ce" }}>EDIT WORKFLOW</span>
       </div>
 
-      <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Edit Workflow</h1>
+      <div className={styles.pageHeader} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h1 className={styles.welcomeText}>Edit Workflow</h1>
 
-        <div className={styles.tabs} style={{ marginTop: "1.5rem", width: "fit-content" }}>
-          {(fromTab !== "Installations") && (
-            <button
-              className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
-              onClick={() => setActiveTab("survey")}
-              style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              <ClipboardCheck size={18} /> Survey
-            </button>
-          )}
-          {(fromTab !== "Surveys") && (
-            <button
-              className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
-              onClick={() => {
-                if (isContractorAssigned) {
-                  setActiveTab("installations");
-                } else {
-                  toast.warning("Assign a contractor first to manage materials.");
-                }
-              }}
-              style={{
-                border: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                opacity: isContractorAssigned ? 1 : 0.5,
-                cursor: isContractorAssigned ? "pointer" : "not-allowed"
-              }}
-              title={!isContractorAssigned ? "Assign a contractor first" : ""}
-            >
-              <Hammer size={18} /> Installations
-            </button>
-          )}
+          <div className={styles.tabs} style={{ marginTop: "1.5rem", width: "fit-content" }}>
+            {(fromTab !== "Installations") && (
+              <button
+                className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
+                onClick={() => setActiveTab("survey")}
+                style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                <ClipboardCheck size={18} /> Survey
+              </button>
+            )}
+            {(fromTab !== "Surveys") && (
+              <button
+                className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
+                onClick={() => {
+                  if (isContractorAssigned) {
+                    setActiveTab("installations");
+                  } else {
+                    toast.warning("Assign a contractor first to manage materials.");
+                  }
+                }}
+                style={{
+                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  opacity: isContractorAssigned ? 1 : 0.5,
+                  cursor: isContractorAssigned ? "pointer" : "not-allowed"
+                }}
+                title={!isContractorAssigned ? "Assign a contractor first" : ""}
+              >
+                <Hammer size={18} /> Installations
+              </button>
+            )}
+          </div>
         </div>
+
+        {activeTab === "survey" && customer.verifyStatus !== "verified" && hasPermission("Surveys", "create") && (
+          <button
+            type="button"
+            className={styles.createBtn}
+            onClick={handleVerify}
+            disabled={saving}
+            style={{ 
+              padding: "0.875rem 3rem", 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "0.5rem", 
+              background: "#10b981",
+              border: "none",
+              cursor: "pointer",
+              borderRadius: "8px",
+              fontWeight: 600,
+              color: "#ffffff"
+            }}
+          >
+            {saving ? <Loader2 size={20} className={styles.spinner} /> : <CheckCircle2 size={20} />}
+            {saving ? "Verifying..." : "Verify Survey"}
+          </button>
+        )}
       </div>
 
       {/* Customer Information (Read Only) - Always Visible */}

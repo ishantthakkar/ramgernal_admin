@@ -603,18 +603,9 @@ export default function WorkflowPage() {
                             </div>
                           ) : item.verifyStatus === "verified" ? (
                             <span style={{ color: "#10b981", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Verified</span>
-                          ) : canCreateSurveys ? (
-                            <button
-                              className={styles.assignBtn}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleVerify(item);
-                              }}
-                              style={{ background: "#0076ce", color: "white", border: "none" }}
-                            >
-                              Verify
-                            </button>
-                          ) : null}
+                          ) : (
+                            <span style={{ color: "#64748b", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Pending</span>
+                          )}
                         </td>
                       </>
                     ) : activeTab === "Installations" ? (
