@@ -27,7 +27,7 @@ interface ApiCommission {
   otherName?: string;
   amount: number;
   paidAmount: number;
-  paymentMethod: string;
+  paymentMethod: string;      
   paymentDate: string;
   paymentStatus: string;
   date: string;

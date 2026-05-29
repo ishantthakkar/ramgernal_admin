@@ -19,6 +19,7 @@ import {
   PanelLeft,
   Wallet,
   User,
+  Package,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { canViewModule, isSuperAdmin } from "@/lib/permissions";
@@ -53,6 +54,7 @@ export default function DashboardLayout({
 
   const allNavItems = [
     { name: "Users", icon: Users, path: "/users", module: "User" },
+    { name: "Products", icon: Package, path: "/products", isVisible: true },
     { name: "Leads", icon: Search, path: "/leads", module: "Leads" },
     { name: "Customers", icon: Handshake, path: "/customers", module: "Customers" },
     { 
@@ -103,7 +105,7 @@ export default function DashboardLayout({
             <Link
               key={item.name}
               href={item.path}
-              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/leads" || item.path === "/customers" || item.path === "/workflow" || item.path === "/services" || item.path === "/commissions" || item.path === "/roles" || item.path === "/audit") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
+              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/products" || item.path === "/leads" || item.path === "/customers" || item.path === "/workflow" || item.path === "/services" || item.path === "/commissions" || item.path === "/roles" || item.path === "/audit") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
             >
               <item.icon size={22} strokeWidth={2.5} />

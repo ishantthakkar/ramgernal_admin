@@ -164,4 +164,23 @@ export const adminApi = {
   getActivityLogs: () => apiRequest("/activities", {
     method: "GET",
   }),
+  getProducts: (category?: string) => {
+    const query =
+      category && category !== "all"
+        ? `?category=${encodeURIComponent(category)}`
+        : "";
+    return apiRequest(`/products${query}`, {
+      method: "GET",
+    });
+  },
+  createProduct: (productData: {
+    sku: string;
+    name: string;
+    price: number;
+    category: string;
+  }) =>
+    apiRequest("/products", {
+      method: "POST",
+      body: JSON.stringify(productData),
+    }),
 };
