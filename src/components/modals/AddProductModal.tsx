@@ -22,6 +22,8 @@ interface AddProductModalProps {
 
 const CATEGORIES: ProductCategory[] = ["PSE&G", "JCP&L", "ATLANTIC CITY ENERGY"];
 
+const UTILITY_LABEL = "Utility/Electric Company";
+
 const emptyForm = {
   category: "" as ProductCategory | "",
   sku: "",
@@ -45,7 +47,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
     const next: Record<string, string> = {};
 
     if (!form.category) {
-      next.category = "Please select a category.";
+      next.category = `${UTILITY_LABEL} is required.`;
     }
     if (!form.sku.trim()) {
       next.sku = "SKU is required.";
@@ -113,17 +115,20 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
           <div className={modalStyles.modalBody}>
             <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
               <div className={modalStyles.formGroup}>
-                <label htmlFor="product-category">Category</label>
+                <label htmlFor="product-category">
+                  {UTILITY_LABEL} <span style={{ color: "#ef4444" }}>*</span>
+                </label>
                 <select
                   id="product-category"
                   className={modalStyles.formSelect}
                   value={form.category}
+                  required
                   onChange={(e) => {
                     setForm((prev) => ({ ...prev, category: e.target.value as ProductCategory | "" }));
                     if (errors.category) setErrors((prev) => ({ ...prev, category: "" }));
                   }}
                 >
-                  <option value="">Select category</option>
+                  <option value="">Select utility/electric company</option>
                   {CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -136,13 +141,16 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
               </div>
 
               <div className={modalStyles.formGroup}>
-                <label htmlFor="product-sku">SKU</label>
+                <label htmlFor="product-sku">
+                  SKU <span style={{ color: "#ef4444" }}>*</span>
+                </label>
                 <input
                   id="product-sku"
                   type="text"
                   className={modalStyles.formInput}
                   placeholder="e.g. RAM-LED-2X4-40W"
                   value={form.sku}
+                  required
                   onChange={(e) => {
                     setForm((prev) => ({ ...prev, sku: e.target.value }));
                     if (errors.sku) setErrors((prev) => ({ ...prev, sku: "" }));
@@ -154,13 +162,16 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
               </div>
 
               <div className={modalStyles.formGroup}>
-                <label htmlFor="product-name">Name</label>
+                <label htmlFor="product-name">
+                  Name <span style={{ color: "#ef4444" }}>*</span>
+                </label>
                 <input
                   id="product-name"
                   type="text"
                   className={modalStyles.formInput}
                   placeholder="Product name"
                   value={form.name}
+                  required
                   onChange={(e) => {
                     setForm((prev) => ({ ...prev, name: e.target.value }));
                     if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
@@ -172,7 +183,9 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
               </div>
 
               <div className={modalStyles.formGroup}>
-                <label htmlFor="product-price">Price</label>
+                <label htmlFor="product-price">
+                  Price <span style={{ color: "#ef4444" }}>*</span>
+                </label>
                 <input
                   id="product-price"
                   type="number"
@@ -181,6 +194,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
                   className={modalStyles.formInput}
                   placeholder="0.00"
                   value={form.price}
+                  required
                   onChange={(e) => {
                     setForm((prev) => ({ ...prev, price: e.target.value }));
                     if (errors.price) setErrors((prev) => ({ ...prev, price: "" }));

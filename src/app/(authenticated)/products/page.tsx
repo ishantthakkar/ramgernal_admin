@@ -275,17 +275,16 @@ export default function ProductsPage() {
           <table className={dashboardStyles.userTable}>
             <thead>
               <tr>
-                <th>S.No</th>
                 <th>SKU</th>
                 <th>Name</th>
                 <th>Price</th>
-                {activeTab === "all" && <th>Category</th>}
+                {activeTab === "all" && <th>Utility/Electric Company</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={activeTab === "all" ? 5 : 4} style={{ textAlign: "center", padding: "4rem" }}>
+                  <td colSpan={activeTab === "all" ? 4 : 3} style={{ textAlign: "center", padding: "4rem" }}>
                     <div
                       style={{
                         display: "flex",
@@ -303,16 +302,15 @@ export default function ProductsPage() {
               ) : currentItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={activeTab === "all" ? 5 : 4}
+                    colSpan={activeTab === "all" ? 4 : 3}
                     style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}
                   >
                     No products found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                currentItems.map((product, index) => (
+                currentItems.map((product) => (
                   <tr key={product.id}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
                     <td className={styles.skuCell}>{product.sku}</td>
                     <td className={styles.nameCell}>{product.name}</td>
                     <td className={styles.priceCell}>{formatPrice(product.price)}</td>
