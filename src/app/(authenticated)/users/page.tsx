@@ -1,23 +1,94 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import styles from "../dashboard.module.css";
+import userStyles from "./users.module.css";
 import {
   Plus,
   Users,
   Handshake,
   Workflow,
-  Filter,
-
   ChevronLeft,
   ChevronRight,
   Search,
-  Loader2
+  Loader2,
+  ShieldCheck,
+  Briefcase,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
+
+const USER_TABS = [
+  "All Users",
+  "Sales Person",
+  "Contractors",
+  "Project Manager",
+  "Sales Manager",
+  "Admin",
+] as const;
+
+type UserTab = (typeof USER_TABS)[number];
+
+function normalizeRole(role?: string): string {
+  return (role || "").toLowerCase().trim();
+}
+
+function userMatchesTab(user: { userRole?: string }, tab: UserTab): boolean {
+  const role = normalizeRole(user.userRole);
+  switch (tab) {
+    case "All Users":
+      return true;
+    case "Sales Person":
+      return role === "sales person";
+    case "Contractors":
+      return role === "contractor";
+    case "Project Manager":
+      return role === "project manager";
+    case "Sales Manager":
+      return role === "sales manager";
+    case "Admin":
+      return role === "admin";
+    default:
+      return true;
+  }
+}
+
+function countByRole(users: { userRole?: string }[], role: string): number {
+  return users.filter((u) => normalizeRole(u.userRole) === role).length;
+}
+
+function getSupervisorName(user: { reportsTo?: { fullName?: string } | null }): string {
+  return user.reportsTo?.fullName?.trim() || "—";
+}
+
+function formatWorkingHours(user: Record<string, unknown>): string {
+  if (typeof user.workingHours === "string" && user.workingHours.trim()) {
+    return user.workingHours;
+  }
+
+  const days = user.workingDays as string[] | string | undefined;
+  const from = user.workingFrom as string | undefined;
+  const to = user.workingTo as string | undefined;
+
+  const parts: string[] = [];
+
+  if (Array.isArray(days) && days.length > 0) {
+    parts.push(days.join(", "));
+  } else if (typeof days === "string" && days.trim()) {
+    parts.push(days);
+  }
+
+  if (from && to) {
+    parts.push(`${from} – ${to}`);
+  } else if (from) {
+    parts.push(from);
+  } else if (to) {
+    parts.push(to);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}
 
 export default function UsersPage() {
   const router = useRouter();
@@ -27,11 +98,12 @@ export default function UsersPage() {
   const canEditUsers = hasPermission("User", "edit");
 
   const tabParam = searchParams.get("tab");
-  const validTabs = ["All Users", "Sales Person", "Contractors", "Project Manager"];
-  const initialTab = validTabs.includes(tabParam || "") ? tabParam! : "All Users";
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const initialTab: UserTab = USER_TABS.includes(tabParam as UserTab)
+    ? (tabParam as UserTab)
+    : "All Users";
+  const [activeTab, setActiveTab] = useState<UserTab>(initialTab);
 
-  const [users, setUsers] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,29 +112,29 @@ export default function UsersPage() {
   const [stats, setStats] = useState({
     total_sales_persons: 0,
     total_contractors: 0,
-    total_project_managers: 0
+    total_project_managers: 0,
+    total_sales_managers: 0,
+    total_admins: 0,
   });
 
-  const fetchUsers = async (role?: string) => {
+  const fetchAllUsers = async () => {
     setLoading(true);
     try {
-      let apiRole: string | undefined;
-      if (role === "Sales Person") apiRole = "Sales Person";
-      else if (role === "Contractors") apiRole = "Contractor";
-      else if (role === "Project Manager") apiRole = "Project Manager";
-
-      const response = await adminApi.getUserList(apiRole);
-
+      const response = await adminApi.getUserList();
       const results = response.users || response.data || (Array.isArray(response) ? response : []);
-      setUsers(results);
+      setAllUsers(results);
 
-      if (response.counts) {
-        setStats({
-          total_sales_persons: response.counts.total_sales_persons || 0,
-          total_contractors: response.counts.total_contractors || 0,
-          total_project_managers: response.counts.total_project_managers || 0
-        });
-      }
+      setStats({
+        total_sales_persons:
+          response.counts?.total_sales_persons ?? countByRole(results, "sales person"),
+        total_contractors:
+          response.counts?.total_contractors ?? countByRole(results, "contractor"),
+        total_project_managers:
+          response.counts?.total_project_managers ?? countByRole(results, "project manager"),
+        total_sales_managers:
+          response.counts?.total_sales_managers ?? countByRole(results, "sales manager"),
+        total_admins: response.counts?.total_admins ?? countByRole(results, "admin"),
+      });
     } catch (err) {
       console.error("Fetch error:", err);
     } finally {
@@ -71,19 +143,30 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
-    fetchUsers(activeTab);
-    setCurrentPage(1); // Reset to first page when tab changes
-  }, [activeTab]);
+    fetchAllUsers();
+  }, []);
 
-  // Search and Filter Logic
-  const filteredUsers = users.filter(user =>
-    user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.mobileNumber?.includes(searchQuery)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
+
+  const tabUsers = useMemo(
+    () => allUsers.filter((user) => userMatchesTab(user, activeTab)),
+    [allUsers, activeTab]
   );
 
-  // Pagination Logic
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const filteredUsers = useMemo(
+    () =>
+      tabUsers.filter(
+        (user) =>
+          user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          user.mobileNumber?.includes(searchQuery)
+      ),
+    [tabUsers, searchQuery]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
@@ -94,36 +177,99 @@ export default function UsersPage() {
     }
   };
 
+  function handleTabChange(tab: UserTab) {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`/users?${params.toString()}`, { scroll: false });
+  }
+
   const summaryStats = [
-    { label: "Total Sales Persons", value: stats.total_sales_persons.toLocaleString(), icon: Users, color: "#0076ce", bg: "#e0e7ff" },
-    { label: "Total Contractors", value: stats.total_contractors.toLocaleString(), icon: Handshake, color: "#475569", bg: "#f1f5f9" },
-    { label: "Total Project Managers", value: stats.total_project_managers.toLocaleString(), icon: Workflow, color: "#854d0e", bg: "#fef3c7" },
+    {
+      label: "Total Sales Persons",
+      value: stats.total_sales_persons.toLocaleString(),
+      icon: Users,
+      color: "#3b6fd9",
+      bg: "#e8f0fe",
+    },
+    {
+      label: "Total Contractors",
+      value: stats.total_contractors.toLocaleString(),
+      icon: Handshake,
+      color: "#475569",
+      bg: "#f1f5f9",
+    },
+    {
+      label: "Total Project Managers",
+      value: stats.total_project_managers.toLocaleString(),
+      icon: Workflow,
+      color: "#c9922e",
+      bg: "#faf3e8",
+    },
+    {
+      label: "Total Sales Managers",
+      value: stats.total_sales_managers.toLocaleString(),
+      icon: Briefcase,
+      color: "#0d9488",
+      bg: "#ccfbf1",
+    },
+    {
+      label: "Total Admins",
+      value: stats.total_admins.toLocaleString(),
+      icon: ShieldCheck,
+      color: "#7c3aed",
+      bg: "#ede9fe",
+    },
   ];
 
   const getHeaders = () => {
     const commonPrefix = ["S.No", "Name"];
     const commonSuffix = ["Status", "Actions"];
+    const contactCols = ["Mobile Number", "Email", "Working Hours"];
 
     if (activeTab === "All Users") {
-      return [...commonPrefix, "Role", "Mobile Number", "Email", "Status", "Actions"];
+      return [...commonPrefix, "Role", ...contactCols, "Status", "Actions"];
     }
     if (activeTab === "Sales Person") {
-      return [...commonPrefix, "Mobile Number", "Active Leads", "Customers", "Closed Leads", ...commonSuffix];
+      return [
+        ...commonPrefix,
+        "Sales Manager",
+        ...contactCols,
+        "Active Leads",
+        "Customers",
+        "Closed Leads",
+        ...commonSuffix,
+      ];
     }
     if (activeTab === "Contractors") {
-      return [...commonPrefix, "Mobile Number", "Assigned Projects", "Comp. Installations", "Pend. Installations", ...commonSuffix];
+      return [...commonPrefix, ...contactCols, "Assigned Projects", "Comp. Installations", "Pend. Installations", ...commonSuffix];
     }
     if (activeTab === "Project Manager") {
-      return [...commonPrefix, "Mobile Number", "Pend. Inspections", "Comp. Inspections", ...commonSuffix];
+      return [...commonPrefix, ...contactCols, "Pend. Inspections", "Comp. Inspections", ...commonSuffix];
+    }
+    if (activeTab === "Sales Manager") {
+      return [...commonPrefix, "Project Manager", ...contactCols, "Status", "Actions"];
+    }
+    if (activeTab === "Admin") {
+      return [...commonPrefix, ...contactCols, "Status", "Actions"];
     }
     return commonPrefix;
   };
+
+  const tableColSpan = getHeaders().length;
+
+  const showRoleColumn = activeTab === "All Users";
+  const showStandardUserColumns = activeTab === "All Users" || activeTab === "Admin";
+
+  const workingHoursCell = (user: Record<string, unknown>) => (
+    <td style={{ color: "#64748b", fontSize: "0.875rem", maxWidth: 220 }}>{formatWorkingHours(user)}</td>
+  );
 
   return (
     <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>USERS</span>
+        <span className={styles.breadcrumbCurrent}>USERS</span>
       </div>
 
       <div className={styles.pageHeader}>
@@ -135,56 +281,46 @@ export default function UsersPage() {
         )}
       </div>
 
-      <div className={styles.userStatsGrid}>
+      <div className={userStyles.usersStatsGrid}>
         {summaryStats.map((stat) => (
-          <div key={stat.label} className={styles.userStatCard}>
+          <div key={stat.label} className={userStyles.usersStatCard}>
             <div
-              className={styles.userStatIcon}
+              className={userStyles.usersStatIcon}
               style={{ backgroundColor: stat.bg, color: stat.color }}
             >
               <stat.icon size={22} />
             </div>
-            <div className={styles.userStatValue}>{stat.value}</div>
-            <div className={styles.userStatLabel}>{stat.label}</div>
+            <div className={userStyles.usersStatValue}>{stat.value}</div>
+            <div className={userStyles.usersStatLabel}>{stat.label}</div>
           </div>
         ))}
       </div>
 
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
-          <div className={styles.tabs}>
-            {["All Users", "Sales Person", "Contractors", "Project Manager"].map((tab) => (
+          <div className={userStyles.usersTabs}>
+            {USER_TABS.map((tab) => (
               <div
                 key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
-                onClick={() => {
-                  setActiveTab(tab);
-                  const params = new URLSearchParams(searchParams.toString());
-                  params.set("tab", tab);
-                  router.replace(`/users?${params.toString()}`, { scroll: false });
-                }}
+                onClick={() => handleTabChange(tab)}
               >
                 {tab}
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div className={styles.searchUsers}>
-              <Search size={16} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="Search Users..."
-                className={styles.searchInputSmall}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
-            <div style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 500 }}>
-              Showing {currentItems.length} of {filteredUsers.length} users
-            </div>
+          <div className={styles.searchUsers}>
+            <Search size={16} color="#94a3b8" />
+            <input
+              type="text"
+              placeholder="Search Users..."
+              className={styles.searchInputSmall}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
           </div>
         </div>
 
@@ -192,14 +328,24 @@ export default function UsersPage() {
           <table className={styles.userTable}>
             <thead>
               <tr>
-                {getHeaders().map(header => <th key={header}>{header}</th>)}
+                {getHeaders().map((header) => (
+                  <th key={header}>{header}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", color: "#94a3b8" }}>
+                  <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "1rem",
+                        color: "#94a3b8",
+                      }}
+                    >
                       <Loader2 size={32} className={styles.spinner} />
                       <span style={{ fontWeight: 600 }}>Synchronizing user database...</span>
                     </div>
@@ -207,7 +353,7 @@ export default function UsersPage() {
                 </tr>
               ) : currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                  <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
                     No users found matching your criteria.
                   </td>
                 </tr>
@@ -219,7 +365,12 @@ export default function UsersPage() {
                       <div className={styles.userDetails}>
                         <span
                           className={styles.userNameTable}
-                          style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
+                          style={{
+                            color: "var(--admin-primary, #004d4d)",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                          }}
                           onClick={() => router.push(`/users/view/${user._id}`)}
                         >
                           {user.fullName}
@@ -227,18 +378,25 @@ export default function UsersPage() {
                       </div>
                     </td>
 
-                    {activeTab === "All Users" && (
+                    {showStandardUserColumns && (
                       <>
-                        <td>
-                          <span className={`${styles.roleBadge} ${styles.badgeBlue}`}>
-                            {user.userRole?.replace("_", " ").toUpperCase()}
-                          </span>
-                        </td>
+                        {showRoleColumn && (
+                          <td>
+                            <span className={`${styles.roleBadge} ${styles.badgeBlue}`}>
+                              {user.userRole?.replace("_", " ").toUpperCase()}
+                            </span>
+                          </td>
+                        )}
                         <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobileNumber}</td>
-                        <td style={{ color: "#64748b" }}>{user.email}</td>
+                        <td style={{ color: "#64748b" }}>{user.email || "—"}</td>
+                        {workingHoursCell(user)}
                         <td>
                           <div className={styles.statusCell}>
-                            <span className={user.status === "active" ? styles.statusDotActive : styles.statusDotInactive}></span>
+                            <span
+                              className={
+                                user.status === "active" ? styles.statusDotActive : styles.statusDotInactive
+                              }
+                            />
                             {user.status?.charAt(0).toUpperCase() + user.status?.slice(1)}
                           </div>
                         </td>
@@ -247,13 +405,22 @@ export default function UsersPage() {
 
                     {activeTab === "Sales Person" && (
                       <>
+                        <td style={{ fontWeight: 600, color: "var(--admin-primary, #004d4d)" }}>
+                          {getSupervisorName(user)}
+                        </td>
                         <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobileNumber}</td>
+                        <td style={{ color: "#64748b" }}>{user.email || "—"}</td>
+                        {workingHoursCell(user)}
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.activeLeads || 0}</td>
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.customers || 0}</td>
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.closedLeads || 0}</td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span className={user.status === "active" ? styles.statusDotActive : styles.statusDotInactive}></span>
+                            <span
+                              className={
+                                user.status === "active" ? styles.statusDotActive : styles.statusDotInactive
+                              }
+                            />
                             {user.status?.charAt(0).toUpperCase() + user.status?.slice(1)}
                           </div>
                         </td>
@@ -263,12 +430,39 @@ export default function UsersPage() {
                     {activeTab === "Contractors" && (
                       <>
                         <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobileNumber}</td>
+                        <td style={{ color: "#64748b" }}>{user.email || "—"}</td>
+                        {workingHoursCell(user)}
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.assignedProjects || 0}</td>
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.completedInstallations || 0}</td>
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.pendingInstallations || 0}</td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span className={user.status === "active" ? styles.statusDotActive : styles.statusDotInactive}></span>
+                            <span
+                              className={
+                                user.status === "active" ? styles.statusDotActive : styles.statusDotInactive
+                              }
+                            />
+                            {user.status?.charAt(0).toUpperCase() + user.status?.slice(1)}
+                          </div>
+                        </td>
+                      </>
+                    )}
+
+                    {activeTab === "Sales Manager" && (
+                      <>
+                        <td style={{ fontWeight: 600, color: "var(--admin-primary, #004d4d)" }}>
+                          {getSupervisorName(user)}
+                        </td>
+                        <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobileNumber}</td>
+                        <td style={{ color: "#64748b" }}>{user.email || "—"}</td>
+                        {workingHoursCell(user)}
+                        <td>
+                          <div className={styles.statusCell}>
+                            <span
+                              className={
+                                user.status === "active" ? styles.statusDotActive : styles.statusDotInactive
+                              }
+                            />
                             {user.status?.charAt(0).toUpperCase() + user.status?.slice(1)}
                           </div>
                         </td>
@@ -278,11 +472,17 @@ export default function UsersPage() {
                     {activeTab === "Project Manager" && (
                       <>
                         <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobileNumber}</td>
+                        <td style={{ color: "#64748b" }}>{user.email || "—"}</td>
+                        {workingHoursCell(user)}
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.pendingInspections || 0}</td>
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>{user.completedInspections || 0}</td>
                         <td>
                           <div className={styles.statusCell}>
-                            <span className={user.status === "active" ? styles.statusDotActive : styles.statusDotInactive}></span>
+                            <span
+                              className={
+                                user.status === "active" ? styles.statusDotActive : styles.statusDotInactive
+                              }
+                            />
                             {user.status?.charAt(0).toUpperCase() + user.status?.slice(1)}
                           </div>
                         </td>
@@ -308,7 +508,8 @@ export default function UsersPage() {
 
         <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} results
+            Showing {filteredUsers.length === 0 ? 0 : indexOfFirstItem + 1} to{" "}
+            {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} results
           </div>
           <div className={styles.pagination}>
             <div

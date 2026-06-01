@@ -4,13 +4,12 @@ import { useState } from "react";
 import { X, Package } from "lucide-react";
 import modalStyles from "@/app/(authenticated)/commissions/commissions-modal.module.css";
 
-export type ProductCategory = "PSE&G" | "JCP&L" | "ATLANTIC CITY ENERGY";
-
 export interface AddProductFormData {
-  category: ProductCategory;
   sku: string;
   name: string;
-  price: number;
+  salesPrice: number;
+  commission: number;
+  installationCost: number;
 }
 
 interface AddProductModalProps {
@@ -20,15 +19,12 @@ interface AddProductModalProps {
   isSubmitting?: boolean;
 }
 
-const CATEGORIES: ProductCategory[] = ["PSE&G", "JCP&L", "ATLANTIC CITY ENERGY"];
-
-const UTILITY_LABEL = "Utility/Electric Company";
-
 const emptyForm = {
-  category: "" as ProductCategory | "",
   sku: "",
   name: "",
-  price: "",
+  salesPrice: "",
+  commission: "",
+  installationCost: "",
 };
 
 export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = false }: AddProductModalProps) {
@@ -43,39 +39,57 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
     onClose();
   }
 
-  function validate(): boolean {
+  function validateForm(): AddProductFormData | null {
     const next: Record<string, string> = {};
 
-    if (!form.category) {
-      next.category = `${UTILITY_LABEL} is required.`;
-    }
     if (!form.sku.trim()) {
       next.sku = "SKU is required.";
     }
     if (!form.name.trim()) {
       next.name = "Name is required.";
     }
-    const priceNum = parseFloat(form.price);
-    if (!form.price.trim()) {
-      next.price = "Price is required.";
-    } else if (isNaN(priceNum) || priceNum < 0) {
-      next.price = "Enter a valid price.";
+
+    const salesPrice = parseFloat(form.salesPrice);
+    if (!form.salesPrice.trim()) {
+      next.salesPrice = "Sales Price is required.";
+    } else if (isNaN(salesPrice) || salesPrice < 0) {
+      next.salesPrice = "Enter a valid amount.";
+    }
+
+    const commission = parseFloat(form.commission);
+    if (!form.commission.trim()) {
+      next.commission = "Commission is required.";
+    } else if (isNaN(commission) || commission < 0) {
+      next.commission = "Enter a valid amount.";
+    }
+
+    const installationCost = parseFloat(form.installationCost);
+    if (!form.installationCost.trim()) {
+      next.installationCost = "Installation Cost is required.";
+    } else if (isNaN(installationCost) || installationCost < 0) {
+      next.installationCost = "Enter a valid amount.";
     }
 
     setErrors(next);
-    return Object.keys(next).length === 0;
+    if (Object.keys(next).length > 0) return null;
+
+    return {
+      sku: form.sku.trim(),
+      name: form.name.trim(),
+      salesPrice,
+      commission,
+      installationCost,
+    };
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!validate() || isSubmitting) return;
+    if (isSubmitting) return;
 
-    await onSubmit({
-      category: form.category as ProductCategory,
-      sku: form.sku.trim(),
-      name: form.name.trim(),
-      price: parseFloat(form.price),
-    });
+    const payload = validateForm();
+    if (!payload) return;
+
+    await onSubmit(payload);
 
     setForm(emptyForm);
     setErrors({});
@@ -85,7 +99,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
     <div className={modalStyles.modalOverlay} onClick={handleClose}>
       <div
         className={modalStyles.modalContent}
-        style={{ maxWidth: 520 }}
+        style={{ maxWidth: 560 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={modalStyles.modalHeader}>
@@ -113,33 +127,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
 
         <form onSubmit={handleSubmit}>
           <div className={modalStyles.modalBody}>
-            <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
-              <div className={modalStyles.formGroup}>
-                <label htmlFor="product-category">
-                  {UTILITY_LABEL} <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <select
-                  id="product-category"
-                  className={modalStyles.formSelect}
-                  value={form.category}
-                  required
-                  onChange={(e) => {
-                    setForm((prev) => ({ ...prev, category: e.target.value as ProductCategory | "" }));
-                    if (errors.category) setErrors((prev) => ({ ...prev, category: "" }));
-                  }}
-                >
-                  <option value="">Select utility/electric company</option>
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                {errors.category && (
-                  <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>{errors.category}</span>
-                )}
-              </div>
-
+            <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr 1fr" }}>
               <div className={modalStyles.formGroup}>
                 <label htmlFor="product-sku">
                   SKU <span style={{ color: "#ef4444" }}>*</span>
@@ -183,25 +171,73 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
               </div>
 
               <div className={modalStyles.formGroup}>
-                <label htmlFor="product-price">
-                  Price <span style={{ color: "#ef4444" }}>*</span>
+                <label htmlFor="product-sales-price">
+                  Sales Price <span style={{ color: "#ef4444" }}>*</span>
                 </label>
                 <input
-                  id="product-price"
+                  id="product-sales-price"
                   type="number"
                   min="0"
                   step="0.01"
                   className={modalStyles.formInput}
                   placeholder="0.00"
-                  value={form.price}
+                  value={form.salesPrice}
                   required
                   onChange={(e) => {
-                    setForm((prev) => ({ ...prev, price: e.target.value }));
-                    if (errors.price) setErrors((prev) => ({ ...prev, price: "" }));
+                    setForm((prev) => ({ ...prev, salesPrice: e.target.value }));
+                    if (errors.salesPrice) setErrors((prev) => ({ ...prev, salesPrice: "" }));
                   }}
                 />
-                {errors.price && (
-                  <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>{errors.price}</span>
+                {errors.salesPrice && (
+                  <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>{errors.salesPrice}</span>
+                )}
+              </div>
+
+              <div className={modalStyles.formGroup}>
+                <label htmlFor="product-commission">
+                  Commission <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  id="product-commission"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className={modalStyles.formInput}
+                  placeholder="0.00"
+                  value={form.commission}
+                  required
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, commission: e.target.value }));
+                    if (errors.commission) setErrors((prev) => ({ ...prev, commission: "" }));
+                  }}
+                />
+                {errors.commission && (
+                  <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>{errors.commission}</span>
+                )}
+              </div>
+
+              <div className={modalStyles.formGroup} style={{ gridColumn: "1 / -1" }}>
+                <label htmlFor="product-installation-cost">
+                  Installation Cost <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  id="product-installation-cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className={modalStyles.formInput}
+                  placeholder="0.00"
+                  value={form.installationCost}
+                  required
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, installationCost: e.target.value }));
+                    if (errors.installationCost) setErrors((prev) => ({ ...prev, installationCost: "" }));
+                  }}
+                />
+                {errors.installationCost && (
+                  <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                    {errors.installationCost}
+                  </span>
                 )}
               </div>
             </div>

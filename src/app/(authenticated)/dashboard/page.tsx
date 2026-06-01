@@ -42,7 +42,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 className="animate-spin" size={48} color="#3b82f6" />
+        <Loader2 className="animate-spin" size={48} color="#004d4d" />
       </div>
     );
   }
@@ -52,14 +52,14 @@ export default function DashboardPage() {
       label: "Total Active Leads",
       value: stats?.totalActiveLeads?.toLocaleString() || "0",
       icon: BarChart3,
-      iconColor: "#0076ce",
-      iconBg: "#eff6ff"
+      iconColor: "#1d4ed8",
+      iconBg: "#dbeafe"
     },
     {
       label: "Total Customers",
       value: stats?.totalCustomers?.toLocaleString() || "0",
       icon: Handshake,
-      iconColor: "#854d0e",
+      iconColor: "#b45309",
       iconBg: "#fef3c7"
     },
   ];

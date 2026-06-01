@@ -3,43 +3,109 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
+import viewStyles from "../user-view.module.css";
 import {
   UserPlus,
   ShieldCheck,
   X,
   Loader2,
-  Edit2,
   Phone,
   Mail,
   Building,
   User,
   Shield,
-  Activity
+  Activity,
+  Users,
+  Clock,
+  Edit2,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
+
+interface ReportsToUser {
+  _id: string;
+  fullName?: string;
+  userRole?: string;
+  company?: string;
+  email?: string;
+  mobileNumber?: string;
+}
+
+interface DirectReport {
+  _id: string;
+  fullName?: string;
+  company?: string;
+  email?: string;
+  mobileNumber?: string;
+  userRole?: string;
+  status?: string;
+  workingDays?: string[];
+  workingFrom?: string;
+  workingTo?: string;
+}
+
+interface UserProfile {
+  _id: string;
+  fullName?: string;
+  mobileNumber?: string;
+  email?: string;
+  company?: string;
+  userRole?: string;
+  status?: string;
+  reportsTo?: ReportsToUser | null;
+  workingDays?: string[];
+  workingFrom?: string;
+  workingTo?: string;
+}
+
+function normalizeRole(role?: string): string {
+  return (role || "").toLowerCase().trim().replace(/_/g, " ");
+}
+
+function formatWorkingHours(user: UserProfile | DirectReport): string {
+  const days = user.workingDays;
+  const from = user.workingFrom;
+  const to = user.workingTo;
+  const parts: string[] = [];
+
+  if (Array.isArray(days) && days.length > 0) {
+    parts.push(days.join(", "));
+  }
+  if (from && to) {
+    parts.push(`${from} – ${to}`);
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}
 
 export default function ViewUserPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const canEditUsers = hasPermission("User", "edit");
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [directReports, setDirectReports] = useState<DirectReport[]>([]);
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    async function fetchUser() {
       try {
         const response = await adminApi.getUserById(id);
-        const userData = response.user || response.data || response;
+        const userData: UserProfile = response.user || response.data || response;
         setUser(userData);
-      } catch (err: any) {
-        toast.error(err.message || "Failed to fetch user details.");
+        setDirectReports(
+          Array.isArray(response.directReports) ? response.directReports : []
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to fetch user details.";
+        toast.error(message);
         router.push("/users");
       } finally {
         setFetching(false);
       }
-    };
+    }
 
     if (id) fetchUser();
   }, [id, router]);
@@ -54,22 +120,43 @@ export default function ViewUserPage() {
 
   if (!user) return null;
 
+  const role = normalizeRole(user.userRole);
+  const isSalesManager = role === "sales manager";
+  const isProjectManager = role === "project manager";
+  const showDirectReports = isSalesManager || isProjectManager;
+  const directReportsTitle = isSalesManager
+    ? "Sales Persons"
+    : isProjectManager
+      ? "Sales Managers"
+      : "Team Members";
+
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>USERS</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>
+          USERS
+        </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>VIEW USER</span>
+        <span className={styles.breadcrumbCurrent}>VIEW USER</span>
       </div>
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>View User Profile</h1>
+        {canEditUsers && (
+          <button
+            type="button"
+            className={styles.addBtn}
+            onClick={() => router.push(`/users/edit/${id}`)}
+          >
+            <Edit2 size={20} /> Edit
+          </button>
+        )}
       </div>
 
       <div className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <UserPlus size={22} color="#0076ce" /> Profile Information
+          <UserPlus size={22} color="var(--admin-primary, #004d4d)" /> Profile Information
         </div>
         <p className={styles.sectionSubtitle}>
           Full profile identification details for this user account.
@@ -78,7 +165,10 @@ export default function ViewUserPage() {
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label>Name</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+            <div
+              className={styles.formInput}
+              style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <User size={16} color="#64748b" />
                 {user.fullName || "N/A"}
@@ -87,7 +177,10 @@ export default function ViewUserPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Mobile Number</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+            <div
+              className={styles.formInput}
+              style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Phone size={16} color="#64748b" />
                 {user.mobileNumber || "N/A"}
@@ -96,7 +189,16 @@ export default function ViewUserPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Email Address</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#0076ce", fontWeight: 600, border: "1px solid #e2e8f0", textDecoration: "underline" }}>
+            <div
+              className={styles.formInput}
+              style={{
+                background: "#f8fafc",
+                color: "#0076ce",
+                fontWeight: 600,
+                border: "1px solid #e2e8f0",
+                textDecoration: user.email ? "underline" : "none",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Mail size={16} color="#64748b" />
                 {user.email || "N/A"}
@@ -105,10 +207,25 @@ export default function ViewUserPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Company</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+            <div
+              className={styles.formInput}
+              style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Building size={16} color="#64748b" />
                 {user.company || "N/A"}
+              </div>
+            </div>
+          </div>
+          <div className={styles.formGroup}>
+            <label>Working Hours</label>
+            <div
+              className={styles.formInput}
+              style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Clock size={16} color="#64748b" />
+                {formatWorkingHours(user)}
               </div>
             </div>
           </div>
@@ -117,35 +234,127 @@ export default function ViewUserPage() {
 
       <div className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <ShieldCheck size={22} color="#0076ce" /> Access & Permissions
+          <ShieldCheck size={22} color="var(--admin-primary, #004d4d)" /> Access & Permissions
         </div>
-        <p className={styles.sectionSubtitle}>
-          Assigned role and current system status.
-        </p>
+        <p className={styles.sectionSubtitle}>Assigned role, supervisor, and current system status.</p>
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label>User Role</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0", textTransform: "capitalize" }}>
+            <div
+              className={styles.formInput}
+              style={{
+                background: "#f8fafc",
+                color: "#1e293b",
+                fontWeight: 600,
+                border: "1px solid #e2e8f0",
+                textTransform: "capitalize",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Shield size={16} color="#64748b" />
-                {user.userRole?.replace("_", " ") || "N/A"}
+                {user.userRole?.replace(/_/g, " ") || "N/A"}
               </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Status</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: user.status === "active" ? "#059669" : "#dc2626", fontWeight: 700, border: "1px solid #e2e8f0", textTransform: "capitalize" }}>
+            <div
+              className={styles.formInput}
+              style={{
+                background: "#f8fafc",
+                color: user.status === "active" ? "#059669" : "#dc2626",
+                fontWeight: 700,
+                border: "1px solid #e2e8f0",
+                textTransform: "capitalize",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Activity size={16} color={user.status === "active" ? "#059669" : "#dc2626"} />
                 {user.status || "Inactive"}
               </div>
             </div>
           </div>
+          {(role === "sales person" || role === "sales manager") && (
+            <div className={styles.formGroup}>
+              <label>{role === "sales person" ? "Sales Manager" : "Project Manager"}</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}
+              >
+                {user.reportsTo ? (
+                  <span
+                    className={viewStyles.subordinatesName}
+                    onClick={() => router.push(`/users/view/${user.reportsTo?._id}`)}
+                  >
+                    {user.reportsTo.fullName}
+                    {user.reportsTo.company ? ` — ${user.reportsTo.company}` : ""}
+                  </span>
+                ) : (
+                  "—"
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
+      {showDirectReports && (
+        <div className={`${styles.formSection} ${viewStyles.subordinatesSection}`}>
+          <div className={viewStyles.subordinatesTitle}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Users size={22} color="var(--admin-primary, #004d4d)" />
+              {directReportsTitle} ({directReports.length})
+            </div>
+          </div>
+          <p className={viewStyles.subordinatesSubtitle}>
+            {isSalesManager
+              ? "All sales persons reporting to this sales manager."
+              : "All sales managers reporting to this project manager."}
+          </p>
+
+          {directReports.length === 0 ? (
+            <div className={viewStyles.subordinatesEmpty}>No team members assigned yet.</div>
+          ) : (
+            <div className={styles.userTableContainer}>
+              <table className={viewStyles.subordinatesTable}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Mobile</th>
+                    <th>Email</th>
+                    <th>Working Hours</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {directReports.map((member) => (
+                    <tr key={member._id}>
+                      <td>
+                        <span
+                          className={viewStyles.subordinatesName}
+                          onClick={() => router.push(`/users/view/${member._id}`)}
+                        >
+                          {member.fullName || "—"}
+                        </span>
+                      </td>
+                      <td>{member.mobileNumber || "—"}</td>
+                      <td>{member.email || "—"}</td>
+                      <td>{formatWorkingHours(member)}</td>
+                      <td style={{ textTransform: "capitalize" }}>{member.status || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div
+        className={styles.actionFooter}
+        style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}
+      >
         <button
           type="button"
           className={styles.cancelBtn}

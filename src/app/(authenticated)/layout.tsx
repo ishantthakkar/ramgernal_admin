@@ -15,14 +15,26 @@ import {
   Settings,
   LogOut,
   Search,
-  Bell,
   PanelLeft,
   Wallet,
-  User,
   Package,
+  User,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { canViewModule, isSuperAdmin } from "@/lib/permissions";
+
+function getDisplayName(userInfo: { fullName?: string } | null, isAdmin: boolean): string {
+  if (isAdmin) return "Super Admin";
+  return userInfo?.fullName || "User";
+}
+
+function getCustomAvatarUrl(userInfo: Record<string, unknown> | null): string | null {
+  const custom =
+    (userInfo?.profileImage as string) ||
+    (userInfo?.avatar as string) ||
+    (userInfo?.avatarUrl as string);
+  return custom || null;
+}
 
 export default function DashboardLayout({
   children,
@@ -71,6 +83,8 @@ export default function DashboardLayout({
 
   const filteredNavItems = allNavItems.filter(item => item.isVisible !== undefined ? item.isVisible : canViewModule(item.module || ""));
   const canViewDashboard = canViewModule("Dashboard");
+  const displayName = getDisplayName(userInfo, isSuperAdmin());
+  const customAvatarUrl = getCustomAvatarUrl(userInfo);
 
   return (
     <div className={`${styles.layout} ${isSidebarCollapsed ? styles.collapsed : ""}`}>
@@ -82,7 +96,7 @@ export default function DashboardLayout({
             alt="RAM"
             width={isSidebarCollapsed ? 40 : 180}
             height={60}
-            className={styles.logoImg}
+            className={`${styles.logoImg} ${styles.logoImgSidebar}`}
             priority
           />
         </div>
@@ -127,7 +141,7 @@ export default function DashboardLayout({
             }}
             title={isSidebarCollapsed ? "Logout" : ""}
           >
-            <LogOut size={22} strokeWidth={2.5} color="#f87171" className={styles.logoutIcon} />
+            <LogOut size={22} strokeWidth={2.5} className={styles.logoutIcon} />
             {!isSidebarCollapsed && <span>Logout</span>}
           </button>
         </div>
@@ -138,18 +152,33 @@ export default function DashboardLayout({
         {/* Top Navbar */}
         <header className={styles.navbar}>
           <div className={styles.navLeft}>
-            <div className={styles.sidebarToggle} onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+            <button
+              type="button"
+              className={styles.sidebarToggle}
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              aria-label="Toggle sidebar"
+            >
               <PanelLeft size={22} />
-            </div>
+            </button>
           </div>
 
           <div className={styles.navActions}>
             <div className={styles.userProfile}>
               <div className={styles.userInfo}>
-                <div className={styles.userName}>{isSuperAdmin() ? "Super Admin" : (userInfo?.fullName || "User")}</div>
+                <span className={styles.userName}>{displayName}</span>
               </div>
-              <div className={styles.avatar}>
-                <User size={24} color="#64748b" />
+              <div className={styles.avatar} title={displayName}>
+                {customAvatarUrl ? (
+                  <Image
+                    src={customAvatarUrl}
+                    alt={displayName}
+                    width={42}
+                    height={42}
+                    className={styles.avatarImg}
+                  />
+                ) : (
+                  <User size={22} strokeWidth={2} className={styles.avatarIcon} />
+                )}
               </div>
             </div>
           </div>

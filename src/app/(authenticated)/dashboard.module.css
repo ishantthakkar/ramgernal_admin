@@ -1,35 +1,36 @@
 .layout {
   display: flex;
   min-height: 100vh;
-  background-color: #f8fafc;
+  background-color: var(--admin-main-bg);
   font-family: var(--font-inter), sans-serif;
 }
 
 .sidebar {
   width: 280px;
-  background: #eef1f4;
-  color: #4b5563;
+  background: var(--admin-sidebar);
+  color: var(--admin-sidebar-text);
   display: flex;
   flex-direction: column;
-  padding: 0.1rem 0.5rem;
+  padding: 0.75rem 0.875rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
-  border-right: 1px solid #e2e8f0;
+  border-right: none;
   position: relative;
   z-index: 200;
 }
 
 .sidebarCollapsed {
   width: 80px;
+  padding: 0.75rem 0.5rem;
 }
 
 .sidebarCollapsed .logoArea {
-  padding: 1.5rem 0;
+  padding: 0.25rem 0 1rem;
 }
 
 .sidebarCollapsed .navItem {
   justify-content: center;
-  padding: 1rem 0;
+  padding: 1rem;
   gap: 0;
 }
 
@@ -41,13 +42,17 @@
 .logoArea {
   display: flex;
   justify-content: center;
-  padding: 0.5rem 0;
+  padding: 0.25rem 0 1.25rem;
 }
 
 .logoImg {
   height: 60px;
   width: auto;
   object-fit: contain;
+}
+
+.logoImgSidebar {
+  filter: brightness(0) invert(1);
 }
 
 .nav {
@@ -60,20 +65,26 @@
 .navItem {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 1rem 1.25rem;
-  border-radius: 10px;
-  color: #4b5563;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  margin-right: 0;
+  border-radius: 6px;
+  color: var(--admin-sidebar-text);
   font-weight: 600;
   font-size: 1rem;
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  width: 100%;
 }
 
 .navItem:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--admin-sidebar-hover);
+  color: #ffffff;
 }
 
 .navItemWrapper {
@@ -174,25 +185,30 @@
 
 .navActive {
   background: #ffffff !important;
-  color: #0076ce !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  color: var(--admin-text-primary) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.navActive:hover {
+  background: #ffffff !important;
+  color: var(--admin-text-primary) !important;
 }
 
 .navActive::after {
   content: "";
   position: absolute;
   right: 0;
-  top: 0;
-  bottom: 0;
+  top: 10px;
+  bottom: 10px;
   width: 4px;
-  background: #0076ce;
-  border-radius: 4px 0 0 4px;
+  background: var(--admin-accent);
+  border-radius: 4px;
 }
 
 .sidebarFooter {
   margin-top: auto;
-  padding: 1.5rem 0.75rem;
-  border-top: 1px solid #e2e8f0;
+  padding: 1rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -200,19 +216,24 @@
 
 .logoutBtn {
   margin-top: 0;
-  background: rgba(239, 68, 68, 0.05);
-  border: 1px solid rgba(239, 68, 68, 0.1);
-  color: #ef4444 !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9) !important;
+  transition: all 0.2s ease;
   justify-content: center;
+  text-align: center;
 }
 
 .logoutBtn:hover {
-  background: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.9) !important;
   color: #ffffff !important;
-  border-color: #ef4444;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.9);
+  transform: none;
+  box-shadow: none;
+}
+
+.logoutBtn .logoutIcon {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .logoutBtn:hover svg {
@@ -224,7 +245,7 @@
 }
 
 .logoutBtn:hover .logoutIcon {
-  transform: translateX(3px);
+  transform: none;
 }
 
 .sidebarUser {
@@ -264,19 +285,21 @@
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  background: var(--admin-main-bg);
 }
 
 .navbar {
   height: 72px;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f5f9;
+  background: var(--admin-card-bg);
+  border-bottom: 1px solid #e8ecef;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .navLeft {
@@ -286,10 +309,21 @@
 }
 
 .sidebarToggle {
-  color: #64748b;
+  color: var(--admin-text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebarToggle:hover {
+  background: var(--admin-main-bg);
+  color: var(--admin-text-primary);
 }
 
 .searchBar {
@@ -323,6 +357,7 @@
   display: flex;
   align-items: center;
   gap: 1.25rem;
+  margin-left: auto;
 }
 
 .iconBtn {
@@ -369,7 +404,7 @@
 .userName {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--admin-text-primary);
   line-height: 1;
 }
 
@@ -386,26 +421,33 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 0 1px #e2e8f0;
+  border: 1px solid #e2e8f0;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f1f5f9;
+  background: #e8f0fe;
+  flex-shrink: 0;
+}
+
+.avatarIcon {
+  color: #64748b;
 }
 
 .avatarImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
 .content {
-  padding: 2.5rem;
+  padding: 2rem 2.5rem 2.5rem;
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
+  flex: 1;
+  background: var(--admin-main-bg);
 }
 
 /* Page content specific styles */
@@ -416,12 +458,12 @@
 .welcomeText {
   font-size: 1.875rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--admin-text-primary);
   font-family: var(--font-outfit), sans-serif;
 }
 
 .subText {
-  color: #64748b;
+  color: var(--admin-text-secondary);
   margin-top: 0.5rem;
 }
 
@@ -483,7 +525,7 @@
 @media (max-width: 1024px) {
   .sidebar {
     width: 80px;
-    padding: 2rem 0.75rem;
+    padding: 0.75rem 0.5rem;
   }
 
   .logoArea span,
@@ -504,6 +546,10 @@
   margin-bottom: 0.5rem;
 }
 
+.breadcrumbCurrent {
+  color: var(--admin-accent);
+}
+
 .pageHeader {
   display: flex;
   justify-content: space-between;
@@ -512,7 +558,7 @@
 }
 
 .addBtn {
-  background: #0076ce;
+  background: var(--admin-primary);
   color: #ffffff;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
@@ -522,6 +568,11 @@
   gap: 0.5rem;
   border: none;
   cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.addBtn:hover {
+  background: #003d3d;
 }
 
 .userStatsGrid {
@@ -564,11 +615,11 @@
 }
 
 .tableCard {
-  background: #ffffff;
+  background: var(--admin-card-bg);
   border-radius: 16px;
-  border: 1px solid #f1f5f9;
+  border: 1px solid #eef0f2;
   padding: 1.5rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .tableHeader {
@@ -596,7 +647,7 @@
 
 .tabActive {
   background: #ffffff;
-  color: #0076ce;
+  color: var(--admin-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
@@ -730,14 +781,14 @@
 }
 
 .pageActive {
-  background: #0076ce;
+  background: var(--admin-primary);
   color: #ffffff;
 }
 
 .assignBtn {
   background: #ffffff;
-  border: 1px solid #0076ce;
-  color: #0076ce;
+  border: 1px solid var(--admin-primary);
+  color: var(--admin-primary);
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -748,7 +799,7 @@
 }
 
 .assignBtn:hover {
-  background: #0076ce;
+  background: var(--admin-primary);
   color: #ffffff;
 }
 
@@ -942,13 +993,13 @@
 }
 
 .largeCard {
-  background: #ffffff;
+  background: var(--admin-card-bg);
   padding: 2.5rem;
-  border-radius: 20px;
-  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  border: 1px solid #eef0f2;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .largeCardIcon {
@@ -962,16 +1013,18 @@
 }
 
 .largeCardLabel {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--admin-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   margin-bottom: 0.5rem;
 }
 
 .largeCardValue {
   font-size: 3.5rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--admin-text-primary);
   letter-spacing: -0.02em;
 }
 
@@ -983,15 +1036,15 @@
 }
 
 .smallCard {
-  background: #ffffff;
+  background: var(--admin-card-bg);
   padding: 2rem;
-  border-radius: 20px;
-  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  border: 1px solid #eef0f2;
   display: flex;
   flex-direction: column;
   justify-content: center;
   position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .smallCardIcon {
@@ -1023,14 +1076,15 @@
 }
 
 .activityRow {
-  background: #ffffff;
+  background: var(--admin-card-bg);
   padding: 1.25rem 2rem;
   border-radius: 16px;
-  border: 1px solid #f1f5f9;
+  border: 1px solid #eef0f2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   transition: transform 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .activityRow:hover {
@@ -1066,7 +1120,7 @@
 }
 
 .activityMain span {
-  color: #0076ce;
+  color: var(--admin-accent);
   cursor: pointer;
 }
 
@@ -1081,8 +1135,12 @@
 .viewAll {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #0076ce;
+  color: var(--admin-accent);
   cursor: pointer;
+}
+
+.viewAll:hover {
+  color: #d68910;
 }
 
 @media (max-width: 1400px) {

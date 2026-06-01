@@ -138,8 +138,8 @@
 .formInput:focus,
 .formSelect:focus {
   background: #ffffff;
-  border-color: #0076ce;
-  box-shadow: 0 0 0 4px rgba(0, 118, 206, 0.1);
+  border-color: var(--admin-primary, #004d4d);
+  box-shadow: 0 0 0 4px rgba(0, 77, 77, 0.12);
 }
 
 .formSelect:disabled {
@@ -200,7 +200,7 @@
 }
 
 .addPaymentBtn {
-  background: #0076ce;
+  background: var(--admin-primary, #004d4d);
   color: #ffffff;
   border: none;
   padding: 0.5rem 1rem;
@@ -280,7 +280,7 @@
 }
 
 .saveBtn {
-  background: #0076ce;
+  background: var(--admin-primary, #004d4d);
   color: #ffffff;
   padding: 0.6rem 1.5rem;
   border-radius: 8px;

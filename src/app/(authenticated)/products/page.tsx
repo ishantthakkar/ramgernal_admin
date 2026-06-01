@@ -1,42 +1,31 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import styles from "./products.module.css";
 import dashboardStyles from "../dashboard.module.css";
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Package,
-  Zap,
-  Loader2,
-} from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { AddProductModal, type AddProductFormData } from "@/components/modals/AddProductModal";
 import { adminApi } from "@/lib/api";
-
-type CategoryTab = "all" | "PSE&G" | "JCP&L" | "ATLANTIC CITY ENERGY";
 
 interface Product {
   id: string;
   sku: string;
   name: string;
-  price: number;
-  category: Exclude<CategoryTab, "all">;
+  salesPrice: number;
+  commission: number;
+  installationCost: number;
 }
 
-interface ProductCounts {
-  total: number;
-  "PSE&G": number;
-  "JCP&L": number;
-  "ATLANTIC CITY ENERGY": number;
-}
+const TABLE_COLUMNS = [
+  "SKU",
+  "Name",
+  "Sales Price",
+  "Commission",
+  "Installation Cost",
+] as const;
 
-const TABS: CategoryTab[] = ["all", "PSE&G", "JCP&L", "ATLANTIC CITY ENERGY"];
-
-function formatPrice(value: number): string {
+function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -48,35 +37,16 @@ function mapProduct(raw: Record<string, unknown>): Product {
     id: String(raw._id ?? raw.id),
     sku: String(raw.sku),
     name: String(raw.name),
-    price: Number(raw.price),
-    category: raw.category as Product["category"],
+    salesPrice: Number(raw.salesPrice ?? 0),
+    commission: Number(raw.commission ?? 0),
+    installationCost: Number(raw.installationCost ?? 0),
   };
 }
 
-function getCategoryBadgeClass(category: Product["category"]): string {
-  if (category === "PSE&G") return styles.badgePseg;
-  if (category === "JCP&L") return styles.badgeJcpl;
-  return styles.badgeAtlantic;
-}
-
 export default function ProductsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const tabParam = searchParams.get("tab");
-  const initialTab: CategoryTab = TABS.includes(tabParam as CategoryTab)
-    ? (tabParam as CategoryTab)
-    : "all";
-  const [activeTab, setActiveTab] = useState<CategoryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
-  const [counts, setCounts] = useState<ProductCounts>({
-    total: 0,
-    "PSE&G": 0,
-    "JCP&L": 0,
-    "ATLANTIC CITY ENERGY": 0,
-  });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -86,16 +56,10 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       const response = await adminApi.getProducts();
-      const list = (response.products || []).map((p: Record<string, unknown>) => mapProduct(p));
+      const list = (response.products || []).map((p: Record<string, unknown>) =>
+        mapProduct(p)
+      );
       setProducts(list);
-      if (response.counts) {
-        setCounts({
-          total: response.counts.total ?? list.length,
-          "PSE&G": response.counts["PSE&G"] ?? 0,
-          "JCP&L": response.counts["JCP&L"] ?? 0,
-          "ATLANTIC CITY ENERGY": response.counts["ATLANTIC CITY ENERGY"] ?? 0,
-        });
-      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load products";
       toast.error(message);
@@ -110,63 +74,23 @@ export default function ProductsPage() {
   }, [fetchProducts]);
 
   const filteredProducts = useMemo(() => {
+    const query = searchQuery.toLowerCase();
     return products.filter((product) => {
-      const matchesTab = activeTab === "all" || product.category === activeTab;
-      const query = searchQuery.toLowerCase();
-      const matchesSearch =
+      return (
         product.sku.toLowerCase().includes(query) ||
         product.name.toLowerCase().includes(query) ||
-        formatPrice(product.price).toLowerCase().includes(query);
-      return matchesTab && matchesSearch;
+        formatMoney(product.salesPrice).toLowerCase().includes(query) ||
+        formatMoney(product.commission).toLowerCase().includes(query) ||
+        formatMoney(product.installationCost).toLowerCase().includes(query)
+      );
     });
-  }, [activeTab, searchQuery, products]);
-
-  const stats = useMemo(
-    () => [
-      {
-        label: "All Products",
-        value: counts.total,
-        icon: Package,
-        color: "#0076ce",
-        bg: "#eff6ff",
-      },
-      {
-        label: "PSE&G",
-        value: counts["PSE&G"],
-        icon: Zap,
-        color: "#1d4ed8",
-        bg: "#dbeafe",
-      },
-      {
-        label: "JCP&L",
-        value: counts["JCP&L"],
-        icon: Zap,
-        color: "#854d0e",
-        bg: "#fef3c7",
-      },
-      {
-        label: "Atlantic City Energy",
-        value: counts["ATLANTIC CITY ENERGY"],
-        icon: Zap,
-        color: "#166534",
-        bg: "#dcfce7",
-      },
-    ],
-    [counts]
-  );
+  }, [searchQuery, products]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
-
-  function handleTabChange(tab: CategoryTab) {
-    setActiveTab(tab);
-    setCurrentPage(1);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", tab);
-    router.replace(`/products?${params.toString()}`, { scroll: false });
-  }
+  const tableColSpan = TABLE_COLUMNS.length;
 
   function handlePageChange(page: number) {
     if (page >= 1 && page <= totalPages) {
@@ -177,12 +101,7 @@ export default function ProductsPage() {
   async function handleAddProduct(data: AddProductFormData) {
     setIsSubmitting(true);
     try {
-      await adminApi.createProduct({
-        sku: data.sku,
-        name: data.name,
-        price: data.price,
-        category: data.category,
-      });
+      await adminApi.createProduct(data);
       setIsAddModalOpen(false);
       setCurrentPage(1);
       toast.success("Product added successfully.");
@@ -200,7 +119,7 @@ export default function ProductsPage() {
     <div className={styles.productsPage}>
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>PRODUCTS</span>
+        <span className={dashboardStyles.breadcrumbCurrent}>PRODUCTS</span>
       </div>
 
       <div className={styles.pageHeader}>
@@ -214,60 +133,20 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      <div className={styles.statsGrid}>
-        {stats.map((stat) => (
-          <div key={stat.label} className={styles.statCard}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 10,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: stat.bg,
-                color: stat.color,
-                marginBottom: "1rem",
-              }}
-            >
-              <stat.icon size={22} />
-            </div>
-            <div className={styles.statValue}>{stat.value}</div>
-            <div className={styles.statLabel}>{stat.label}</div>
-          </div>
-        ))}
-      </div>
-
       <div className={dashboardStyles.tableCard}>
         <div className={dashboardStyles.tableHeader}>
-          <div className={dashboardStyles.tabs}>
-            {TABS.map((tab) => (
-              <div
-                key={tab}
-                className={`${dashboardStyles.tab} ${activeTab === tab ? dashboardStyles.tabActive : ""}`}
-                onClick={() => handleTabChange(tab)}
-              >
-                {tab === "all" ? "All" : tab}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div className={dashboardStyles.searchUsers}>
-              <Search size={16} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="Search by SKU, name, or price..."
-                className={dashboardStyles.searchInputSmall}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
-            <div style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 500 }}>
-              Showing {currentItems.length} of {filteredProducts.length} products
-            </div>
+          <div className={dashboardStyles.searchUsers}>
+            <Search size={16} color="#94a3b8" />
+            <input
+              type="text"
+              placeholder="Search by SKU, name, sales price, commission..."
+              className={dashboardStyles.searchInputSmall}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
           </div>
         </div>
 
@@ -275,34 +154,25 @@ export default function ProductsPage() {
           <table className={dashboardStyles.userTable}>
             <thead>
               <tr>
-                <th>SKU</th>
-                <th>Name</th>
-                <th>Price</th>
-                {activeTab === "all" && <th>Utility/Electric Company</th>}
+                {TABLE_COLUMNS.map((header) => (
+                  <th key={header}>{header}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={activeTab === "all" ? 4 : 3} style={{ textAlign: "center", padding: "4rem" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "1rem",
-                        color: "#94a3b8",
-                      }}
-                    >
+                  <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
+                    <div className={styles.loadingWrap}>
                       <Loader2 size={32} className="animate-spin" />
-                      <span style={{ fontWeight: 600 }}>Loading products...</span>
+                      <span>Loading products...</span>
                     </div>
                   </td>
                 </tr>
               ) : currentItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={activeTab === "all" ? 4 : 3}
+                    colSpan={tableColSpan}
                     style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}
                   >
                     No products found matching your criteria.
@@ -313,14 +183,9 @@ export default function ProductsPage() {
                   <tr key={product.id}>
                     <td className={styles.skuCell}>{product.sku}</td>
                     <td className={styles.nameCell}>{product.name}</td>
-                    <td className={styles.priceCell}>{formatPrice(product.price)}</td>
-                    {activeTab === "all" && (
-                      <td>
-                        <span className={`${styles.utilityBadge} ${getCategoryBadgeClass(product.category)}`}>
-                          {product.category}
-                        </span>
-                      </td>
-                    )}
+                    <td className={styles.priceCell}>{formatMoney(product.salesPrice)}</td>
+                    <td className={styles.moneyCell}>{formatMoney(product.commission)}</td>
+                    <td className={styles.moneyCell}>{formatMoney(product.installationCost)}</td>
                   </tr>
                 ))
               )}

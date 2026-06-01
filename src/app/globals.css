@@ -9,6 +9,17 @@
   --card-border: rgba(255, 255, 255, 0.08);
   --glass: rgba(255, 255, 255, 0.01);
   --glass-border: rgba(255, 255, 255, 0.05);
+
+  /* Admin dashboard theme (ref design) */
+  --admin-sidebar: #004d4d;
+  --admin-sidebar-text: rgba(255, 255, 255, 0.88);
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --admin-accent: #f39c12;
+  --admin-main-bg: #f8f9fa;
+  --admin-card-bg: #ffffff;
+  --admin-text-primary: #1a1a1a;
+  --admin-text-secondary: #666666;
+  --admin-primary: #004d4d;
 }
 
 * {

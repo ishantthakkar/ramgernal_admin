@@ -39,23 +39,26 @@ export const authApi = {
 };
 
 export const adminApi = {
-  createUser: (userData: any) => apiRequest("/user/user-create", {
-    method: "POST",
-    body: JSON.stringify(userData),
-  }),
+  createUser: (userData: Record<string, unknown>) =>
+    apiRequest("/user/user-create", {
+      method: "POST",
+      body: JSON.stringify(userData),
+    }),
   getUserList: (role?: string) => {
     const query = role ? `?userRole=${role}` : "";
     return apiRequest(`/user/user-list${query}`, {
       method: "GET",
     });
   },
-  getUserById: (id: string) => apiRequest(`/user/${id}`, {
-    method: "GET",
-  }),
-  updateUser: (userData: any) => apiRequest(`/user/user-create`, {
-    method: "POST",
-    body: JSON.stringify(userData),
-  }),
+  getUserById: (id: string) =>
+    apiRequest(`/user/${id}`, {
+      method: "GET",
+    }),
+  updateUser: (userData: Record<string, unknown>) =>
+    apiRequest("/user/user-create", {
+      method: "POST",
+      body: JSON.stringify(userData),
+    }),
   createLead: (leadData: any) => apiRequest("/leads", {
     method: "POST",
     body: JSON.stringify(leadData),
@@ -164,20 +167,16 @@ export const adminApi = {
   getActivityLogs: () => apiRequest("/activities", {
     method: "GET",
   }),
-  getProducts: (category?: string) => {
-    const query =
-      category && category !== "all"
-        ? `?category=${encodeURIComponent(category)}`
-        : "";
-    return apiRequest(`/products${query}`, {
+  getProducts: () =>
+    apiRequest("/products", {
       method: "GET",
-    });
-  },
+    }),
   createProduct: (productData: {
     sku: string;
     name: string;
-    price: number;
-    category: string;
+    salesPrice: number;
+    commission: number;
+    installationCost: number;
   }) =>
     apiRequest("/products", {
       method: "POST",
