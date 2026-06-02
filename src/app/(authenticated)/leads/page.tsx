@@ -21,6 +21,7 @@ export default function LeadsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const canCreateLeads = hasPermission("Leads", "create");
   const canEditLeads = hasPermission("Leads", "edit");
 
   const tabParam = searchParams.get("tab");
@@ -57,6 +58,7 @@ export default function LeadsPage() {
   const filteredLeads = leads.filter(lead => {
     // Search Filter
     const matchesSearch =
+      lead.lead_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       lead.mobileNumber?.includes(searchQuery) ||
@@ -108,7 +110,16 @@ export default function LeadsPage() {
       </div>
 
       <div className={styles.leadsHeader}>
-        <h1 className={styles.directoryTitle}>Leads Directory</h1>
+        <h1 className={styles.directoryTitle}>Leads</h1>
+        {canCreateLeads && (
+          <button
+            type="button"
+            className={dashboardStyles.addBtn}
+            onClick={() => router.push("/leads/add")}
+          >
+            <Plus size={20} /> Add Lead
+          </button>
+        )}
       </div>
 
       {/* Stats Grid */}
@@ -175,7 +186,7 @@ export default function LeadsPage() {
         <table className={styles.leadsTable}>
           <thead>
             <tr>
-              <th>S.No</th>
+              <th>ID</th>
               <th>NAME</th>
               <th>MOBILE NUMBER</th>
               <th>COMPANY</th>
@@ -203,10 +214,9 @@ export default function LeadsPage() {
               </tr>
             ) : (
               currentLeads.map((lead, idx) => {
-                const globalIndex = indexOfFirstItem + idx;
                 return (
                   <tr key={lead.id || idx}>
-                    <td className={styles.idCell}>{globalIndex + 1}</td>
+                    <td className={styles.idCell}>{lead.lead_id || "—"}</td>
                     <td
                       className={styles.nameCell}
                       style={{ cursor: "pointer", fontWeight: 700, color: "#0076ce", textDecoration: "underline", textDecorationColor: "#0076ce" }}
@@ -216,10 +226,18 @@ export default function LeadsPage() {
                     </td>
                     <td>{lead.mobileNumber || "N/A"}</td>
                     <td>{lead.company}</td>
-                    <td>{lead.createdByName}</td>
+                    <td>{lead.salesPersonName || "Unassigned"}</td>
                     <td>
                       <div className={styles.statusIndicator}>
-                        <div className={lead.status === "Active" || lead.status === "New" ? styles.dotActive : styles.dotDeactivated}></div>
+                        <div
+                          className={
+                            lead.status === "New" ||
+                            lead.status === "Assigned" ||
+                            lead.status === "In Progress"
+                              ? styles.dotActive
+                              : styles.dotDeactivated
+                          }
+                        />
                         {lead.status}
                       </div>
                     </td>

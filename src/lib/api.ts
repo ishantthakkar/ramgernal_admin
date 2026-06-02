@@ -59,20 +59,30 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(userData),
     }),
-  createLead: (leadData: any) => apiRequest("/leads", {
-    method: "POST",
-    body: JSON.stringify(leadData),
-  }),
+  getLeadSources: () =>
+    apiRequest("/lead-sources", {
+      method: "GET",
+    }),
+  getLeadSalesPersons: () =>
+    apiRequest("/leads/sales-persons", {
+      method: "GET",
+    }),
+  createLead: (leadData: Record<string, unknown> | FormData) =>
+    apiRequest("/leads-create", {
+      method: "POST",
+      body: leadData instanceof FormData ? leadData : JSON.stringify(leadData),
+    }),
   getLeads: () => apiRequest("/leads", {
     method: "GET",
   }),
   getLeadById: (id: string) => apiRequest(`/leads/${id}`, {
     method: "GET",
   }),
-  updateLead: (leadData: any) => apiRequest("/leads-create", {
-    method: "POST",
-    body: JSON.stringify(leadData),
-  }),
+  updateLead: (leadData: Record<string, unknown> | FormData) =>
+    apiRequest("/leads-create", {
+      method: "POST",
+      body: leadData instanceof FormData ? leadData : JSON.stringify(leadData),
+    }),
   convertLead: (id: string) => apiRequest(`/leads/${id}/convert`, {
     method: "POST",
   }),

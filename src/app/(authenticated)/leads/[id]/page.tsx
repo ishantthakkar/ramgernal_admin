@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
 import {
@@ -16,14 +16,18 @@ import {
   Phone,
   MapPin,
   Clock,
-  Edit2,
-  ArrowLeft,
   X
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import { formatDate, formatDateTime } from "@/lib/dateUtils";
+
+function resolveUploadsUrl(filename: string): string {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  // Works for both "/api/proxy" and absolute API base URL cases.
+  return `${base}/uploads/leads/bills/${filename}`;
+}
 
 export default function LeadDetailsPage() {
   const params = useParams();
@@ -43,6 +47,12 @@ export default function LeadDetailsPage() {
     confirmText: "",
     btnType: "info" as "danger" | "success" | "warning" | "info"
   });
+
+  const bills: string[] = useMemo(() => {
+    const raw = lead?.uploadElectricityBill;
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    return [];
+  }, [lead?.uploadElectricityBill]);
 
   useEffect(() => {
     const fetchLead = async () => {
@@ -178,6 +188,20 @@ export default function LeadDetailsPage() {
             }}>
               {lead.status || "New"}
             </span>
+            {lead.lead_id && (
+              <span style={{
+                backgroundColor: "#f1f5f9",
+                color: "#334155",
+                padding: "0.25rem 0.75rem",
+                borderRadius: "99px",
+                fontSize: "0.75rem",
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: "0.03em"
+              }}>
+                {lead.lead_id}
+              </span>
+            )}
           </div>
         </div>
 
@@ -230,12 +254,12 @@ export default function LeadDetailsPage() {
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Layers size={16} color="#3b82f6" />
-                {lead.leadSource || "N/A"}
+                {lead.leadSourceName || lead.leadSource || "N/A"}
               </div>
             </div>
           </div>
           <div className={styles.formGroup}>
-            <label>Salesperson</label>
+            <label>Sales Person</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <div style={{
@@ -250,7 +274,7 @@ export default function LeadDetailsPage() {
                   fontSize: "0.6rem",
                   borderRadius: "50%"
                 }}>
-                  {lead.salesPerson?.charAt(0) || "S"}
+                  {(lead.user_id?.fullName || "S").charAt(0)}
                 </div>
                 {lead.user_id?.fullName || "Unassigned"}
               </div>
@@ -261,7 +285,7 @@ export default function LeadDetailsPage() {
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Calendar size={16} color="#64748b" />
-                {lead.createdDate ? formatDate(lead.createdDate) : "N/A"}
+                {lead.createdAt ? formatDate(lead.createdAt) : "N/A"}
               </div>
             </div>
           </div>
@@ -274,6 +298,78 @@ export default function LeadDetailsPage() {
               </div>
             </div>
           </div>
+          <div className={styles.formGroup}>
+            <label>Account Number</label>
+            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+              {lead.accountNumber || "—"}
+            </div>
+          </div>
+          <div className={styles.formGroup}>
+            <label>Electric Company</label>
+            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+              {lead.electricCompany || "—"}
+            </div>
+          </div>
+          <div className={styles.formGroup}>
+            <label>DBA</label>
+            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+              {lead.dba || "—"}
+            </div>
+          </div>
+          <div className={styles.formGroup}>
+            <label>Legal Name</label>
+            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
+              {lead.legalName || "—"}
+            </div>
+          </div>
+          {lead.status === "Lost Leads" && (
+            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+              <label>Lost Reason</label>
+              <div className={styles.formInput} style={{ background: "#fff7ed", color: "#9a3412", fontWeight: 600, border: "1px solid #fed7aa", minHeight: "3rem" }}>
+                {lead.lostReason || "—"}
+              </div>
+            </div>
+          )}
+          {bills.length > 0 && (
+            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+              <label>Electricity Bills</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+                {bills.map((filename: string) => {
+                  const url = resolveUploadsUrl(filename);
+                  const isPdf = filename.toLowerCase().endsWith(".pdf");
+                  return (
+                    <a
+                      key={filename}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        width: 160,
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        background: "#ffffff",
+                        textDecoration: "none",
+                        color: "#1e293b",
+                      }}
+                    >
+                      <div style={{ height: 110, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {isPdf ? (
+                          <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b" }}>PDF</div>
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={url} alt={filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        )}
+                      </div>
+                      <div style={{ padding: "0.5rem 0.6rem", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {filename}
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -316,6 +412,65 @@ export default function LeadDetailsPage() {
               </div>
             </div>
           </div>
+          {Array.isArray(lead.addresses) && lead.addresses.length > 0 && (
+            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+              <label>Addresses</label>
+              <div style={{ display: "grid", gap: "0.75rem" }}>
+                {lead.addresses.map((a: any, idx: number) => (
+                  <div
+                    key={a._id || idx}
+                    className={styles.formInput}
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      padding: "1rem",
+                      fontWeight: 600,
+                      display: "grid",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <div style={{ color: "#0f172a", fontWeight: 800 }}>
+                      {a.title || `Address ${idx + 1}`}
+                    </div>
+                    <div style={{ color: "#334155", fontWeight: 600 }}>
+                      {[a.street, a.city, a.state, a.zip].filter(Boolean).join(", ") || "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {Array.isArray(lead.contactInfo) && lead.contactInfo.length > 0 && (
+            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+              <label>Contact Info</label>
+              <div className={styles.userTableContainer} style={{ border: "1px solid #f1f5f9", borderRadius: "12px", overflow: "hidden" }}>
+                <table className={styles.userTable}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Position</th>
+                      <th>Department</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Mobile</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lead.contactInfo.map((c: any, idx: number) => (
+                      <tr key={c._id || idx}>
+                        <td style={{ fontWeight: 700, color: "#0f172a" }}>{c.name || "—"}</td>
+                        <td>{c.position || "—"}</td>
+                        <td>{c.department || "—"}</td>
+                        <td style={{ color: c.email ? "#0076ce" : "#64748b" }}>{c.email || "—"}</td>
+                        <td>{c.phone || "—"}</td>
+                        <td>{c.mobile || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           {lead.notes && lead.notes.length > 0 && (
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <label>Notes</label>
@@ -324,7 +479,7 @@ export default function LeadDetailsPage() {
                   lead.notes.map((n: any, index: number) => (
                     <div key={n._id || index} style={{ paddingBottom: index !== lead.notes.length - 1 ? "0.75rem" : "0", borderBottom: index !== lead.notes.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                       <div style={{ color: "#64748b", fontSize: "0.7rem", marginBottom: "0.25rem", display: "flex", justifyContent: "space-between" }}>
-                        <span>Note {index + 1}</span>
+                        <span>{n.title ? n.title : `Note ${index + 1}`}</span>
                         <span>{n.createdAt ? formatDateTime(n.createdAt) : ""}</span>
                       </div>
                       <div style={{ color: "#1e293b", fontSize: "0.9rem" }}>{n.note}</div>

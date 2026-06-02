@@ -132,7 +132,7 @@ export default function CommissionsPage() {
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Commissions Overview</h1>
+        <h1 className={styles.welcomeText}>Commissions</h1>
       </div>
 
       <div className={styles.userStatsGrid} style={{ marginBottom: "2rem" }}>

@@ -161,7 +161,7 @@ export default function ProductsPage() {
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.directoryTitle}>Products Directory</h1>
+        <h1 className={styles.directoryTitle}>Products</h1>
         <button
           type="button"
           className={dashboardStyles.addBtn}
