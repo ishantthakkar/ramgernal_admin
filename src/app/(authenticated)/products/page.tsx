@@ -5,7 +5,10 @@ import styles from "./products.module.css";
 import dashboardStyles from "../dashboard.module.css";
 import { Search, ChevronLeft, ChevronRight, Plus, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { AddProductModal, type AddProductFormData } from "@/components/modals/AddProductModal";
+import {
+  ProductFormModal,
+  type ProductFormData,
+} from "@/components/modals/AddProductModal";
 import { adminApi } from "@/lib/api";
 
 interface Product {
@@ -23,6 +26,7 @@ const TABLE_COLUMNS = [
   "Sales Price",
   "Commission",
   "Installation Cost",
+  "Actions",
 ] as const;
 
 function formatMoney(value: number): string {
@@ -49,7 +53,8 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const itemsPerPage = 10;
 
   const fetchProducts = useCallback(async () => {
@@ -98,16 +103,49 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleAddProduct(data: AddProductFormData) {
+  function openAddModal() {
+    setEditingProduct(null);
+    setModalMode("add");
+  }
+
+  function openEditModal(product: Product) {
+    setEditingProduct(product);
+    setModalMode("edit");
+  }
+
+  function closeModal() {
+    setModalMode(null);
+    setEditingProduct(null);
+  }
+
+  async function handleAddProduct(data: ProductFormData) {
     setIsSubmitting(true);
     try {
       await adminApi.createProduct(data);
-      setIsAddModalOpen(false);
+      closeModal();
       setCurrentPage(1);
       toast.success("Product added successfully.");
       await fetchProducts();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to add product";
+      toast.error(message);
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleEditProduct(data: ProductFormData) {
+    if (!editingProduct) return;
+
+    setIsSubmitting(true);
+    try {
+      await adminApi.updateProduct(editingProduct.id, data);
+      closeModal();
+      toast.success("Product updated successfully.");
+      await fetchProducts();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update product";
       toast.error(message);
       throw err;
     } finally {
@@ -127,7 +165,7 @@ export default function ProductsPage() {
         <button
           type="button"
           className={dashboardStyles.addBtn}
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={openAddModal}
         >
           <Plus size={20} /> Add Product
         </button>
@@ -186,6 +224,15 @@ export default function ProductsPage() {
                     <td className={styles.priceCell}>{formatMoney(product.salesPrice)}</td>
                     <td className={styles.moneyCell}>{formatMoney(product.commission)}</td>
                     <td className={styles.moneyCell}>{formatMoney(product.installationCost)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className={dashboardStyles.assignBtn}
+                        onClick={() => openEditModal(product)}
+                      >
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -224,10 +271,20 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <AddProductModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+      <ProductFormModal
+        isOpen={modalMode === "add"}
+        mode="add"
+        onClose={closeModal}
         onSubmit={handleAddProduct}
+        isSubmitting={isSubmitting}
+      />
+
+      <ProductFormModal
+        isOpen={modalMode === "edit"}
+        mode="edit"
+        initialData={editingProduct}
+        onClose={closeModal}
+        onSubmit={handleEditProduct}
         isSubmitting={isSubmitting}
       />
     </div>

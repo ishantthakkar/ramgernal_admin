@@ -23,6 +23,8 @@ import {
   normalizeRoleName,
   parseStoredTime,
   resolveRoleId,
+  getSupervisorTargetRole,
+  getSupervisorLabel,
 } from "../../user-form-utils";
 
 interface RoleOption {
@@ -76,14 +78,9 @@ export default function EditUserPage() {
   const isPasswordRequired =
     selectedRoleName !== "sales person" && selectedRoleName !== "contractor";
 
-  const needsSalesManager = selectedRoleName === "sales person";
-  const needsProjectManager = selectedRoleName === "sales manager";
-
-  const supervisorLabel = needsSalesManager
-    ? "Sales Manager"
-    : needsProjectManager
-      ? "Project Manager"
-      : "";
+  const supervisorTarget = getSupervisorTargetRole(selectedRoleName);
+  const supervisorLabel = getSupervisorLabel(supervisorTarget);
+  const needsSupervisor = supervisorTarget !== null;
 
   useEffect(() => {
     return () => {
@@ -140,7 +137,7 @@ export default function EditUserPage() {
   }, [id, router]);
 
   useEffect(() => {
-    if (!needsSalesManager && !needsProjectManager) {
+    if (!supervisorTarget) {
       setSupervisorOptions([]);
       if (!preserveSupervisorRef.current) {
         setReportsToId("");
@@ -148,8 +145,7 @@ export default function EditUserPage() {
       return;
     }
 
-    const targetRole = needsSalesManager ? "sales manager" : "project manager";
-    const roleLabel = needsSalesManager ? "Sales Manager" : "Project Manager";
+    const roleLabel = supervisorLabel;
     let cancelled = false;
 
     async function loadSupervisors() {
@@ -166,7 +162,7 @@ export default function EditUserPage() {
           response.users || response.data || (Array.isArray(response) ? response : []);
         const filtered = allUsers.filter(
           (user) =>
-            normalizeRoleName(user.userRole) === targetRole && String(user._id) !== id
+            normalizeRoleName(user.userRole) === supervisorTarget && String(user._id) !== id
         );
         if (!cancelled) {
           setSupervisorOptions(filtered);
@@ -187,7 +183,7 @@ export default function EditUserPage() {
     return () => {
       cancelled = true;
     };
-  }, [needsSalesManager, needsProjectManager, id]);
+  }, [supervisorTarget, supervisorLabel, id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -280,13 +276,8 @@ export default function EditUserPage() {
       return;
     }
 
-    if (needsSalesManager && !reportsToId) {
-      toast.error("Please select a sales manager.");
-      return;
-    }
-
-    if (needsProjectManager && !reportsToId) {
-      toast.error("Please select a project manager.");
+    if (needsSupervisor && !reportsToId) {
+      toast.error(`Please select an ${supervisorLabel.toLowerCase()}.`);
       return;
     }
 
@@ -311,7 +302,7 @@ export default function EditUserPage() {
         payload.password = formData.password;
       }
 
-      if (needsSalesManager || needsProjectManager) {
+      if (needsSupervisor) {
         payload.reportsToId = reportsToId;
       }
 
@@ -421,12 +412,12 @@ export default function EditUserPage() {
               </div>
             </div>
 
-            {(needsSalesManager || needsProjectManager) && (
+            {needsSupervisor && (
               <div className={`${styles.formGroup} ${addStyles.supervisorField}`}>
                 <label>
                   {supervisorLabel} <span style={{ color: "#ef4444" }}>*</span>
                 </label>
-                {needsSalesManager && (
+                {supervisorTarget === "sales manager" && (
                   <p className={addStyles.supervisorHint}>
                     Sales persons report to a sales manager.
                   </p>

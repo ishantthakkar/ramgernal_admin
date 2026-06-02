@@ -233,7 +233,7 @@ export default function UsersPage() {
     if (activeTab === "Sales Person") {
       return [
         ...commonPrefix,
-        "Sales Manager",
+        "Manager",
         ...contactCols,
         "Active Leads",
         "Customers",
@@ -245,10 +245,10 @@ export default function UsersPage() {
       return [...commonPrefix, ...contactCols, "Assigned Projects", "Comp. Installations", "Pend. Installations", ...commonSuffix];
     }
     if (activeTab === "Project Manager") {
-      return [...commonPrefix, ...contactCols, "Pend. Inspections", "Comp. Inspections", ...commonSuffix];
+      return [...commonPrefix, "Manager", ...contactCols, "Pend. Inspections", "Comp. Inspections", ...commonSuffix];
     }
     if (activeTab === "Sales Manager") {
-      return [...commonPrefix, "Project Manager", ...contactCols, "Status", "Actions"];
+      return [...commonPrefix, "Manager", ...contactCols, "Status", "Actions"];
     }
     if (activeTab === "Admin") {
       return [...commonPrefix, ...contactCols, "Status", "Actions"];
@@ -471,6 +471,9 @@ export default function UsersPage() {
 
                     {activeTab === "Project Manager" && (
                       <>
+                        <td style={{ fontWeight: 600, color: "var(--admin-primary, #004d4d)" }}>
+                          {getSupervisorName(user)}
+                        </td>
                         <td style={{ fontWeight: 500, color: "#1e293b" }}>{user.mobileNumber}</td>
                         <td style={{ color: "#64748b" }}>{user.email || "—"}</td>
                         {workingHoursCell(user)}

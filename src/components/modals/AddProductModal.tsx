@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Package } from "lucide-react";
 import modalStyles from "@/app/(authenticated)/commissions/commissions-modal.module.css";
 
-export interface AddProductFormData {
+export interface ProductFormData {
   sku: string;
   name: string;
   salesPrice: number;
@@ -12,11 +12,13 @@ export interface AddProductFormData {
   installationCost: number;
 }
 
-interface AddProductModalProps {
+interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: AddProductFormData) => void | Promise<void>;
+  onSubmit: (data: ProductFormData) => void | Promise<void>;
   isSubmitting?: boolean;
+  mode?: "add" | "edit";
+  initialData?: ProductFormData | null;
 }
 
 const emptyForm = {
@@ -27,9 +29,40 @@ const emptyForm = {
   installationCost: "",
 };
 
-export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = false }: AddProductModalProps) {
+function toFormValues(data: ProductFormData) {
+  return {
+    sku: data.sku,
+    name: data.name,
+    salesPrice: String(data.salesPrice),
+    commission: String(data.commission),
+    installationCost: String(data.installationCost),
+  };
+}
+
+export function ProductFormModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  isSubmitting = false,
+  mode = "add",
+  initialData = null,
+}: ProductFormModalProps) {
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const isEdit = mode === "edit";
+  const title = isEdit ? "Edit Product" : "Add Product";
+  const submitLabel = isEdit ? "Save Changes" : "Add Product";
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isEdit && initialData) {
+      setForm(toFormValues(initialData));
+    } else {
+      setForm(emptyForm);
+    }
+    setErrors({});
+  }, [isOpen, isEdit, initialData]);
 
   if (!isOpen) return null;
 
@@ -39,7 +72,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
     onClose();
   }
 
-  function validateForm(): AddProductFormData | null {
+  function validateForm(): ProductFormData | null {
     const next: Record<string, string> = {};
 
     if (!form.sku.trim()) {
@@ -91,8 +124,10 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
 
     await onSubmit(payload);
 
-    setForm(emptyForm);
-    setErrors({});
+    if (!isEdit) {
+      setForm(emptyForm);
+      setErrors({});
+    }
   }
 
   return (
@@ -118,7 +153,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
             >
               <Package size={22} />
             </div>
-            <h3>Add Product</h3>
+            <h3>{title}</h3>
           </div>
           <button type="button" className={modalStyles.closeBtn} onClick={handleClose} aria-label="Close">
             <X size={22} />
@@ -248,7 +283,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
               Cancel
             </button>
             <button type="submit" className={modalStyles.saveBtn} disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Add Product"}
+              {isSubmitting ? "Saving..." : submitLabel}
             </button>
           </div>
         </form>
@@ -256,3 +291,7 @@ export function AddProductModal({ isOpen, onClose, onSubmit, isSubmitting = fals
     </div>
   );
 }
+
+// Backward-compatible export
+export type AddProductFormData = ProductFormData;
+export { ProductFormModal as AddProductModal };

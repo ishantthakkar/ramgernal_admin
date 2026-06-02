@@ -171,6 +171,10 @@ export const adminApi = {
     apiRequest("/products", {
       method: "GET",
     }),
+  getProductById: (id: string) =>
+    apiRequest(`/products/${id}`, {
+      method: "GET",
+    }),
   createProduct: (productData: {
     sku: string;
     name: string;
@@ -180,6 +184,20 @@ export const adminApi = {
   }) =>
     apiRequest("/products", {
       method: "POST",
+      body: JSON.stringify(productData),
+    }),
+  updateProduct: (
+    id: string,
+    productData: {
+      sku: string;
+      name: string;
+      salesPrice: number;
+      commission: number;
+      installationCost: number;
+    }
+  ) =>
+    apiRequest(`/products/${id}`, {
+      method: "PUT",
       body: JSON.stringify(productData),
     }),
 };

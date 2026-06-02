@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
+import { getSupervisorFieldLabel } from "../../user-form-utils";
 import { toast } from "react-toastify";
 
 interface ReportsToUser {
@@ -122,12 +123,13 @@ export default function ViewUserPage() {
 
   const role = normalizeRole(user.userRole);
   const isSalesManager = role === "sales manager";
-  const isProjectManager = role === "project manager";
-  const showDirectReports = isSalesManager || isProjectManager;
+  const isAdmin = role === "admin";
+  const supervisorFieldLabel = getSupervisorFieldLabel(user.userRole);
+  const showDirectReports = isSalesManager || isAdmin;
   const directReportsTitle = isSalesManager
     ? "Sales Persons"
-    : isProjectManager
-      ? "Sales Managers"
+    : isAdmin
+      ? "Sales Managers & Project Managers"
       : "Team Members";
 
   return (
@@ -275,9 +277,9 @@ export default function ViewUserPage() {
               </div>
             </div>
           </div>
-          {(role === "sales person" || role === "sales manager") && (
+          {supervisorFieldLabel && (
             <div className={styles.formGroup}>
-              <label>{role === "sales person" ? "Sales Manager" : "Project Manager"}</label>
+              <label>{supervisorFieldLabel}</label>
               <div
                 className={styles.formInput}
                 style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}
@@ -310,7 +312,7 @@ export default function ViewUserPage() {
           <p className={viewStyles.subordinatesSubtitle}>
             {isSalesManager
               ? "All sales persons reporting to this sales manager."
-              : "All sales managers reporting to this project manager."}
+              : "All sales managers and project managers reporting to this admin."}
           </p>
 
           {directReports.length === 0 ? (
@@ -321,6 +323,7 @@ export default function ViewUserPage() {
                 <thead>
                   <tr>
                     <th>Name</th>
+                    {isAdmin && <th>Role</th>}
                     <th>Mobile</th>
                     <th>Email</th>
                     <th>Working Hours</th>
@@ -338,6 +341,11 @@ export default function ViewUserPage() {
                           {member.fullName || "—"}
                         </span>
                       </td>
+                      {isAdmin && (
+                        <td style={{ textTransform: "capitalize" }}>
+                          {member.userRole?.replace(/_/g, " ") || "—"}
+                        </td>
+                      )}
                       <td>{member.mobileNumber || "—"}</td>
                       <td>{member.email || "—"}</td>
                       <td>{formatWorkingHours(member)}</td>

@@ -40,3 +40,25 @@ export function resolveRoleId(
   );
   return matched?._id || roles[0]?._id || "";
 }
+
+export type SupervisorTargetRole = "sales manager" | "admin";
+
+export function getSupervisorTargetRole(roleName?: string): SupervisorTargetRole | null {
+  const role = normalizeRoleName(roleName);
+  if (role === "sales person") return "sales manager";
+  if (role === "sales manager" || role === "project manager") return "admin";
+  return null;
+}
+
+export function getSupervisorLabel(target: SupervisorTargetRole | null): string {
+  if (target === "sales manager" || target === "admin") return "Manager";
+  return "";
+}
+
+export function getSupervisorFieldLabel(roleName?: string): string | null {
+  const role = normalizeRoleName(roleName);
+  if (role === "sales person" || role === "sales manager" || role === "project manager") {
+    return "Manager";
+  }
+  return null;
+}
