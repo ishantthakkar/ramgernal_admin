@@ -2,33 +2,48 @@
 
 import { useState, useEffect } from "react";
 import styles from "./customers.module.css";
-import {
-  UserPlus,
-  Filter,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  Loader2
-} from "lucide-react";
-import { useRouter } from "next/navigation";
 import dashboardStyles from "../dashboard.module.css";
+import { ChevronLeft, ChevronRight, Search, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 
+interface CustomerListItem {
+  id?: string;
+  _id?: string;
+  lead_id?: string;
+  leadId?: string;
+  accountNumber?: string;
+  leadName?: string;
+  name?: string;
+  email?: string;
+  mobileNumber?: string;
+  dba?: string;
+  status?: string;
+  salesPersonName?: string;
+}
+
+function getLeadId(customer: CustomerListItem): string {
+  return customer.lead_id || customer.leadId || "";
+}
+
+function getLeadName(customer: CustomerListItem): string {
+  return customer.leadName || customer.name || "";
+}
+
 export default function CustomersPage() {
   const router = useRouter();
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const canEdit = hasPermission("Customers", "edit");
-  const canCreate = hasPermission("Customers", "create");
-
 
   useEffect(() => {
     const fetchCustomers = async () => {
+      setLoading(true);
       try {
         const response = await adminApi.getCustomers();
         const data = response.customers || response.data || response;
@@ -42,138 +57,148 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
-  // Search Logic
-  const filteredCustomers = customers.filter(customer =>
-    customer.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.mobileNumber?.includes(searchQuery) ||
-    customer.company?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCustomers = customers.filter((customer) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      getLeadId(customer).toLowerCase().includes(q) ||
+      getLeadName(customer).toLowerCase().includes(q) ||
+      customer.email?.toLowerCase().includes(q) ||
+      customer.mobileNumber?.includes(searchQuery) ||
+      customer.accountNumber?.toLowerCase().includes(q) ||
+      customer.dba?.toLowerCase().includes(q) ||
+      customer.salesPersonName?.toLowerCase().includes(q) ||
+      customer.status?.toLowerCase().includes(q)
+    );
+  });
 
-  // Pagination Logic
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage) || 1;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredCustomers.slice(indexOfFirstItem, indexOfLastItem);
 
-  const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
+  const handlePageChange = (pageNum: number) => {
+    if (pageNum > 0 && pageNum <= totalPages) {
+      setCurrentPage(pageNum);
     }
   };
-
-  if (loading) {
-    return (
-      <div style={{ display: "flex", flex: 1, minHeight: "400px", alignItems: "center", justifyContent: "center" }}>
-        <Loader2 size={40} className={dashboardStyles.spinner} style={{ color: "#64748b" }} />
-      </div>
-    );
-  }
 
   return (
     <div className={styles.customersPage}>
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>CUSTOMERS</span>
+        <span className={dashboardStyles.breadcrumbCurrent}>CUSTOMERS</span>
       </div>
 
-      {/* Header */}
-      <div className={styles.header}>
-        <h1 className={styles.title}>Customers</h1>
+      <div className={dashboardStyles.pageHeader}>
+        <h1 className={dashboardStyles.welcomeText}>Customers</h1>
       </div>
 
-      {/* Table Card */}
-      <div className={styles.tableCard}>
-        {/* Toolbar */}
-        <div className={styles.tableToolbar} style={{ justifyContent: "space-between", display: "flex", alignItems: "center" }}>
-          <div className={styles.showingCount}>
-            Showing <span>{currentItems.length}</span> of {filteredCustomers.length} customers
-          </div>
-          <div className={dashboardStyles.searchUsers}>
-            <Search size={16} color="#94a3b8" />
-            <input
-              type="text"
-              placeholder="Search Customers..."
-              className={dashboardStyles.searchInputSmall}
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
+      <div className={dashboardStyles.tableCard}>
+        <div className={dashboardStyles.tableHeader}>
+          <div className={styles.toolbarRight} style={{ marginLeft: "auto" }}>
+            <div className={dashboardStyles.searchUsers}>
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder="Search Customers..."
+                className={dashboardStyles.searchInputSmall}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <thead>
+        <table className={dashboardStyles.userTable}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>LEAD NAME</th>
+              <th>AC NUMBER</th>
+              <th>MOBILE NUMBER</th>
+              <th>EMAIL</th>
+              <th>DBA</th>
+              <th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>S.No</th>
-                <th>NAME</th>
-                <th>AC NUMBER</th>
-                <th>MOBILE NUMBER</th>
-                <th>EMAIL</th>
-                <th>COMPANY</th>
-                <th>STATUS</th>
-                <th style={{ textAlign: "right" }}>ACTIONS</th>
+                <td colSpan={7} style={{ textAlign: "center", padding: "4rem" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "1rem",
+                      color: "#94a3b8",
+                    }}
+                  >
+                    <Loader2 size={32} className={styles.spinner} />
+                    <span style={{ fontWeight: 600 }}>Loading customers...</span>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {currentItems.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: "3rem", color: "#64748b" }}>
-                    No customers found matching your criteria.
-                  </td>
-                </tr>
-              ) : (
-                currentItems.map((customer, index) => (
-                  <tr key={customer.id || customer._id || index}>
-                    <td className={styles.idCell}>{indexOfFirstItem + index + 1}</td>
+            ) : filteredCustomers.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                  No customers found.
+                </td>
+              </tr>
+            ) : (
+              currentItems.map((customer, idx) => {
+                const customerId = customer.id || customer._id;
+                const displayName = getLeadName(customer) || "—";
+
+                return (
+                  <tr key={customerId || idx}>
+                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{getLeadId(customer) || "—"}</td>
                     <td
-                      className={styles.nameCell}
-                      style={{ cursor: "pointer", fontWeight: 700, color: "#0076ce", textDecoration: "underline", textDecorationColor: "#0076ce" }}
-                      onClick={() => router.push(`/customers/${customer.id || customer._id}`)}
+                      style={{
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        color: "var(--admin-primary, #004d4d)",
+                        textDecoration: "underline",
+                        textDecorationColor: "var(--admin-primary, #004d4d)",
+                      }}
+                      onClick={() => router.push(`/customers/${customerId}`)}
                     >
-                      {customer.name}
+                      {displayName}
                     </td>
-                    <td style={{ fontWeight: 600 }}>{customer.accountNumber || "N/A"}</td>
-                    <td>{customer.mobileNumber || "N/A"}</td>
-                    <td>{customer.email}</td>
-                    <td>{customer.company}</td>
+                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{customer.accountNumber || "—"}</td>
+                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{customer.mobileNumber || "—"}</td>
+                    <td style={{ color: "#64748b" }}>{customer.email || "—"}</td>
+                    <td>{customer.dba || "—"}</td>
                     <td>
-                      <div className={styles.statusIndicator}>
-                        <div className={customer.status?.toLowerCase() === "active" ? styles.dotActive : styles.dotDeactivated}></div>
-                        {customer.status || "N/A"}
-                      </div>
-                    </td>
-                    <td className={styles.actionsCell} style={{ textAlign: "right" }}>
                       {canEdit && (
                         <button
+                          type="button"
                           className={dashboardStyles.assignBtn}
-                          onClick={() => router.push(`/customers/${customer.id || customer._id}/edit`)}
+                          onClick={() => router.push(`/customers/${customerId}/edit`)}
                         >
                           Edit
                         </button>
                       )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                );
+              })
+            )}
+          </tbody>
+        </table>
 
-        {/* Footer */}
-        <div className={styles.tableFooter}>
-          <div className={styles.entriesInfo}>
-            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredCustomers.length)} of {filteredCustomers.length} entries
+        <div className={dashboardStyles.tableFooter}>
+          <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
+            Showing {filteredCustomers.length > 0 ? indexOfFirstItem + 1 : 0} to{" "}
+            {Math.min(indexOfLastItem, filteredCustomers.length)} of {filteredCustomers.length} results
           </div>
-          <div className={styles.pagination}>
+          <div className={dashboardStyles.pagination}>
             <div
-              className={`${styles.pageNav} ${currentPage === 1 ? styles.disabled : ""}`}
+              className={`${dashboardStyles.pageBtn} ${currentPage === 1 ? dashboardStyles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage - 1)}
-              style={{ opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
             >
               <ChevronLeft size={18} />
             </div>
@@ -181,7 +206,7 @@ export default function CustomersPage() {
             {[...Array(totalPages)].map((_, i) => (
               <div
                 key={i}
-                className={`${styles.pageBtn} ${currentPage === i + 1 ? styles.pageActive : ""}`}
+                className={`${dashboardStyles.pageBtn} ${currentPage === i + 1 ? dashboardStyles.pageActive : ""}`}
                 onClick={() => handlePageChange(i + 1)}
               >
                 {i + 1}
@@ -189,9 +214,8 @@ export default function CustomersPage() {
             ))}
 
             <div
-              className={`${styles.pageNav} ${currentPage === totalPages ? styles.disabled : ""}`}
+              className={`${dashboardStyles.pageBtn} ${currentPage === totalPages ? dashboardStyles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage + 1)}
-              style={{ opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
             >
               <ChevronRight size={18} />
             </div>
