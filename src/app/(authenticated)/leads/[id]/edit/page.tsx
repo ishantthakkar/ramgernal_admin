@@ -389,9 +389,15 @@ export default function EditLeadPage() {
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>LEADS</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/leads")}>
+          LEADS
+        </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>EDIT LEAD</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push(`/leads/${id}`)}>
+          VIEW LEAD
+        </span>
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span className={styles.breadcrumbCurrent}>EDIT LEAD</span>
       </div>
 
       <div className={styles.pageHeader} style={{ marginBottom: "2.5rem" }}>
@@ -440,8 +446,11 @@ export default function EditLeadPage() {
         {/* Lead Information Section */}
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Info size={22} color="#0076ce" /> Lead Information
+            <Info size={22} color="var(--admin-primary, #004d4d)" /> Lead Information
           </div>
+          <p className={styles.sectionSubtitle}>
+            Update the primary identification and profile details for this lead.
+          </p>
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
@@ -698,8 +707,11 @@ export default function EditLeadPage() {
         {/* Contact Details Section */}
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <FileText size={22} color="#0076ce" /> Contact & Address
+            <FileText size={22} color="var(--admin-primary, #004d4d)" /> Contact & Address
           </div>
+          <p className={styles.sectionSubtitle}>
+            Update the contact methods, phone numbers, and addresses associated with this lead.
+          </p>
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
@@ -732,7 +744,7 @@ export default function EditLeadPage() {
               </div>
             </div>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Addresses</label>
+              <label>Address</label>
               <div style={{ display: "grid", gap: "1rem" }}>
                 {addresses.map((address, idx) => (
                   <div
@@ -1028,7 +1040,7 @@ export default function EditLeadPage() {
         {/* Activity Section */}
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Clock size={22} color="#0076ce" /> Add Activity
+            <Clock size={22} color="var(--admin-primary, #004d4d)" /> Add Activity
           </div>
           <p className={styles.sectionSubtitle}>
             This will append a new activity entry to the lead history.
@@ -1093,8 +1105,11 @@ export default function EditLeadPage() {
         {/* Notes Section */}
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <FileText size={22} color="#0076ce" /> Internal Notes & History
+            <FileText size={22} color="var(--admin-primary, #004d4d)" /> Internal Notes & History
           </div>
+          <p className={styles.sectionSubtitle}>
+            Add notes or read historical updates for this lead.
+          </p>
 
           {/* Historical Notes */}
           {existingNotes.length > 0 && (
@@ -1115,7 +1130,7 @@ export default function EditLeadPage() {
           )}
 
           <div className={styles.formGroup} style={{ marginTop: "1rem" }}>
-            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#0076ce", marginBottom: "0.5rem", display: "block" }}>ADD NEW NOTE</label>
+            <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--admin-primary, #004d4d)", marginBottom: "0.5rem", display: "block" }}>ADD NEW NOTE</label>
             <textarea
               className={styles.formInput}
               style={{ height: "100px", resize: "none", paddingTop: "0.875rem" }}
@@ -1127,17 +1142,16 @@ export default function EditLeadPage() {
         </section>
 
         {/* Action Footer */}
-        <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem" }}>
+        <div className={styles.actionFooter}>
           <button
             type="button"
             className={styles.cancelBtn}
-            onClick={() => router.push("/leads")}
+            onClick={() => router.push(`/leads/${id}`)}
             disabled={saving}
-            style={{ padding: "0.875rem 2.5rem" }}
           >
             <X size={20} /> Cancel
           </button>
-          <button type="submit" className={styles.createBtn} disabled={saving} style={{ padding: "0.875rem 3rem" }}>
+          <button type="submit" className={styles.createBtn} disabled={saving}>
             {saving ? "Saving..." : <><Save size={20} /> Save Changes</>}
           </button>
         </div>

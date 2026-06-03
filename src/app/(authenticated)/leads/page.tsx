@@ -85,9 +85,24 @@ export default function LeadsPage() {
   });
 
   const stats = [
-    { label: "Total", value: leads.filter(l => l.status !== "Closed" && l.status !== "Converted To Customer").length.toString() },
-    { label: "Active", value: leads.filter(l => l.status === "Active" || l.status === "New").length.toString() },
-    { label: "Lost Lead", value: leads.filter(l => l.status === "Lost Leads").length.toString() },
+    {
+      label: "Total",
+      value: leads.filter(l => l.status !== "Closed" && l.status !== "Converted To Customer").length.toString(),
+      color: "#3b6fd9",
+      bg: "#e8f0fe"
+    },
+    {
+      label: "Active",
+      value: leads.filter(l => l.status === "Active" || l.status === "New").length.toString(),
+      color: "#475569",
+      bg: "#f1f5f9"
+    },
+    {
+      label: "Lost Lead",
+      value: leads.filter(l => l.status === "Lost Leads").length.toString(),
+      color: "#c9922e",
+      bg: "#faf3e8"
+    },
   ];
 
   // Pagination Logic
@@ -106,11 +121,11 @@ export default function LeadsPage() {
     <div className={styles.leadsPage}>
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>LEADS</span>
+        <span className={dashboardStyles.breadcrumbCurrent}>LEADS</span>
       </div>
 
-      <div className={styles.leadsHeader}>
-        <h1 className={styles.directoryTitle}>Leads</h1>
+      <div className={dashboardStyles.pageHeader}>
+        <h1 className={dashboardStyles.welcomeText}>Leads</h1>
         {canCreateLeads && (
           <button
             type="button"
@@ -125,7 +140,11 @@ export default function LeadsPage() {
       {/* Stats Grid */}
       <div className={styles.leadsStatsGrid}>
         {stats.map((stat) => (
-          <div key={stat.label} className={styles.leadsStatCard}>
+          <div
+            key={stat.label}
+            className={styles.leadsStatCard}
+            style={{ backgroundColor: "var(--admin-card-bg, #ffffff)" }}
+          >
             <div className={styles.leadsStatLabel}>{stat.label}</div>
             <div className={styles.leadsStatValue}>{stat.value}</div>
           </div>
@@ -133,8 +152,8 @@ export default function LeadsPage() {
       </div>
 
       {/* Table Section */}
-      <div className={styles.leadsTableContainer}>
-        <div className={styles.tableToolbar}>
+      <div className={dashboardStyles.tableCard}>
+        <div className={dashboardStyles.tableHeader}>
           <div className={styles.toolbarLeft}>
             <div className={dashboardStyles.tabs}>
               {["Active Leads", "Lost Lead"].map((tab) => (
@@ -173,9 +192,9 @@ export default function LeadsPage() {
               onClick={() => setDateRange(dateRange === 30 ? null : 30)}
               style={{
                 cursor: "pointer",
-                backgroundColor: dateRange === 30 ? "#e0f2fe" : "white",
-                borderColor: dateRange === 30 ? "#0076ce" : "#e2e8f0",
-                color: dateRange === 30 ? "#0076ce" : "#64748b"
+                backgroundColor: dateRange === 30 ? "rgba(0, 77, 77, 0.1)" : "white",
+                borderColor: dateRange === 30 ? "var(--admin-primary, #004d4d)" : "#e2e8f0",
+                color: dateRange === 30 ? "var(--admin-primary, #004d4d)" : "#64748b"
               }}
             >
               <Calendar size={18} /> {dateRange === 30 ? "Last 30 Days" : "All Time"} <ChevronLeft size={16} style={{ transform: "rotate(-90deg)" }} />
@@ -183,7 +202,7 @@ export default function LeadsPage() {
           </div>
         </div>
 
-        <table className={styles.leadsTable}>
+        <table className={dashboardStyles.userTable}>
           <thead>
             <tr>
               <th>ID</th>
@@ -216,32 +235,37 @@ export default function LeadsPage() {
               currentLeads.map((lead, idx) => {
                 return (
                   <tr key={lead.id || idx}>
-                    <td className={styles.idCell}>{lead.lead_id || "—"}</td>
+                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{lead.lead_id || "—"}</td>
                     <td
-                      className={styles.nameCell}
-                      style={{ cursor: "pointer", fontWeight: 700, color: "#0076ce", textDecoration: "underline", textDecorationColor: "#0076ce" }}
+                      style={{
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        color: "var(--admin-primary, #004d4d)",
+                        textDecoration: "underline",
+                        textDecorationColor: "var(--admin-primary, #004d4d)"
+                      }}
                       onClick={() => router.push(`/leads/${lead.id}`)}
                     >
                       {lead.name}
                     </td>
-                    <td>{lead.mobileNumber || "N/A"}</td>
-                    <td>{lead.company}</td>
-                    <td>{lead.salesPersonName || "Unassigned"}</td>
+                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{lead.mobileNumber || "—"}</td>
+                    <td>{lead.company || "—"}</td>
+                    <td style={{ fontWeight: 600, color: "var(--admin-primary, #004d4d)" }}>{lead.salesPersonName || "Unassigned"}</td>
                     <td>
-                      <div className={styles.statusIndicator}>
-                        <div
+                      <div className={dashboardStyles.statusCell}>
+                        <span
                           className={
                             lead.status === "New" ||
                             lead.status === "Assigned" ||
                             lead.status === "In Progress"
-                              ? styles.dotActive
-                              : styles.dotDeactivated
+                              ? dashboardStyles.statusDotActive
+                              : dashboardStyles.statusDotInactive
                           }
                         />
                         {lead.status}
                       </div>
                     </td>
-                     <td>{lead.lastActivity ? formatDate(lead.lastActivity) : "N/A"}</td>
+                    <td style={{ color: "#64748b" }}>{lead.lastActivity ? formatDate(lead.lastActivity) : "N/A"}</td>
                     <td>
                       {canEditLeads && (
                         <button
@@ -260,9 +284,9 @@ export default function LeadsPage() {
         </table>
 
         {/* Pagination */}
-        <div className={styles.paginationWrapper}>
+        <div className={dashboardStyles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {filteredLeads.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredLeads.length)} of {filteredLeads.length} entries
+            Showing {filteredLeads.length > 0 ? indexOfFirstItem + 1 : 0} to {Math.min(indexOfLastItem, filteredLeads.length)} of {filteredLeads.length} results
           </div>
           <div className={dashboardStyles.pagination}>
             <div

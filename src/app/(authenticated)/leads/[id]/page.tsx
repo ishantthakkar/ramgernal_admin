@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
+import viewStyles from "../../users/view/user-view.module.css";
 import {
   Info,
   FileText,
@@ -16,7 +17,12 @@ import {
   Phone,
   MapPin,
   Clock,
-  X
+  X,
+  Edit2,
+  User,
+  Hash,
+  Zap,
+  ShieldAlert
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -170,7 +176,7 @@ export default function LeadDetailsPage() {
           style={{ cursor: "pointer" }}
           onClick={() => router.push("/leads")}
         >LEADS</span> <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>VIEW LEAD</span>
+        <span className={styles.breadcrumbCurrent}>VIEW LEAD</span>
       </div>
 
       <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
@@ -207,6 +213,14 @@ export default function LeadDetailsPage() {
 
         <div style={{ display: "flex", gap: "1rem" }}>
           <button
+            type="button"
+            className={styles.addBtn}
+            onClick={() => router.push(`/leads/${id}/edit`)}
+          >
+            <Edit2 size={20} /> Edit
+          </button>
+
+          <button
             className={styles.createBtn}
             onClick={handleConvertClick}
             disabled={converting || markingLost || lead.status === "Converted To Customer" || lead.status === "Lost Leads"}
@@ -230,14 +244,20 @@ export default function LeadDetailsPage() {
 
       <div className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <Info size={22} color="#0076ce" /> Lead Information
+          <Info size={22} color="var(--admin-primary, #004d4d)" /> Lead Information
         </div>
+        <p className={styles.sectionSubtitle}>
+          Full profile identification details for this lead account.
+        </p>
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
             <label>Full Name</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {lead.name || "N/A"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <User size={16} color="#64748b" />
+                {lead.name || "N/A"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
@@ -253,7 +273,7 @@ export default function LeadDetailsPage() {
             <label>Lead Source</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Layers size={16} color="#3b82f6" />
+                <Layers size={16} color="#64748b" />
                 {lead.leadSourceName || lead.leadSource || "N/A"}
               </div>
             </div>
@@ -301,32 +321,47 @@ export default function LeadDetailsPage() {
           <div className={styles.formGroup}>
             <label>Account Number</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {lead.accountNumber || "—"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Hash size={16} color="#64748b" />
+                {lead.accountNumber || "—"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Electric Company</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {lead.electricCompany || "—"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Zap size={16} color="#64748b" />
+                {lead.electricCompany || "—"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>DBA</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {lead.dba || "—"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Building size={16} color="#64748b" />
+                {lead.dba || "—"}
+              </div>
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Legal Name</label>
             <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              {lead.legalName || "—"}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <User size={16} color="#64748b" />
+                {lead.legalName || "—"}
+              </div>
             </div>
           </div>
           {lead.status === "Lost Leads" && (
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <label>Lost Reason</label>
               <div className={styles.formInput} style={{ background: "#fff7ed", color: "#9a3412", fontWeight: 600, border: "1px solid #fed7aa", minHeight: "3rem" }}>
-                {lead.lostReason || "—"}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <ShieldAlert size={16} color="#9a3412" />
+                  {lead.lostReason || "—"}
+                </div>
               </div>
             </div>
           )}
@@ -375,8 +410,11 @@ export default function LeadDetailsPage() {
 
       <div className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <FileText size={22} color="#0076ce" /> Contact Details
+          <FileText size={22} color="var(--admin-primary, #004d4d)" /> Contact Details
         </div>
+        <p className={styles.sectionSubtitle}>
+          Contact options, address listing, and associated contact info.
+        </p>
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
@@ -397,24 +435,9 @@ export default function LeadDetailsPage() {
               </div>
             </div>
           </div>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            <label>Address</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0", minHeight: "3rem" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem" }}>
-                <MapPin size={16} color="#64748b" style={{ marginTop: "0.2rem" }} />
-                <span>
-                  {lead.street ? `${lead.street}, ` : ""}
-                  {lead.city ? `${lead.city}, ` : ""}
-                  {lead.state ? `${lead.state} ` : ""}
-                  {lead.zip || ""}
-                  {(!lead.street && !lead.city && !lead.state && !lead.zip) && "No address provided"}
-                </span>
-              </div>
-            </div>
-          </div>
           {Array.isArray(lead.addresses) && lead.addresses.length > 0 && (
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Addresses</label>
+              <label>Address</label>
               <div style={{ display: "grid", gap: "0.75rem" }}>
                 {lead.addresses.map((a: any, idx: number) => (
                   <div
@@ -425,15 +448,19 @@ export default function LeadDetailsPage() {
                       border: "1px solid #e2e8f0",
                       padding: "1rem",
                       fontWeight: 600,
-                      display: "grid",
-                      gap: "0.25rem",
+                      display: "block"
                     }}
                   >
-                    <div style={{ color: "#0f172a", fontWeight: 800 }}>
-                      {a.title || `Address ${idx + 1}`}
-                    </div>
-                    <div style={{ color: "#334155", fontWeight: 600 }}>
-                      {[a.street, a.city, a.state, a.zip].filter(Boolean).join(", ") || "—"}
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <MapPin size={18} color="#64748b" style={{ marginTop: "0.15rem", flexShrink: 0 }} />
+                      <div style={{ display: "grid", gap: "0.25rem" }}>
+                        <div style={{ color: "#0f172a", fontWeight: 800 }}>
+                          {a.title || `Address ${idx + 1}`}
+                        </div>
+                        <div style={{ color: "#334155", fontWeight: 600 }}>
+                          {[a.street, a.city, a.state, a.zip].filter(Boolean).join(", ") || "—"}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -443,8 +470,8 @@ export default function LeadDetailsPage() {
           {Array.isArray(lead.contactInfo) && lead.contactInfo.length > 0 && (
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <label>Contact Info</label>
-              <div className={styles.userTableContainer} style={{ border: "1px solid #f1f5f9", borderRadius: "12px", overflow: "hidden" }}>
-                <table className={styles.userTable}>
+              <div className={styles.userTableContainer}>
+                <table className={viewStyles.subordinatesTable}>
                   <thead>
                     <tr>
                       <th>Name</th>
@@ -458,10 +485,10 @@ export default function LeadDetailsPage() {
                   <tbody>
                     {lead.contactInfo.map((c: any, idx: number) => (
                       <tr key={c._id || idx}>
-                        <td style={{ fontWeight: 700, color: "#0f172a" }}>{c.name || "—"}</td>
+                        <td style={{ fontWeight: 700, color: "#1e293b" }}>{c.name || "—"}</td>
                         <td>{c.position || "—"}</td>
                         <td>{c.department || "—"}</td>
-                        <td style={{ color: c.email ? "#0076ce" : "#64748b" }}>{c.email || "—"}</td>
+                        <td style={{ color: c.email ? "#0076ce" : "#1e293b", textDecoration: c.email ? "underline" : "none" }}>{c.email || "—"}</td>
                         <td>{c.phone || "—"}</td>
                         <td>{c.mobile || "—"}</td>
                       </tr>
@@ -497,10 +524,13 @@ export default function LeadDetailsPage() {
       {lead.activityLog && lead.activityLog.length > 0 && (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Clock size={22} color="#0076ce" /> Activity
+            <Clock size={22} color="var(--admin-primary, #004d4d)" /> Activity
           </div>
-          <div className={styles.userTableContainer} style={{ border: "1px solid #f1f5f9", borderRadius: "12px", overflow: "hidden", marginTop: "1rem" }}>
-            <table className={styles.userTable}>
+          <p className={styles.sectionSubtitle}>
+            Historical actions and status updates for this lead.
+          </p>
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.subordinatesTable}>
               <thead>
                 <tr>
                   <th>Activity</th>
@@ -512,13 +542,13 @@ export default function LeadDetailsPage() {
               <tbody>
                 {lead.activityLog.map((log: any) => (
                   <tr key={log._id}>
-                    <td style={{ fontWeight: 600, color: "#1e293b" }}>
+                    <td style={{ fontWeight: 600 }}>
                       <span style={{
                         padding: "0.25rem 0.75rem",
                         borderRadius: "99px",
                         fontSize: "0.7rem",
-                        background: "#f1f5f9",
-                        color: "#475569",
+                        background: "#eff6ff",
+                        color: "#1d4ed8",
                         textTransform: "uppercase",
                         fontWeight: 700
                       }}>
@@ -528,7 +558,7 @@ export default function LeadDetailsPage() {
                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
                       {log.date ? formatDate(log.date) : formatDate(log.createdAt)}
                     </td>
-                    <td style={{ color: "#1e293b", fontWeight: 500 }}>{log.outcome || "N/A"}</td>
+                    <td style={{ color: "#1e293b", fontWeight: 600 }}>{log.outcome || "N/A"}</td>
                     <td style={{ color: "#64748b", fontSize: "0.85rem" }}>{log.notes || "No additional notes"}</td>
                   </tr>
                 ))}
