@@ -3,36 +3,58 @@
 import { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
-import viewStyles from "../../users/view/user-view.module.css";
+import addStyles from "../add/leads-add.module.css";
 import {
   Info,
   FileText,
   RefreshCw,
-  Mail,
-  Calendar,
-  Layers,
   Loader2,
   XCircle,
-  Building,
-  Phone,
   MapPin,
-  Clock,
+  Users,
+  Calendar,
   X,
   Edit2,
-  User,
-  Hash,
-  Zap,
-  ShieldAlert
+  ShieldAlert,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
-import { formatDate, formatDateTime } from "@/lib/dateUtils";
+import modalStyles from "@/components/modals/ConfirmationModal.module.css";
+import { formatDateTime } from "@/lib/dateUtils";
+import { formatNoteAuthorLabel } from "@/lib/leadNotes";
 
 function resolveUploadsUrl(filename: string): string {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  // Works for both "/api/proxy" and absolute API base URL cases.
   return `${base}/uploads/leads/bills/${filename}`;
+}
+
+function ReadOnlyField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className={styles.formGroup}>
+      <label>{label}</label>
+      <div
+        className={styles.formInput}
+        style={{
+          background: "#f8fafc",
+          color: value === "—" ? "#94a3b8" : "#1e293b",
+          fontWeight: 600,
+          border: "1px solid #e2e8f0",
+          minHeight: "2.75rem",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
 }
 
 export default function LeadDetailsPage() {
@@ -46,6 +68,7 @@ export default function LeadDetailsPage() {
 
   // Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [lostReason, setLostReason] = useState("");
   const [modalConfig, setModalConfig] = useState({
     type: "convert" as "convert" | "lost",
     title: "",
@@ -87,6 +110,7 @@ export default function LeadDetailsPage() {
   };
 
   const handleLostClick = () => {
+    setLostReason("");
     setModalConfig({
       type: "lost",
       title: "Mark as Lost",
@@ -97,9 +121,15 @@ export default function LeadDetailsPage() {
     setShowConfirmModal(true);
   };
 
+  const handleCloseConfirmModal = () => {
+    setShowConfirmModal(false);
+    setLostReason("");
+  };
+
   const handleModalConfirm = async () => {
     setShowConfirmModal(false);
     if (modalConfig.type === "convert") {
+      setLostReason("");
       await handleConvert();
     } else {
       await handleLost();
@@ -120,13 +150,20 @@ export default function LeadDetailsPage() {
   };
 
   const handleLost = async () => {
+    const reason = lostReason.trim();
+    if (!reason) {
+      toast.error("Please enter a lost reason.");
+      return;
+    }
+
     setMarkingLost(true);
     try {
-      await adminApi.updateLeadStatus(id, "Lost Leads");
+      await adminApi.markLeadAsLost(id, reason);
       toast.success("Lead marked as lost successfully!");
       router.push("/leads");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update lead status.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update lead status.";
+      toast.error(message);
     } finally {
       setMarkingLost(false);
     }
@@ -168,6 +205,12 @@ export default function LeadDetailsPage() {
     }
   };
 
+  const displayName = lead.leadName || lead.name || "Lead";
+  const addresses = Array.isArray(lead.addresses) ? lead.addresses : [];
+  const contacts = Array.isArray(lead.contactInfo) ? lead.contactInfo : [];
+  const notes = Array.isArray(lead.notes) ? lead.notes : [];
+  const activityLog = Array.isArray(lead.activityLog) ? lead.activityLog : [];
+
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
@@ -181,7 +224,7 @@ export default function LeadDetailsPage() {
 
       <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
         <div>
-          <h1 className={styles.welcomeText}>Lead Profile: {lead.name}</h1>
+          <h1 className={styles.welcomeText}>Lead Profile: {displayName}</h1>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
             <span style={{
               backgroundColor: `${getStatusColor(lead.status)}15`,
@@ -242,132 +285,35 @@ export default function LeadDetailsPage() {
         </div>
       </div>
 
-      <div className={styles.formSection}>
+      <section className={styles.formSection}>
         <div className={styles.sectionTitle}>
           <Info size={22} color="var(--admin-primary, #004d4d)" /> Lead Information
         </div>
-        <p className={styles.sectionSubtitle}>
-          Full profile identification details for this lead account.
-        </p>
-
         <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label>Full Name</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <User size={16} color="#64748b" />
-                {lead.name || "N/A"}
+          <ReadOnlyField
+            label="Lead Source"
+            value={lead.leadSourceName || lead.leadSource || "—"}
+          />
+          <ReadOnlyField label="Lead Name" value={displayName} />
+          <ReadOnlyField label="DBA" value={lead.dba || "—"} />
+          <ReadOnlyField
+            label="Utility / Electric Company"
+            value={lead.electricCompany || "—"}
+          />
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            <label>Electricity Bills</label>
+            {bills.length === 0 ? (
+              <div
+                className={styles.formInput}
+                style={{
+                  background: "#f8fafc",
+                  color: "#64748b",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                No bills uploaded.
               </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Company</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Building size={16} color="#64748b" />
-                {lead.company || "N/A"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Lead Source</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Layers size={16} color="#64748b" />
-                {lead.leadSourceName || lead.leadSource || "N/A"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Sales Person</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <div style={{
-                  background: "#eff6ff",
-                  color: "#1d4ed8",
-                  width: 24,
-                  height: 24,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  fontSize: "0.6rem",
-                  borderRadius: "50%"
-                }}>
-                  {(lead.user_id?.fullName || "S").charAt(0)}
-                </div>
-                {lead.user_id?.fullName || "Unassigned"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Created Date</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Calendar size={16} color="#64748b" />
-                {lead.createdAt ? formatDate(lead.createdAt) : "N/A"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Last Activity</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Clock size={16} color="#64748b" />
-                {lead.lastActivity ? formatDate(lead.lastActivity) : "N/A"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Account Number</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Hash size={16} color="#64748b" />
-                {lead.accountNumber || "—"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Electric Company</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Zap size={16} color="#64748b" />
-                {lead.electricCompany || "—"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>DBA</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Building size={16} color="#64748b" />
-                {lead.dba || "—"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Legal Name</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <User size={16} color="#64748b" />
-                {lead.legalName || "—"}
-              </div>
-            </div>
-          </div>
-          {lead.status === "Lost Leads" && (
-            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Lost Reason</label>
-              <div className={styles.formInput} style={{ background: "#fff7ed", color: "#9a3412", fontWeight: 600, border: "1px solid #fed7aa", minHeight: "3rem" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <ShieldAlert size={16} color="#9a3412" />
-                  {lead.lostReason || "—"}
-                </div>
-              </div>
-            </div>
-          )}
-          {bills.length > 0 && (
-            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Electricity Bills</label>
+            ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
                 {bills.map((filename: string) => {
                   const url = resolveUploadsUrl(filename);
@@ -388,185 +334,245 @@ export default function LeadDetailsPage() {
                         color: "#1e293b",
                       }}
                     >
-                      <div style={{ height: 110, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div
+                        style={{
+                          height: 110,
+                          background: "#f8fafc",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
                         {isPdf ? (
-                          <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b" }}>PDF</div>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+                            PDF
+                          </div>
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={url} alt={filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <img
+                            src={url}
+                            alt={filename}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
                         )}
                       </div>
-                      <div style={{ padding: "0.5rem 0.6rem", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div
+                        style={{
+                          padding: "0.5rem 0.6rem",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
                         {filename}
                       </div>
                     </a>
                   );
                 })}
               </div>
+            )}
+          </div>
+          <ReadOnlyField label="Account Number" value={lead.accountNumber || "—"} />
+          <ReadOnlyField label="Legal Name" value={lead.legalName || "—"} />
+          <ReadOnlyField label="Mobile" value={lead.mobileNumber || "—"} />
+          <ReadOnlyField label="Email" value={lead.email || "—"} />
+          <ReadOnlyField
+            label="Assign to Sales Person"
+            value={lead.user_id?.fullName || "Unassigned"}
+          />
+          {lead.status === "Lost Leads" && (
+            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+              <label>Lost Reason</label>
+              <div
+                className={styles.formInput}
+                style={{
+                  background: "#fff7ed",
+                  color: "#9a3412",
+                  fontWeight: 600,
+                  border: "1px solid #fed7aa",
+                  minHeight: "3rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                }}
+              >
+                <ShieldAlert size={16} color="#9a3412" />
+                {lead.lostReason || "—"}
+              </div>
             </div>
           )}
         </div>
-      </div>
+      </section>
 
-      <div className={styles.formSection}>
+      <section className={styles.formSection}>
         <div className={styles.sectionTitle}>
-          <FileText size={22} color="var(--admin-primary, #004d4d)" /> Contact Details
+          <MapPin size={22} color="var(--admin-primary, #004d4d)" /> Address Information
         </div>
-        <p className={styles.sectionSubtitle}>
-          Contact options, address listing, and associated contact info.
-        </p>
-
         <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label>Email Address</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#0076ce", fontWeight: 600, border: "1px solid #e2e8f0", textDecoration: "underline" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Mail size={16} color="#64748b" />
-                {lead.email || "N/A"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Mobile Number</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Phone size={16} color="#64748b" />
-                {lead.mobileNumber || "N/A"}
-              </div>
-            </div>
-          </div>
-          {Array.isArray(lead.addresses) && lead.addresses.length > 0 && (
-            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Address</label>
-              <div style={{ display: "grid", gap: "0.75rem" }}>
-                {lead.addresses.map((a: any, idx: number) => (
-                  <div
-                    key={a._id || idx}
-                    className={styles.formInput}
-                    style={{
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      padding: "1rem",
-                      fontWeight: 600,
-                      display: "block"
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <MapPin size={18} color="#64748b" style={{ marginTop: "0.15rem", flexShrink: 0 }} />
-                      <div style={{ display: "grid", gap: "0.25rem" }}>
-                        <div style={{ color: "#0f172a", fontWeight: 800 }}>
-                          {a.title || `Address ${idx + 1}`}
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            {addresses.length === 0 ? (
+              <div className={addStyles.emptyState}>No addresses on file.</div>
+            ) : (
+              <div className={addStyles.itemGrid}>
+                {addresses.map((a: { _id?: string; title?: string; street?: string; city?: string; state?: string; zip?: string }, idx: number) => (
+                  <div key={a._id || idx} className={addStyles.itemCard}>
+                    <div className={addStyles.itemHeader}>
+                      <span className={addStyles.itemTitle}>
+                        {a.title || `Address ${idx + 1}`}
+                      </span>
+                    </div>
+                    <div className={addStyles.itemContent}>
+                      {a.street && <div>{a.street}</div>}
+                      {(a.city || a.state || a.zip) && (
+                        <div>
+                          {[a.city, a.state, a.zip].filter(Boolean).join(", ")}
                         </div>
-                        <div style={{ color: "#334155", fontWeight: 600 }}>
-                          {[a.street, a.city, a.state, a.zip].filter(Boolean).join(", ") || "—"}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-          {Array.isArray(lead.contactInfo) && lead.contactInfo.length > 0 && (
-            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Contact Info</label>
-              <div className={styles.userTableContainer}>
-                <table className={viewStyles.subordinatesTable}>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Position</th>
-                      <th>Department</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Mobile</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lead.contactInfo.map((c: any, idx: number) => (
-                      <tr key={c._id || idx}>
-                        <td style={{ fontWeight: 700, color: "#1e293b" }}>{c.name || "—"}</td>
-                        <td>{c.position || "—"}</td>
-                        <td>{c.department || "—"}</td>
-                        <td style={{ color: c.email ? "#0076ce" : "#1e293b", textDecoration: c.email ? "underline" : "none" }}>{c.email || "—"}</td>
-                        <td>{c.phone || "—"}</td>
-                        <td>{c.mobile || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          {lead.notes && lead.notes.length > 0 && (
-            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Notes</label>
-              <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 500, border: "1px solid #e2e8f0", minHeight: "5rem", whiteSpace: "pre-wrap", display: "flex", flexDirection: "column", gap: "0.75rem", padding: "1rem" }}>
-                {Array.isArray(lead.notes) ? (
-                  lead.notes.map((n: any, index: number) => (
-                    <div key={n._id || index} style={{ paddingBottom: index !== lead.notes.length - 1 ? "0.75rem" : "0", borderBottom: index !== lead.notes.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                      <div style={{ color: "#64748b", fontSize: "0.7rem", marginBottom: "0.25rem", display: "flex", justifyContent: "space-between" }}>
-                        <span>{n.title ? n.title : `Note ${index + 1}`}</span>
-                        <span>{n.createdAt ? formatDateTime(n.createdAt) : ""}</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <Users size={22} color="var(--admin-primary, #004d4d)" /> Contact Information
+        </div>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            {contacts.length === 0 ? (
+              <div className={addStyles.emptyState}>No contacts on file.</div>
+            ) : (
+              <div className={addStyles.itemGrid}>
+                {contacts.map(
+                  (
+                    c: {
+                      _id?: string;
+                      name?: string;
+                      position?: string;
+                      department?: string;
+                      email?: string;
+                      phone?: string;
+                      mobile?: string;
+                    },
+                    idx: number
+                  ) => (
+                    <div key={c._id || idx} className={addStyles.itemCard}>
+                      <div className={addStyles.itemHeader}>
+                        <span className={addStyles.itemTitle}>
+                          {c.name || "Contact"}
+                          {c.position ? ` (${c.position})` : ""}
+                        </span>
                       </div>
-                      <div style={{ color: "#1e293b", fontSize: "0.9rem" }}>{n.note}</div>
+                      <div className={addStyles.itemContent}>
+                        {c.department && <div>Department: {c.department}</div>}
+                        {c.email && <div>Email: {c.email}</div>}
+                        {c.phone && <div>Phone: {c.phone}</div>}
+                        {c.mobile && <div>Mobile: {c.mobile}</div>}
+                      </div>
                     </div>
-                  ))
-                ) : (
-                  typeof lead.notes === "string" ? lead.notes : JSON.stringify(lead.notes)
+                  )
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
-      {/* Activity Log Section */}
-      {lead.activityLog && lead.activityLog.length > 0 && (
-        <div className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <Clock size={22} color="var(--admin-primary, #004d4d)" /> Activity
-          </div>
-          <p className={styles.sectionSubtitle}>
-            Historical actions and status updates for this lead.
-          </p>
-          <div className={styles.userTableContainer}>
-            <table className={viewStyles.subordinatesTable}>
-              <thead>
-                <tr>
-                  <th>Activity</th>
-                  <th>Date</th>
-                  <th>Outcome</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lead.activityLog.map((log: any) => (
-                  <tr key={log._id}>
-                    <td style={{ fontWeight: 600 }}>
-                      <span style={{
-                        padding: "0.25rem 0.75rem",
-                        borderRadius: "99px",
-                        fontSize: "0.7rem",
-                        background: "#eff6ff",
-                        color: "#1d4ed8",
-                        textTransform: "uppercase",
-                        fontWeight: 700
-                      }}>
-                        {log.activityType || "UPDATE"}
-                      </span>
-                    </td>
-                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                      {log.date ? formatDate(log.date) : formatDate(log.createdAt)}
-                    </td>
-                    <td style={{ color: "#1e293b", fontWeight: 600 }}>{log.outcome || "N/A"}</td>
-                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>{log.notes || "No additional notes"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            )}
           </div>
         </div>
-      )}
+      </section>
+
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <FileText size={22} color="var(--admin-primary, #004d4d)" /> Notes
+        </div>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            {notes.length === 0 ? (
+              <div className={addStyles.emptyState}>No notes on file.</div>
+            ) : (
+              <div className={addStyles.itemGrid}>
+                {notes.map(
+                  (
+                    n: { _id?: string; title?: string; note?: string; createdAt?: string },
+                    idx: number
+                  ) => (
+                    <div key={n._id || idx} className={addStyles.itemCard}>
+                      <div className={addStyles.itemHeader}>
+                        <span className={addStyles.itemTitle}>
+                          {n.title || `Note ${idx + 1}`}
+                        </span>
+                        {n.createdAt && (
+                          <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
+                            {formatDateTime(n.createdAt)}
+                          </span>
+                        )}
+                      </div>
+                      <div className={addStyles.itemContent}>
+                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
+                          By {formatNoteAuthorLabel(n)}
+                        </div>
+                        {n.note || "—"}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <Calendar size={22} color="var(--admin-primary, #004d4d)" /> Activities
+        </div>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            {activityLog.length === 0 ? (
+              <div className={addStyles.emptyState}>No activities recorded.</div>
+            ) : (
+              <div className={addStyles.itemGrid}>
+                {activityLog.map(
+                  (
+                    log: {
+                      _id?: string;
+                      activityType?: string;
+                      date?: string;
+                      createdAt?: string;
+                      outcome?: string;
+                      notes?: string;
+                    },
+                    idx: number
+                  ) => (
+                    <div key={log._id || idx} className={addStyles.itemCard}>
+                      <div className={addStyles.itemHeader}>
+                        <span className={addStyles.itemTitle}>
+                          {log.activityType || "Activity"}
+                        </span>
+                      </div>
+                      <div className={addStyles.itemContent}>
+                        <div>
+                          Date:{" "}
+                          {log.date
+                            ? formatDateTime(log.date)
+                            : log.createdAt
+                              ? formatDateTime(log.createdAt)
+                              : "—"}
+                        </div>
+                        {log.outcome && <div>Outcome: {log.outcome}</div>}
+                        {log.notes && <div>{log.notes}</div>}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
         <button
@@ -581,14 +587,31 @@ export default function LeadDetailsPage() {
 
       <ConfirmationModal
         isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
+        onClose={handleCloseConfirmModal}
         onConfirm={handleModalConfirm}
         title={modalConfig.title}
         message={modalConfig.message}
         confirmText={modalConfig.confirmText}
         type={modalConfig.btnType}
         isLoading={converting || markingLost}
-      />
+        confirmDisabled={modalConfig.type === "lost" && !lostReason.trim()}
+      >
+        {modalConfig.type === "lost" ? (
+          <div>
+            <label className={modalStyles.modalFieldLabel} htmlFor="lost-reason-view">
+              Lost Reason <span className={modalStyles.modalFieldRequired}>*</span>
+            </label>
+            <textarea
+              id="lost-reason-view"
+              className={modalStyles.modalTextarea}
+              placeholder="Enter why this lead was lost..."
+              value={lostReason}
+              onChange={(e) => setLostReason(e.target.value)}
+              disabled={markingLost}
+            />
+          </div>
+        ) : null}
+      </ConfirmationModal>
     </div>
   );
 }

@@ -14,6 +14,8 @@ interface ConfirmationModalProps {
   cancelText?: string;
   type?: "danger" | "success" | "warning" | "info";
   isLoading?: boolean;
+  children?: React.ReactNode;
+  confirmDisabled?: boolean;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -26,6 +28,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   cancelText = "Cancel",
   type = "info",
   isLoading = false,
+  children,
+  confirmDisabled = false,
 }) => {
   if (!isOpen) return null;
 
@@ -69,7 +73,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             {getIcon()}
           </div>
           <h3 className={styles.title}>{title}</h3>
-          <p className={styles.message}>{message}</p>
+          <p className={children ? styles.messageWithExtra : styles.message}>{message}</p>
+          {children ? <div className={styles.modalExtra}>{children}</div> : null}
 
           <div className={styles.modalFooter}>
             <button 
@@ -82,7 +87,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             <button 
               className={styles.confirmBtn} 
               onClick={onConfirm}
-              disabled={isLoading}
+              disabled={isLoading || confirmDisabled}
               style={{
                 backgroundColor: type === "danger" ? "#ef4444" : type === "success" ? "#10b981" : "#0076ce"
               }}

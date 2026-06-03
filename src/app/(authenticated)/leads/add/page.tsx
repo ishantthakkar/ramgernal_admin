@@ -10,12 +10,35 @@ import {
   Info,
   Loader2,
   ChevronDown,
-  UserPlus,
   Plus,
   Pencil,
   Trash2,
+  MapPin,
+  Users,
+  Calendar,
 } from "lucide-react";
+
+const ELECTRIC_COMPANIES = [
+  "PSE&G",
+  "JCP&L",
+  "ATLANTIC CITY ENERGY",
+] as const;
+
+function formatUsPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  if (digits.length === 0) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+function toIsoOrEmpty(value: string): string {
+  if (!value.trim()) return "";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
 import { adminApi } from "@/lib/api";
+import { formatNoteAuthorLabel, withNoteAuthor } from "@/lib/leadNotes";
 import { toast } from "react-toastify";
 
 interface LeadSourceOption {
@@ -49,6 +72,18 @@ interface LeadContactInput {
 interface LeadNoteInput {
   title: string;
   note: string;
+  writtenByName?: string;
+  writtenByEmail?: string;
+  writtenByRole?: string;
+}
+
+interface LeadActivityInput {
+  activityType: string;
+  date: string;
+  outcome: string;
+  notes: string;
+  followUpDate: string;
+  nextFollowUpDate: string;
 }
 
 export default function AddLeadPage() {
@@ -60,8 +95,6 @@ export default function AddLeadPage() {
   const billInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    name: "",
-    company: "",
     email: "",
     mobileNumber: "",
     leadName: "",
@@ -94,10 +127,13 @@ export default function AddLeadPage() {
 
   const [addresses, setAddresses] = useState<LeadAddressInput[]>([]);
   const [contactInfo, setContactInfo] = useState<LeadContactInput[]>([]);
+  const [activities, setActivities] = useState<LeadActivityInput[]>([]);
   const [notes, setNotes] = useState<LeadNoteInput[]>([]);
 
   // Modal control states
-  const [activeModal, setActiveModal] = useState<"address" | "contact" | "note" | null>(null);
+  const [activeModal, setActiveModal] = useState<
+    "address" | "contact" | "activity" | "note" | null
+  >(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   // Temporary modal input states
@@ -109,6 +145,14 @@ export default function AddLeadPage() {
   });
   const [tempNote, setTempNote] = useState<LeadNoteInput>({
     title: "", note: ""
+  });
+  const [tempActivity, setTempActivity] = useState<LeadActivityInput>({
+    activityType: "Call",
+    date: "",
+    outcome: "",
+    notes: "",
+    followUpDate: "",
+    nextFollowUpDate: "",
   });
 
   // Modal actions
@@ -190,10 +234,19 @@ export default function AddLeadPage() {
       toast.error("Please enter the note content.");
       return;
     }
+    const noteToSave =
+      editingIndex !== null
+        ? {
+            ...tempNote,
+            writtenByName: notes[editingIndex].writtenByName,
+            writtenByEmail: notes[editingIndex].writtenByEmail,
+            writtenByRole: notes[editingIndex].writtenByRole,
+          }
+        : withNoteAuthor(tempNote);
     if (editingIndex !== null) {
-      setNotes(prev => prev.map((item, i) => i === editingIndex ? tempNote : item));
+      setNotes((prev) => prev.map((item, i) => (i === editingIndex ? noteToSave : item)));
     } else {
-      setNotes(prev => [...prev, tempNote]);
+      setNotes((prev) => [...prev, noteToSave]);
     }
     setActiveModal(null);
     setEditingIndex(null);
@@ -201,6 +254,44 @@ export default function AddLeadPage() {
 
   const deleteNote = (index: number) => {
     setNotes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const openActivityModal = (index?: number) => {
+    if (index !== undefined) {
+      setTempActivity(activities[index]);
+      setEditingIndex(index);
+    } else {
+      setTempActivity({
+        activityType: "Call",
+        date: "",
+        outcome: "",
+        notes: "",
+        followUpDate: "",
+        nextFollowUpDate: "",
+      });
+      setEditingIndex(null);
+    }
+    setActiveModal("activity");
+  };
+
+  const saveActivity = () => {
+    if (!tempActivity.activityType.trim()) {
+      toast.error("Please select an activity type.");
+      return;
+    }
+    if (editingIndex !== null) {
+      setActivities((prev) =>
+        prev.map((item, i) => (i === editingIndex ? tempActivity : item))
+      );
+    } else {
+      setActivities((prev) => [...prev, tempActivity]);
+    }
+    setActiveModal(null);
+    setEditingIndex(null);
+  };
+
+  const deleteActivity = (index: number) => {
+    setActivities((prev) => prev.filter((_, i) => i !== index));
   };
 
   useEffect(() => {
@@ -227,6 +318,10 @@ export default function AddLeadPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    if (name === "mobileNumber") {
+      setFormData((prev) => ({ ...prev, mobileNumber: formatUsPhone(value) }));
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -237,18 +332,23 @@ export default function AddLeadPage() {
       toast.error("Please select a lead source.");
       return;
     }
+    if (!formData.leadName.trim()) {
+      toast.error("Please enter a lead name.");
+      return;
+    }
 
     setLoading(true);
 
     try {
       const data = new FormData();
+      const leadName = formData.leadName.trim();
       data.append("leadSource", formData.leadSource);
-      data.append("name", formData.name.trim());
-      data.append("company", formData.company.trim());
-      data.append("mobileNumber", formData.mobileNumber.trim());
+      data.append("leadName", leadName);
+      data.append("name", leadName);
+      if (formData.mobileNumber.trim()) {
+        data.append("mobileNumber", formData.mobileNumber.trim());
+      }
       if (formData.email.trim()) data.append("email", formData.email.trim());
-
-      if (formData.leadName.trim()) data.append("leadName", formData.leadName.trim());
       if (formData.dba.trim()) data.append("dba", formData.dba.trim());
       if (formData.legalName.trim()) data.append("legalName", formData.legalName.trim());
       if (formData.accountNumber.trim()) data.append("accountNumber", formData.accountNumber.trim());
@@ -288,10 +388,30 @@ export default function AddLeadPage() {
       }
 
       const cleanedNotes = notes
-        .map((n) => ({ title: n.title.trim(), note: n.note.trim() }))
+        .map((n) => ({
+          title: n.title.trim(),
+          note: n.note.trim(),
+          writtenByName: n.writtenByName?.trim() || "",
+          writtenByEmail: n.writtenByEmail?.trim() || "",
+          writtenByRole: n.writtenByRole?.trim() || "",
+        }))
         .filter((n) => n.title || n.note);
       if (cleanedNotes.length > 0) {
         data.append("notes", JSON.stringify(cleanedNotes));
+      }
+
+      const cleanedActivities = activities
+        .map((a) => ({
+          activityType: a.activityType.trim(),
+          date: toIsoOrEmpty(a.date) || new Date().toISOString(),
+          outcome: a.outcome.trim(),
+          notes: a.notes.trim(),
+          followUpDate: toIsoOrEmpty(a.followUpDate) || undefined,
+          nextFollowUpDate: toIsoOrEmpty(a.nextFollowUpDate) || undefined,
+        }))
+        .filter((a) => a.activityType);
+      if (cleanedActivities.length > 0) {
+        data.append("activityLog", JSON.stringify(cleanedActivities));
       }
 
       for (const file of billFiles) {
@@ -341,34 +461,6 @@ export default function AddLeadPage() {
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
               <label>
-                Full Name <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <input
-                name="name"
-                type="text"
-                placeholder="e.g. Marcus Aurelius"
-                className={styles.formInput}
-                value={formData.name}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>
-                Company <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <input
-                name="company"
-                type="text"
-                placeholder="Industrial Corp Ltd."
-                className={styles.formInput}
-                value={formData.company}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>
                 Lead Source <span style={{ color: "#ef4444" }}>*</span>
               </label>
               <div style={{ position: "relative" }}>
@@ -400,19 +492,43 @@ export default function AddLeadPage() {
               </div>
             </div>
             <div className={styles.formGroup}>
-              <label>Assign to Sales Person</label>
+              <label>
+                Lead Name <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <input
+                name="leadName"
+                type="text"
+                placeholder="e.g. Acme Solar"
+                className={styles.formInput}
+                value={formData.leadName}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>DBA</label>
+              <input
+                name="dba"
+                type="text"
+                placeholder="e.g. Acme Solar"
+                className={styles.formInput}
+                value={formData.dba}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Utility / Electric Company</label>
               <div style={{ position: "relative" }}>
                 <select
-                  name="salesPersonId"
+                  name="electricCompany"
                   className={styles.formSelect}
-                  value={formData.salesPersonId}
+                  value={formData.electricCompany}
                   onChange={handleChange}
                 >
-                  <option value="">Unassigned (admin-owned)</option>
-                  {salesPersons.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.fullName || "Unnamed"}
-                      {person.email ? ` — ${person.email}` : ""}
+                  <option value="">Select electric company</option>
+                  {ELECTRIC_COMPANIES.map((company) => (
+                    <option key={company} value={company}>
+                      {company}
                     </option>
                   ))}
                 </select>
@@ -429,63 +545,8 @@ export default function AddLeadPage() {
                 />
               </div>
             </div>
-            <div className={styles.formGroup}>
-              <label>Lead Name</label>
-              <input
-                name="leadName"
-                type="text"
-                placeholder="e.g. Acme Lead Updated"
-                className={styles.formInput}
-                value={formData.leadName}
-                onChange={handleChange}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>DBA</label>
-              <input
-                name="dba"
-                type="text"
-                placeholder="e.g. Acme Solar"
-                className={styles.formInput}
-                value={formData.dba}
-                onChange={handleChange}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Legal Name</label>
-              <input
-                name="legalName"
-                type="text"
-                placeholder="e.g. Acme Solar LLC"
-                className={styles.formInput}
-                value={formData.legalName}
-                onChange={handleChange}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Account Number</label>
-              <input
-                name="accountNumber"
-                type="text"
-                placeholder="e.g. 123456"
-                className={styles.formInput}
-                value={formData.accountNumber}
-                onChange={handleChange}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Electric Company</label>
-              <input
-                name="electricCompany"
-                type="text"
-                placeholder="e.g. PG&E"
-                className={styles.formInput}
-                value={formData.electricCompany}
-                onChange={handleChange}
-              />
-            </div>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-              <label>Electricity Bills (images / PDF)</label>
+              <label>Upload Electricity Bill</label>
               <input
                 ref={billInputRef}
                 type="file"
@@ -494,11 +555,9 @@ export default function AddLeadPage() {
                 className={styles.formInput}
                 onChange={(e) => {
                   const files = Array.from(e.target.files || []);
-                  // append (so user can select multiple times)
                   setBillFiles((prev) => {
                     const next = [...prev];
                     for (const file of files) {
-                      // de-dupe by name+size+lastModified
                       const key = `${file.name}:${file.size}:${file.lastModified}`;
                       const has = next.some(
                         (f) => `${f.name}:${f.size}:${f.lastModified}` === key
@@ -507,7 +566,6 @@ export default function AddLeadPage() {
                     }
                     return next;
                   });
-                  // allow re-selecting same file
                   if (billInputRef.current) billInputRef.current.value = "";
                 }}
               />
@@ -612,43 +670,94 @@ export default function AddLeadPage() {
                 </div>
               )}
             </div>
-          </div>
-        </section>
-
-        <section className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <FileText size={22} color="var(--admin-primary, #004d4d)" /> Contact & Address
-          </div>
-
-          <div className={styles.formGrid}>
             <div className={styles.formGroup}>
-              <label>Email Address</label>
+              <label>Account Number</label>
+              <input
+                name="accountNumber"
+                type="text"
+                placeholder="e.g. 123456"
+                className={styles.formInput}
+                value={formData.accountNumber}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Legal Name</label>
+              <input
+                name="legalName"
+                type="text"
+                placeholder="e.g. Acme Solar LLC"
+                className={styles.formInput}
+                value={formData.legalName}
+                onChange={handleChange}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Mobile</label>
+              <input
+                name="mobileNumber"
+                type="tel"
+                placeholder="(555) 555-1234"
+                className={styles.formInput}
+                value={formData.mobileNumber}
+                onChange={handleChange}
+                inputMode="numeric"
+                maxLength={14}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Email</label>
               <input
                 name="email"
                 type="email"
-                placeholder="m.aurelius@voltcore.com"
+                placeholder="contact@example.com"
                 className={styles.formInput}
                 value={formData.email}
                 onChange={handleChange}
               />
             </div>
             <div className={styles.formGroup}>
-              <label>
-                Mobile Number <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <input
-                name="mobileNumber"
-                type="text"
-                placeholder="+1 (555) 000-0000"
-                className={styles.formInput}
-                value={formData.mobileNumber}
-                onChange={handleChange}
-                required
-              />
+              <label>Assign to Sales Person</label>
+              <div style={{ position: "relative" }}>
+                <select
+                  name="salesPersonId"
+                  className={styles.formSelect}
+                  value={formData.salesPersonId}
+                  onChange={handleChange}
+                >
+                  <option value="">Unassigned (admin-owned)</option>
+                  {salesPersons.map((person) => (
+                    <option key={person.id} value={person.id}>
+                      {person.fullName || "Unnamed"}
+                      {person.email ? ` — ${person.email}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={18}
+                  style={{
+                    position: "absolute",
+                    right: "1rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    pointerEvents: "none",
+                    color: "#64748b",
+                  }}
+                />
+              </div>
             </div>
+          </div>
+        </section>
+
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <MapPin size={22} color="var(--admin-primary, #004d4d)" /> Address Information
+          </div>
+
+          <div className={styles.formGrid}>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                <label style={{ margin: 0 }}>Address</label>
+                <label style={{ margin: 0 }}>Addresses</label>
                 <button
                   type="button"
                   className={addStyles.modalSaveBtn}
@@ -701,10 +810,18 @@ export default function AddLeadPage() {
                 </div>
               )}
             </div>
+          </div>
+        </section>
 
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Users size={22} color="var(--admin-primary, #004d4d)" /> Contact Information
+          </div>
+
+          <div className={styles.formGrid}>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                <label style={{ margin: 0 }}>Contact Info</label>
+                <label style={{ margin: 0 }}>Contacts</label>
                 <button
                   type="button"
                   className={addStyles.modalSaveBtn}
@@ -757,7 +874,15 @@ export default function AddLeadPage() {
                 </div>
               )}
             </div>
+          </div>
+        </section>
 
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <FileText size={22} color="var(--admin-primary, #004d4d)" /> Notes
+          </div>
+
+          <div className={styles.formGrid}>
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                 <label style={{ margin: 0 }}>Notes</label>
@@ -783,7 +908,12 @@ export default function AddLeadPage() {
                         <div className={addStyles.itemHeader}>
                           <span className={addStyles.itemTitle}>{note.title || "Note"}</span>
                         </div>
-                        <div className={addStyles.itemContent}>{note.note}</div>
+                        <div className={addStyles.itemContent}>
+                          <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
+                            By {formatNoteAuthorLabel(note)}
+                          </div>
+                          {note.note}
+                        </div>
                       </div>
                       <div className={addStyles.itemActions}>
                         <button
@@ -806,7 +936,71 @@ export default function AddLeadPage() {
                 </div>
               )}
             </div>
+          </div>
+        </section>
 
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Calendar size={22} color="var(--admin-primary, #004d4d)" /> Activities
+          </div>
+
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <label style={{ margin: 0 }}>Activity log</label>
+                <button
+                  type="button"
+                  className={addStyles.modalSaveBtn}
+                  onClick={() => openActivityModal()}
+                  style={{ padding: "0.5rem 1rem", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                >
+                  <Plus size={16} /> Add Activity
+                </button>
+              </div>
+
+              {activities.length === 0 ? (
+                <div className={addStyles.emptyState}>
+                  No activities added yet. Click &quot;Add Activity&quot; to insert one.
+                </div>
+              ) : (
+                <div className={addStyles.itemGrid}>
+                  {activities.map((activityItem, idx) => (
+                    <div key={idx} className={addStyles.itemCard}>
+                      <div>
+                        <div className={addStyles.itemHeader}>
+                          <span className={addStyles.itemTitle}>
+                            {activityItem.activityType || "Activity"}
+                          </span>
+                        </div>
+                        <div className={addStyles.itemContent}>
+                          {activityItem.date && (
+                            <div>Date: {new Date(activityItem.date).toLocaleString()}</div>
+                          )}
+                          {activityItem.outcome && <div>Outcome: {activityItem.outcome}</div>}
+                          {activityItem.notes && <div>{activityItem.notes}</div>}
+                        </div>
+                      </div>
+                      <div className={addStyles.itemActions}>
+                        <button
+                          type="button"
+                          className={`${addStyles.itemActionBtn} ${addStyles.editActionBtn}`}
+                          onClick={() => openActivityModal(idx)}
+                        >
+                          <Pencil size={14} /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          className={`${addStyles.itemActionBtn} ${addStyles.deleteActionBtn}`}
+                          onClick={() => deleteActivity(idx)}
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -1040,6 +1234,130 @@ export default function AddLeadPage() {
                 type="button"
                 className={addStyles.modalSaveBtn}
                 onClick={saveContact}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === "activity" && (
+        <div className={addStyles.modalBackdrop} onClick={() => setActiveModal(null)}>
+          <div className={addStyles.modalContainer} onClick={(e) => e.stopPropagation()}>
+            <div className={addStyles.modalHeader}>
+              <h3 className={addStyles.modalTitle}>
+                {editingIndex !== null ? "Edit Activity" : "Add Activity"}
+              </h3>
+              <button
+                type="button"
+                className={addStyles.closeBtn}
+                onClick={() => setActiveModal(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className={addStyles.modalBody}>
+              <div className={styles.formGroup}>
+                <label>
+                  Activity Type <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  className={styles.formSelect}
+                  value={tempActivity.activityType}
+                  onChange={(e) =>
+                    setTempActivity({ ...tempActivity, activityType: e.target.value })
+                  }
+                >
+                  <option value="Call">Call</option>
+                  <option value="Meeting">Meeting</option>
+                  <option value="Email">Email</option>
+                  <option value="Site Visit">Site Visit</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className={styles.formGroup}>
+                <label>Date</label>
+                <input
+                  type="datetime-local"
+                  className={styles.formInput}
+                  value={tempActivity.date}
+                  onChange={(e) =>
+                    setTempActivity({ ...tempActivity, date: e.target.value })
+                  }
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Outcome</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Left voicemail"
+                  className={styles.formInput}
+                  value={tempActivity.outcome}
+                  onChange={(e) =>
+                    setTempActivity({ ...tempActivity, outcome: e.target.value })
+                  }
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Notes</label>
+                <textarea
+                  placeholder="Activity notes..."
+                  className={styles.formInput}
+                  rows={3}
+                  value={tempActivity.notes}
+                  onChange={(e) =>
+                    setTempActivity({ ...tempActivity, notes: e.target.value })
+                  }
+                  style={{ resize: "vertical", minHeight: 80 }}
+                />
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "1rem",
+                }}
+              >
+                <div className={styles.formGroup}>
+                  <label>Follow Up Date</label>
+                  <input
+                    type="datetime-local"
+                    className={styles.formInput}
+                    value={tempActivity.followUpDate}
+                    onChange={(e) =>
+                      setTempActivity({ ...tempActivity, followUpDate: e.target.value })
+                    }
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Next Follow Up Date</label>
+                  <input
+                    type="datetime-local"
+                    className={styles.formInput}
+                    value={tempActivity.nextFollowUpDate}
+                    onChange={(e) =>
+                      setTempActivity({
+                        ...tempActivity,
+                        nextFollowUpDate: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+            <div className={addStyles.modalFooter}>
+              <button
+                type="button"
+                className={addStyles.modalCancelBtn}
+                onClick={() => setActiveModal(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={addStyles.modalSaveBtn}
+                onClick={saveActivity}
               >
                 Save
               </button>

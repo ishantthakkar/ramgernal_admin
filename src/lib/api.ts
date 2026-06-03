@@ -90,6 +90,16 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify({ status }),
   }),
+  markLeadAsLost: (id: string, reason: string) =>
+    apiRequest(`/leads/${id}/lost`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+  assignLeadToSalesPerson: (id: string, salesPersonId: string) =>
+    apiRequest(`/leads/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ salesPersonId }),
+    }),
   getCustomers: () => apiRequest("/customer/customers-list", {
     method: "GET",
   }),

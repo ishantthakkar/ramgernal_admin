@@ -57,12 +57,16 @@ export default function LeadsPage() {
 
   const filteredLeads = leads.filter(lead => {
     // Search Filter
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      lead.lead_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lead.lead_id?.toLowerCase().includes(q) ||
+      lead.leadName?.toLowerCase().includes(q) ||
+      lead.name?.toLowerCase().includes(q) ||
+      lead.leadSourceName?.toLowerCase().includes(q) ||
+      lead.leadSource?.toLowerCase().includes(q) ||
+      lead.dba?.toLowerCase().includes(q) ||
       lead.mobileNumber?.includes(searchQuery) ||
-      lead.company?.toLowerCase().includes(searchQuery.toLowerCase());
+      lead.salesPersonName?.toLowerCase().includes(q);
 
     if (!matchesSearch) return false;
 
@@ -206,9 +210,10 @@ export default function LeadsPage() {
           <thead>
             <tr>
               <th>ID</th>
-              <th>NAME</th>
-              <th>MOBILE NUMBER</th>
-              <th>COMPANY</th>
+              <th>LEAD NAME</th>
+              <th>LEAD SOURCE</th>
+              <th>MOBILE</th>
+              <th>DBA</th>
               <th>SALES PERSON</th>
               <th>STATUS</th>
               <th>LAST ACTIVITY</th>
@@ -218,7 +223,7 @@ export default function LeadsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: "center", padding: "4rem" }}>
+                <td colSpan={9} style={{ textAlign: "center", padding: "4rem" }}>
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", color: "#94a3b8" }}>
                     <Loader2 size={32} className={styles.spinner} />
                     <span style={{ fontWeight: 600 }}>Loading active leads...</span>
@@ -227,12 +232,18 @@ export default function LeadsPage() {
               </tr>
             ) : filteredLeads.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                <td colSpan={9} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
                   No {activeTab.toLowerCase()} found.
                 </td>
               </tr>
             ) : (
               currentLeads.map((lead, idx) => {
+                const displayName = lead.leadName || lead.name || "—";
+                const displaySource =
+                  lead.leadSourceName ||
+                  lead.leadSource ||
+                  "—";
+
                 return (
                   <tr key={lead.id || idx}>
                     <td style={{ fontWeight: 600, color: "#94a3b8" }}>{lead.lead_id || "—"}</td>
@@ -246,10 +257,11 @@ export default function LeadsPage() {
                       }}
                       onClick={() => router.push(`/leads/${lead.id}`)}
                     >
-                      {lead.name}
+                      {displayName}
                     </td>
+                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{displaySource}</td>
                     <td style={{ fontWeight: 500, color: "#1e293b" }}>{lead.mobileNumber || "—"}</td>
-                    <td>{lead.company || "—"}</td>
+                    <td>{lead.dba || "—"}</td>
                     <td style={{ fontWeight: 600, color: "var(--admin-primary, #004d4d)" }}>{lead.salesPersonName || "Unassigned"}</td>
                     <td>
                       <div className={dashboardStyles.statusCell}>

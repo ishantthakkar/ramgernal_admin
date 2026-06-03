@@ -118,6 +118,57 @@
   margin-bottom: 2.5rem;
 }
 
+.messageWithExtra {
+  font-size: 1rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+.modalExtra {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.modalFieldLabel {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.modalFieldRequired {
+  color: #ef4444;
+}
+
+.modalTextarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: #1e293b;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.modalTextarea:focus {
+  outline: none;
+  border-color: #004d4d;
+  box-shadow: 0 0 0 3px rgba(0, 77, 77, 0.12);
+}
+
+.modalTextarea::placeholder {
+  color: #94a3b8;
+}
+
 .modalFooter {
   display: flex;
   gap: 1rem;

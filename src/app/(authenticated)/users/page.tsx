@@ -237,15 +237,15 @@ export default function UsersPage() {
         ...contactCols,
         "Active Leads",
         "Customers",
-        "Closed Leads",
+        "Lost Leads",
         ...commonSuffix,
       ];
     }
     if (activeTab === "Contractors") {
-      return [...commonPrefix, ...contactCols, "Assigned Projects", "Comp. Installations", "Pend. Installations", ...commonSuffix];
+      return [...commonPrefix, ...contactCols, "Assigned Projects", "Submitted Inst.", "In Progress Inst.", ...commonSuffix];
     }
     if (activeTab === "Project Manager") {
-      return [...commonPrefix, "Manager", ...contactCols, "Pend. Inspections", "Comp. Inspections", ...commonSuffix];
+      return [...commonPrefix, "Manager", ...contactCols, "Pending Inspections", "Completed Inspections", ...commonSuffix];
     }
     if (activeTab === "Sales Manager") {
       return [...commonPrefix, "Manager", ...contactCols, "Status", "Actions"];

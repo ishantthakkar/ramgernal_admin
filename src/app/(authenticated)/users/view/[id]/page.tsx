@@ -18,6 +18,8 @@ import {
   Users,
   Clock,
   Edit2,
+  Briefcase,
+  Workflow,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
@@ -58,6 +60,14 @@ interface UserProfile {
   workingDays?: string[];
   workingFrom?: string;
   workingTo?: string;
+  assignedProjects?: number;
+  completedInstallations?: number;
+  pendingInstallations?: number;
+  activeLeads?: number;
+  customers?: number;
+  closedLeads?: number;
+  pendingInspections?: number;
+  completedInspections?: number;
 }
 
 function normalizeRole(role?: string): string {
@@ -124,6 +134,9 @@ export default function ViewUserPage() {
   const role = normalizeRole(user.userRole);
   const isSalesManager = role === "sales manager";
   const isAdmin = role === "admin";
+  const isContractor = role === "contractor";
+  const isProjectManager = role === "project manager";
+  const isSalesPerson = role === "sales person";
   const supervisorFieldLabel = getSupervisorFieldLabel(user.userRole);
   const showDirectReports = isSalesManager || isAdmin;
   const directReportsTitle = isSalesManager
@@ -300,6 +313,114 @@ export default function ViewUserPage() {
           )}
         </div>
       </div>
+
+      {isContractor && (
+        <div className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Contractor Statistics
+          </div>
+          <p className={styles.sectionSubtitle}>Project assignments and installation status summary.</p>
+
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup}>
+              <label>Assigned Projects</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.assignedProjects ?? 0}
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Submitted Inst. (Completed)</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#059669", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.completedInstallations ?? 0}
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>In Progress Inst. (Pending)</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#d97706", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.pendingInstallations ?? 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isProjectManager && (
+        <div className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Workflow size={22} color="var(--admin-primary, #004d4d)" /> Project Manager Statistics
+          </div>
+          <p className={styles.sectionSubtitle}>Pending and completed survey inspection summary.</p>
+
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup}>
+              <label>Pending Inspections</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#d97706", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.pendingInspections ?? 0}
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Completed Inspections</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#059669", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.completedInspections ?? 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSalesPerson && (
+        <div className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Users size={22} color="var(--admin-primary, #004d4d)" /> Sales Person Statistics
+          </div>
+          <p className={styles.sectionSubtitle}>Active leads, customers, and lost leads summary.</p>
+
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup}>
+              <label>Active Leads</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.activeLeads ?? 0}
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Customers</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#059669", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.customers ?? 0}
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Lost Leads</label>
+              <div
+                className={styles.formInput}
+                style={{ background: "#f8fafc", color: "#dc2626", fontWeight: 700, border: "1px solid #e2e8f0" }}
+              >
+                {user.closedLeads ?? 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDirectReports && (
         <div className={`${styles.formSection} ${viewStyles.subordinatesSection}`}>
