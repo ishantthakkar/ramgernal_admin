@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
 import viewStyles from "../user-view.module.css";
 import {
@@ -24,6 +24,12 @@ import {
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { getSupervisorFieldLabel } from "../../user-form-utils";
+import {
+  getUserTabFromRole,
+  getUsersListPath,
+  parseUserTabFromParam,
+  withUserTab,
+} from "../../user-tabs";
 import { toast } from "react-toastify";
 
 interface ReportsToUser {
@@ -93,8 +99,10 @@ function formatWorkingHours(user: UserProfile | DirectReport): string {
 export default function ViewUserPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const canEditUsers = hasPermission("User", "edit");
+  const tabFromUrl = parseUserTabFromParam(searchParams.get("tab"));
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [directReports, setDirectReports] = useState<DirectReport[]>([]);
@@ -112,14 +120,14 @@ export default function ViewUserPage() {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to fetch user details.";
         toast.error(message);
-        router.push("/users");
+        router.push(getUsersListPath(tabFromUrl));
       } finally {
         setFetching(false);
       }
     }
 
     if (id) fetchUser();
-  }, [id, router]);
+  }, [id, router, tabFromUrl]);
 
   if (fetching) {
     return (
@@ -132,6 +140,10 @@ export default function ViewUserPage() {
   if (!user) return null;
 
   const role = normalizeRole(user.userRole);
+  const returnTab = searchParams.has("tab")
+    ? tabFromUrl
+    : getUserTabFromRole(user.userRole);
+  const usersListPath = getUsersListPath(returnTab);
   const isSalesManager = role === "sales manager";
   const isAdmin = role === "admin";
   const isContractor = role === "contractor";
@@ -149,7 +161,7 @@ export default function ViewUserPage() {
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push(usersListPath)}>
           USERS
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
@@ -162,7 +174,7 @@ export default function ViewUserPage() {
           <button
             type="button"
             className={styles.addBtn}
-            onClick={() => router.push(`/users/edit/${id}`)}
+            onClick={() => router.push(withUserTab(`/users/edit/${id}`, returnTab))}
           >
             <Edit2 size={20} /> Edit
           </button>
@@ -317,7 +329,7 @@ export default function ViewUserPage() {
       {isContractor && (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Contractor Statistics
+            <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Project Summary
           </div>
           <p className={styles.sectionSubtitle}>Project assignments and installation status summary.</p>
 
@@ -356,7 +368,7 @@ export default function ViewUserPage() {
       {isProjectManager && (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Workflow size={22} color="var(--admin-primary, #004d4d)" /> Project Manager Statistics
+            <Workflow size={22} color="var(--admin-primary, #004d4d)" /> Inspection Summary
           </div>
           <p className={styles.sectionSubtitle}>Pending and completed survey inspection summary.</p>
 
@@ -386,7 +398,7 @@ export default function ViewUserPage() {
       {isSalesPerson && (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <Users size={22} color="var(--admin-primary, #004d4d)" /> Sales Person Statistics
+            <Users size={22} color="var(--admin-primary, #004d4d)" /> Leads & Customers Summary
           </div>
           <p className={styles.sectionSubtitle}>Active leads, customers, and lost leads summary.</p>
 
@@ -487,7 +499,7 @@ export default function ViewUserPage() {
         <button
           type="button"
           className={styles.cancelBtn}
-          onClick={() => router.push("/users")}
+          onClick={() => router.push(usersListPath)}
           style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
         >
           <X size={20} /> Close

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import styles from "../../../dashboard.module.css";
 import addStyles from "../../add/user-add.module.css";
@@ -26,6 +26,12 @@ import {
   getSupervisorTargetRole,
   getSupervisorLabel,
 } from "../../user-form-utils";
+import {
+  getUserTabFromRole,
+  getUsersListPath,
+  parseUserTabFromParam,
+  withUserTab,
+} from "../../user-tabs";
 
 interface RoleOption {
   _id: string;
@@ -42,7 +48,9 @@ interface SupervisorOption {
 export default function EditUserPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const tabFromUrl = parseUserTabFromParam(searchParams.get("tab"));
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -127,14 +135,14 @@ export default function EditUserPage() {
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to fetch user details.";
         toast.error(message);
-        router.push("/users");
+        router.push(getUsersListPath(tabFromUrl));
       } finally {
         setFetching(false);
       }
     }
 
     loadUser();
-  }, [id, router]);
+  }, [id, router, tabFromUrl]);
 
   useEffect(() => {
     if (!supervisorTarget) {
@@ -250,6 +258,12 @@ export default function EditUserPage() {
     }
   }
 
+  const returnTab = searchParams.has("tab")
+    ? tabFromUrl
+    : getUserTabFromRole(selectedRoleName);
+  const usersListPath = getUsersListPath(returnTab);
+  const viewUserPath = withUserTab(`/users/view/${id}`, returnTab);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -308,7 +322,7 @@ export default function EditUserPage() {
 
       await adminApi.updateUser(payload);
       toast.success("User profile updated!");
-      router.push(`/users/view/${id}`);
+      router.push(withUserTab(`/users/view/${id}`, returnTab));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update user. Please try again.";
       toast.error(message);
@@ -329,11 +343,11 @@ export default function EditUserPage() {
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/users")}>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push(usersListPath)}>
           USERS
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push(`/users/view/${id}`)}>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push(viewUserPath)}>
           VIEW USER
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
@@ -708,7 +722,7 @@ export default function EditUserPage() {
           <button
             type="button"
             className={styles.cancelBtn}
-            onClick={() => router.push(`/users/view/${id}`)}
+            onClick={() => router.push(usersListPath)}
             disabled={loading}
           >
             <X size={20} /> Cancel

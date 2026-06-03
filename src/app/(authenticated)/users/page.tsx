@@ -18,17 +18,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
-
-const USER_TABS = [
-  "All Users",
-  "Sales Person",
-  "Contractors",
-  "Project Manager",
-  "Sales Manager",
-  "Admin",
-] as const;
-
-type UserTab = (typeof USER_TABS)[number];
+import { USER_TABS, type UserTab, parseUserTabFromParam, withUserTab } from "./user-tabs";
 
 function normalizeRole(role?: string): string {
   return (role || "").toLowerCase().trim();
@@ -97,11 +87,13 @@ export default function UsersPage() {
   const canCreateUsers = hasPermission("User", "create");
   const canEditUsers = hasPermission("User", "edit");
 
-  const tabParam = searchParams.get("tab");
-  const initialTab: UserTab = USER_TABS.includes(tabParam as UserTab)
-    ? (tabParam as UserTab)
-    : "All Users";
-  const [activeTab, setActiveTab] = useState<UserTab>(initialTab);
+  const [activeTab, setActiveTab] = useState<UserTab>(() =>
+    parseUserTabFromParam(searchParams.get("tab"))
+  );
+
+  useEffect(() => {
+    setActiveTab(parseUserTabFromParam(searchParams.get("tab")));
+  }, [searchParams]);
 
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -371,7 +363,9 @@ export default function UsersPage() {
                             cursor: "pointer",
                             textDecoration: "underline",
                           }}
-                          onClick={() => router.push(`/users/view/${user._id}`)}
+                          onClick={() =>
+                            router.push(withUserTab(`/users/view/${user._id}`, activeTab))
+                          }
                         >
                           {user.fullName}
                         </span>
@@ -496,7 +490,9 @@ export default function UsersPage() {
                       {canEditUsers && (
                         <button
                           className={styles.assignBtn}
-                          onClick={() => router.push(`/users/edit/${user._id}`)}
+                          onClick={() =>
+                            router.push(withUserTab(`/users/edit/${user._id}`, activeTab))
+                          }
                         >
                           Edit
                         </button>
