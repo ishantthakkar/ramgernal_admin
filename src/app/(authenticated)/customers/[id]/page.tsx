@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
 import addStyles from "../../leads/add/leads-add.module.css";
-import { Info, Loader2, MapPin, X, XCircle, FileText, Edit2 } from "lucide-react";
+import { Info, Loader2, MapPin, X, XCircle, FileText, Edit2, Calendar } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/dateUtils";
 
@@ -40,6 +40,15 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatActivityUser(activity: Record<string, unknown>): string {
+  const user = activity.user_id;
+  if (user && typeof user === "object") {
+    const record = user as Record<string, unknown>;
+    return String(record.fullName || record.email || "—");
+  }
+  return "—";
+}
+
 function getStatusColor(status: string): string {
   switch (status) {
     case "New":
@@ -65,6 +74,7 @@ export default function CustomerDetailsPage() {
   const id = params.id as string;
 
   const [customer, setCustomer] = useState<Record<string, unknown> | null>(null);
+  const [activities, setActivities] = useState<Record<string, unknown>[]>([]);
   const [leadSourceMap, setLeadSourceMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +89,24 @@ export default function CustomerDetailsPage() {
         ]);
 
         setCustomer((customerRes.customer as Record<string, unknown>) || null);
+
+        const activityList = Array.isArray(customerRes.activities)
+          ? customerRes.activities
+          : [];
+        if (activityList.length > 0) {
+          setActivities(activityList as Record<string, unknown>[]);
+        } else {
+          try {
+            const activitiesRes = await adminApi.getCustomerActivities(id);
+            setActivities(
+              Array.isArray(activitiesRes.activities)
+                ? (activitiesRes.activities as Record<string, unknown>[])
+                : []
+            );
+          } catch {
+            setActivities([]);
+          }
+        }
 
         const map: Record<string, string> = {};
         const sources = sourcesRes.leadSources || [];
@@ -281,6 +309,58 @@ export default function CustomerDetailsPage() {
                         By {formatNoteAuthorLabel(n)}
                       </div>
                       {displayValue(n.note)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <Calendar size={22} color={SECTION_ICON_COLOR} /> Activities
+        </div>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            {activities.length === 0 ? (
+              <div className={addStyles.emptyState}>No activities recorded.</div>
+            ) : (
+              <div className={addStyles.itemGrid}>
+                {activities.map((activity, idx) => (
+                  <div key={(activity._id as string) || idx} className={addStyles.itemCard}>
+                    <div className={addStyles.itemHeader}>
+                      <span className={addStyles.itemTitle}>
+                        {displayValue(activity.activityType) !== "—"
+                          ? String(activity.activityType)
+                          : "Activity"}
+                      </span>
+                      {activity.date || activity.createdAt ? (
+                        <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
+                          {formatDateTime(activity.date || activity.createdAt)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className={addStyles.itemContent}>
+                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
+                        By {formatActivityUser(activity)}
+                      </div>
+                      {displayValue(activity.outcome) !== "—" ? (
+                        <div>
+                          <strong>Outcome:</strong> {displayValue(activity.outcome)}
+                        </div>
+                      ) : null}
+                      {displayValue(activity.notes) !== "—" ? (
+                        <div style={{ marginTop: "0.25rem", whiteSpace: "pre-wrap" }}>
+                          {displayValue(activity.notes)}
+                        </div>
+                      ) : null}
+                      {displayValue(activity.location) !== "—" ? (
+                        <div style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "#64748b" }}>
+                          Location: {displayValue(activity.location)}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))}

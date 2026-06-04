@@ -114,6 +114,10 @@ export const adminApi = {
   getCustomerWorkflowDetails: (id: string) => apiRequest(`/customer/${id}`, {
     method: "GET",
   }),
+  getCustomerActivities: (id: string) =>
+    apiRequest(`/customer/customers/${id}/activities`, {
+      method: "GET",
+    }),
   updateCustomerWorkflow: (id: string, data: Record<string, unknown> | FormData) =>
     apiRequest(`/customer/customers/${id}`, {
       method: "POST",
