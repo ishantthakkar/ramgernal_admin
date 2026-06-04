@@ -24,8 +24,8 @@ import { canViewModule, hasPermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
 import {
   formatQuotationStatusLabel,
-  getGeneratedQuotation,
-  getSignedQuotation,
+  getGeneratedQuotationFromCustomer,
+  getSignedQuotationFromCustomer,
   sanitizePdfUrl,
 } from "@/lib/quotation-utils";
 
@@ -311,9 +311,8 @@ export default function WorkflowPage() {
         }
 
         const normalizedData = customers.map((c: Record<string, unknown>) => {
-          const quotations = (c.quotations as Record<string, unknown>[]) || [];
-          const generated = getGeneratedQuotation(quotations);
-          const signed = getSignedQuotation(quotations);
+          const generated = getGeneratedQuotationFromCustomer(c);
+          const signed = getSignedQuotationFromCustomer(c);
           const customerId = String(c.customerId || "");
           const meta = customerMetaMap.get(customerId);
           const salesPersonFromApi = c.salesPerson as { fullName?: string; _id?: unknown } | undefined;

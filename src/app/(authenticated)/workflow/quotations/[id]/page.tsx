@@ -12,8 +12,8 @@ import { hasPermission } from "@/lib/permissions";
 import {
   formatQuotationCardDate,
   formatQuotationStatusLabel,
-  getGeneratedQuotation,
-  getSignedQuotation,
+  getGeneratedQuotationFromCustomer,
+  getSignedQuotationFromCustomer,
   mapQuotationFile,
   type QuotationFile,
 } from "@/lib/quotation-utils";
@@ -139,13 +139,11 @@ export default function QuotationViewPage() {
         return;
       }
 
-      const quotations = (customer.quotations as Record<string, unknown>[]) || [];
-
       setCustomerName((customer.customerName as string) || "Customer");
       setCompany((customer.company as string) || "—");
       setQuotationStatus((customer.quotationStatus as string) || "pending");
-      setGeneratedFile(mapQuotationFile(getGeneratedQuotation(quotations)));
-      setSignedFile(mapQuotationFile(getSignedQuotation(quotations)));
+      setGeneratedFile(mapQuotationFile(getGeneratedQuotationFromCustomer(customer)));
+      setSignedFile(mapQuotationFile(getSignedQuotationFromCustomer(customer)));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load quotation details.";
       toast.error(message);

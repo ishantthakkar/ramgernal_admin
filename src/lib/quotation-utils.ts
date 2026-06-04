@@ -17,21 +17,54 @@ export function getLatestQuotation(quotations: Record<string, unknown>[]) {
   )[0];
 }
 
+function isGeneratedQuotationItem(item: Record<string, unknown>): boolean {
+  const source = String(item.source || "");
+  if (source === "generated") return true;
+  return Boolean(item.surveyId);
+}
+
+function isSignedQuotationItem(item: Record<string, unknown>): boolean {
+  const source = String(item.source || "");
+  if (source === "uploaded" && !item.surveyId) return true;
+  return false;
+}
+
+export function resolveGenerateQuotationList(
+  customer: Record<string, unknown>
+): Record<string, unknown>[] {
+  if (Array.isArray(customer.generateQuotation)) {
+    return customer.generateQuotation as Record<string, unknown>[];
+  }
+
+  const quotations = (customer.quotations as Record<string, unknown>[]) || [];
+  return quotations.filter(isGeneratedQuotationItem);
+}
+
+export function resolveUploadSignedQuotationList(
+  customer: Record<string, unknown>
+): Record<string, unknown>[] {
+  if (Array.isArray(customer.uploadSignedQuotation)) {
+    return customer.uploadSignedQuotation as Record<string, unknown>[];
+  }
+
+  const quotations = (customer.quotations as Record<string, unknown>[]) || [];
+  return quotations.filter(isSignedQuotationItem);
+}
+
 export function getGeneratedQuotation(quotations: Record<string, unknown>[]) {
-  const generated = (quotations || []).filter((q) => {
-    const source = String(q.source || "");
-    if (source === "generated") return true;
-    return Boolean(q.surveyId);
-  });
-  return getLatestQuotation(generated);
+  return getLatestQuotation((quotations || []).filter(isGeneratedQuotationItem));
 }
 
 export function getSignedQuotation(quotations: Record<string, unknown>[]) {
-  const signed = (quotations || []).filter((q) => {
-    const source = String(q.source || "");
-    return source === "uploaded" && !q.surveyId;
-  });
-  return getLatestQuotation(signed);
+  return getLatestQuotation((quotations || []).filter(isSignedQuotationItem));
+}
+
+export function getGeneratedQuotationFromCustomer(customer: Record<string, unknown>) {
+  return getLatestQuotation(resolveGenerateQuotationList(customer));
+}
+
+export function getSignedQuotationFromCustomer(customer: Record<string, unknown>) {
+  return getLatestQuotation(resolveUploadSignedQuotationList(customer));
 }
 
 export function mapQuotationFile(
