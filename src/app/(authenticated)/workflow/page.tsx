@@ -15,11 +15,36 @@ import {
   User,
   UserPlus,
   X,
+  FileText,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { adminApi } from "@/lib/api";
 import { canViewModule, hasPermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
+
+function sanitizePdfUrl(url: string): string {
+  return url?.replace(/%22$/i, "").replace(/"$/, "").trim() || "";
+}
+
+function getLatestQuotation(quotations: Record<string, unknown>[]) {
+  if (!quotations?.length) return null;
+  return [...quotations].sort(
+    (a, b) =>
+      new Date((b.createdAt as string) || 0).getTime() -
+      new Date((a.createdAt as string) || 0).getTime()
+  )[0];
+}
+
+function formatQuotationDisplayStatus(
+  quotationStatus: string,
+  quotations: Record<string, unknown>[]
+): "Generated" | "Shared" | "Verified" {
+  const status = quotationStatus?.toLowerCase();
+  if (status === "approved") return "Verified";
+  const hasUploaded = (quotations || []).some((q) => q.source === "uploaded");
+  if (hasUploaded) return "Shared";
+  return "Generated";
+}
 
 // Mock data for workflow items
 const MOCK_SURVEYS = [
@@ -171,8 +196,8 @@ export default function WorkflowPage() {
   const canViewInspections = canViewModule("Inspection");
 
   const tabParam = searchParams.get("tab");
-  const validTabs = ["Surveys", "Installations", "Inspections"].filter(t => {
-    if (t === "Surveys") return canViewSurveys;
+  const validTabs = ["Surveys", "Quotations", "Installations", "Inspections"].filter(t => {
+    if (t === "Surveys" || t === "Quotations") return canViewSurveys;
     if (t === "Installations") return canViewInstallations;
     if (t === "Inspections") return canViewInspections;
     return false;
@@ -200,6 +225,7 @@ export default function WorkflowPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [counts, setCounts] = useState({
     Surveys: 0,
+    Quotations: 0,
     installations: 0,
     inspections: 0
   });
@@ -234,6 +260,36 @@ export default function WorkflowPage() {
         }).filter((item: any) => {
           const status = item.surveyStatus?.toLowerCase();
           return status === "completed" || status === "reopened" || status === "reopen" || status === "pending_edit_approval";
+        });
+        setData(normalizedData);
+
+      } else if (activeTab === "Quotations") {
+        const response = await adminApi.getQuotationsAdmin();
+        const customers = response.customers || [];
+
+        const totalQuotations = response.total ?? customers.length;
+        setCounts((prev) => ({ ...prev, Quotations: totalQuotations }));
+
+        const normalizedData = customers.map((c: Record<string, unknown>) => {
+          const quotations = (c.quotations as Record<string, unknown>[]) || [];
+          const latest = getLatestQuotation(quotations);
+          return {
+            _id: c.customerId,
+            accountNumber: c.accountNumber || "—",
+            customerName: c.customerName || "—",
+            company: c.company || "",
+            salesManager:
+              (c.salesManagerName as string) ||
+              (c.salesManager as { fullName?: string })?.fullName ||
+              (c.quotationApprovedByUser as { fullName?: string })?.fullName ||
+              "—",
+            quotationDisplayStatus: formatQuotationDisplayStatus(
+              (c.quotationStatus as string) || "pending",
+              quotations
+            ),
+            pdfUrl: sanitizePdfUrl((latest?.url as string) || ""),
+            pdfName: (latest?.pdfName as string) || (latest?.filename as string) || "Quotation",
+          };
         });
         setData(normalizedData);
 
@@ -293,14 +349,16 @@ export default function WorkflowPage() {
   useEffect(() => {
     const fetchAllCounts = async () => {
       try {
-        const [Surveys, inst, insp] = await Promise.all([
+        const [Surveys, quotations, inst, insp] = await Promise.all([
           adminApi.getCustomers(),
+          adminApi.getQuotationsAdmin(),
           adminApi.getInstallations(),
           adminApi.getInspections()
         ]);
 
         setCounts({
           Surveys: Surveys.count || Surveys.total || (Surveys.customers?.length || 0),
+          Quotations: quotations.total ?? (quotations.customers?.length || 0),
           installations: inst.count || inst.total || (inst.installations?.length || 0),
           inspections: insp.count || insp.total || (insp.customers?.length || 0)
         });
@@ -407,6 +465,10 @@ export default function WorkflowPage() {
       return ["ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Verify", "Actions"];
     }
 
+    if (activeTab === "Quotations") {
+      return ["ID", "Customer", "Sales Manager", "Quotation Status", "PDF", "Actions"];
+    }
+
     if (activeTab === "Installations") {
       return ["S.No", "Customer", "AC Number", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
     }
@@ -450,6 +512,15 @@ export default function WorkflowPage() {
           item.surveyStatus?.toLowerCase().includes(q)
         );
       }
+      if (activeTab === "Quotations") {
+        return (
+          item.accountNumber?.toString().toLowerCase().includes(q) ||
+          item.customerName?.toLowerCase().includes(q) ||
+          item.company?.toLowerCase().includes(q) ||
+          item.salesManager?.toLowerCase().includes(q) ||
+          item.quotationDisplayStatus?.toLowerCase().includes(q)
+        );
+      }
       return (
         item.customerName?.toLowerCase().includes(q) ||
         item.company?.toLowerCase().includes(q) ||
@@ -477,6 +548,18 @@ export default function WorkflowPage() {
     if (status === "reopen" || status === "reopened") return "Reopened";
     if (!status) return "N/A";
     return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+  }
+
+  function getQuotationStatusStyle(status: string) {
+    switch (status) {
+      case "Verified":
+        return { color: "#3b82f6", bg: "#eff6ff" };
+      case "Shared":
+        return { color: "#10b981", bg: "#ecfdf5" };
+      case "Generated":
+      default:
+        return { color: "#8b5cf6", bg: "#f5f3ff" };
+    }
   }
 
   return (
@@ -634,6 +717,57 @@ export default function WorkflowPage() {
                           )}
                         </td>
                       </>
+                    ) : activeTab === "Quotations" ? (
+                      <>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.accountNumber}</td>
+                        <td>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                            <span style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</span>
+                            {item.company ? (
+                              <span style={{ color: "#64748b", fontSize: "0.8rem" }}>{item.company}</span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager}</td>
+                        <td>
+                          <div className={styles.statusCell}>
+                            <span
+                              className={styles.statusDotActive}
+                              style={{
+                                backgroundColor: getQuotationStatusStyle(item.quotationDisplayStatus).color,
+                              }}
+                            />
+                            <span style={{ color: "#1e293b", fontWeight: 600 }}>
+                              {item.quotationDisplayStatus}
+                            </span>
+                          </div>
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {item.pdfUrl ? (
+                            <a
+                              href={item.pdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={workflowStyles.btnPrimary}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.35rem",
+                                textDecoration: "none",
+                              }}
+                              title={item.pdfName}
+                            >
+                              <FileText size={14} />
+                              PDF
+                            </a>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
+                          )}
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
+                        </td>
+                      </>
                     ) : activeTab === "Installations" ? (
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
@@ -777,7 +911,7 @@ export default function WorkflowPage() {
                       </>
                     )}
 
-                    {activeTab !== "Surveys" && (
+                    {activeTab !== "Surveys" && activeTab !== "Quotations" && (
                       <td>
                         {((activeTab === "Installations" && canEditInstallations) ||
                           (activeTab === "Inspections" && canEditInspections)) && (

@@ -140,6 +140,10 @@ export const adminApi = {
   getInspections: () => apiRequest("/customer/customers/inspections", {
     method: "GET",
   }),
+  getQuotationsAdmin: () =>
+    apiRequest("/customer/quotations-admin", {
+      method: "GET",
+    }),
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),
