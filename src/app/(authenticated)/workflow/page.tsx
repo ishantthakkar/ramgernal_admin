@@ -18,32 +18,56 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";
 import { adminApi } from "@/lib/api";
 import { canViewModule, hasPermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
+import {
+  formatQuotationStatusLabel,
+  getGeneratedQuotation,
+  getSignedQuotation,
+  sanitizePdfUrl,
+} from "@/lib/quotation-utils";
 
-function sanitizePdfUrl(url: string): string {
-  return url?.replace(/%22$/i, "").replace(/"$/, "").trim() || "";
+function resolveUserDisplayName(
+  user: { fullName?: string; _id?: unknown } | null | undefined
+): string {
+  if (!user) return "—";
+  const idStr = String(user._id || "");
+  if (idStr === "[object Object]" || !user.fullName) return "—";
+  return user.fullName;
 }
 
-function getLatestQuotation(quotations: Record<string, unknown>[]) {
-  if (!quotations?.length) return null;
-  return [...quotations].sort(
-    (a, b) =>
-      new Date((b.createdAt as string) || 0).getTime() -
-      new Date((a.createdAt as string) || 0).getTime()
-  )[0];
-}
-
-function formatQuotationDisplayStatus(
-  quotationStatus: string,
-  quotations: Record<string, unknown>[]
-): "Generated" | "Shared" | "Verified" {
-  const status = quotationStatus?.toLowerCase();
-  if (status === "approved") return "Verified";
-  const hasUploaded = (quotations || []).some((q) => q.source === "uploaded");
-  if (hasUploaded) return "Shared";
-  return "Generated";
+function QuotationPdfLink({
+  url,
+  label,
+  title,
+}: {
+  url: string;
+  label: string;
+  title?: string;
+}) {
+  if (!url) {
+    return <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>;
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={workflowStyles.btnPrimary}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.35rem",
+        textDecoration: "none",
+      }}
+      title={title || label}
+    >
+      <FileText size={14} />
+      {label}
+    </a>
+  );
 }
 
 // Mock data for workflow items
@@ -232,7 +256,6 @@ export default function WorkflowPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
   const fetchWorkflowData = async () => {
     setLoading(true);
     setData([]);
@@ -264,31 +287,60 @@ export default function WorkflowPage() {
         setData(normalizedData);
 
       } else if (activeTab === "Quotations") {
-        const response = await adminApi.getQuotationsAdmin();
-        const customers = response.customers || [];
+        const [quotationsRes, customersListRes] = await Promise.all([
+          adminApi.getQuotationsAdmin(),
+          adminApi.getCustomers(),
+        ]);
+        const customers = quotationsRes.customers || [];
 
-        const totalQuotations = response.total ?? customers.length;
+        const totalQuotations = quotationsRes.total ?? customers.length;
         setCounts((prev) => ({ ...prev, Quotations: totalQuotations }));
+
+        const customerMetaMap = new Map<
+          string,
+          { leadId: string; salesManagerName: string; salesPersonName: string }
+        >();
+        for (const row of customersListRes.customers || []) {
+          const id = String(row.id || row._id || "");
+          if (!id) continue;
+          customerMetaMap.set(id, {
+            leadId: row.lead_id || "",
+            salesManagerName: row.salesManagerName || "",
+            salesPersonName: row.salesPersonName || "",
+          });
+        }
 
         const normalizedData = customers.map((c: Record<string, unknown>) => {
           const quotations = (c.quotations as Record<string, unknown>[]) || [];
-          const latest = getLatestQuotation(quotations);
+          const generated = getGeneratedQuotation(quotations);
+          const signed = getSignedQuotation(quotations);
+          const customerId = String(c.customerId || "");
+          const meta = customerMetaMap.get(customerId);
+          const salesPersonFromApi = c.salesPerson as { fullName?: string; _id?: unknown } | undefined;
+          const quotationStatus = (c.quotationStatus as string) || "pending";
+
           return {
-            _id: c.customerId,
-            accountNumber: c.accountNumber || "—",
+            _id: customerId,
+            leadId: meta?.leadId || "—",
             customerName: c.customerName || "—",
             company: c.company || "",
             salesManager:
-              (c.salesManagerName as string) ||
-              (c.salesManager as { fullName?: string })?.fullName ||
-              (c.quotationApprovedByUser as { fullName?: string })?.fullName ||
-              "—",
-            quotationDisplayStatus: formatQuotationDisplayStatus(
-              (c.quotationStatus as string) || "pending",
-              quotations
-            ),
-            pdfUrl: sanitizePdfUrl((latest?.url as string) || ""),
-            pdfName: (latest?.pdfName as string) || (latest?.filename as string) || "Quotation",
+              meta?.salesManagerName ||
+              resolveUserDisplayName(
+                c.quotationApprovedByUser as { fullName?: string; _id?: unknown }
+              ),
+            salesPerson:
+              meta?.salesPersonName || resolveUserDisplayName(salesPersonFromApi),
+            generatedPdfUrl: sanitizePdfUrl((generated?.url as string) || ""),
+            generatedPdfName:
+              (generated?.pdfName as string) ||
+              (generated?.filename as string) ||
+              "Generated",
+            signedPdfUrl: sanitizePdfUrl((signed?.url as string) || ""),
+            signedPdfName:
+              (signed?.pdfName as string) || (signed?.filename as string) || "Signed",
+            quotationStatus,
+            statusLabel: formatQuotationStatusLabel(quotationStatus),
           };
         });
         setData(normalizedData);
@@ -466,7 +518,16 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Quotations") {
-      return ["ID", "Customer", "Sales Manager", "Quotation Status", "PDF", "Actions"];
+      return [
+        "ID",
+        "Customer",
+        "Sales Manager",
+        "Sales Person",
+        "Generated",
+        "Signed",
+        "Status",
+        "Actions",
+      ];
     }
 
     if (activeTab === "Installations") {
@@ -514,11 +575,12 @@ export default function WorkflowPage() {
       }
       if (activeTab === "Quotations") {
         return (
-          item.accountNumber?.toString().toLowerCase().includes(q) ||
+          item.leadId?.toString().toLowerCase().includes(q) ||
           item.customerName?.toLowerCase().includes(q) ||
           item.company?.toLowerCase().includes(q) ||
           item.salesManager?.toLowerCase().includes(q) ||
-          item.quotationDisplayStatus?.toLowerCase().includes(q)
+          item.salesPerson?.toLowerCase().includes(q) ||
+          item.statusLabel?.toLowerCase().includes(q)
         );
       }
       return (
@@ -551,14 +613,13 @@ export default function WorkflowPage() {
   }
 
   function getQuotationStatusStyle(status: string) {
-    switch (status) {
-      case "Verified":
+    switch (status?.toLowerCase()) {
+      case "approved":
         return { color: "#3b82f6", bg: "#eff6ff" };
-      case "Shared":
-        return { color: "#10b981", bg: "#ecfdf5" };
-      case "Generated":
+      case "pending":
+        return { color: "#f59e0b", bg: "#fffbeb" };
       default:
-        return { color: "#8b5cf6", bg: "#f5f3ff" };
+        return { color: "#64748b", bg: "#f8fafc" };
     }
   }
 
@@ -719,53 +780,57 @@ export default function WorkflowPage() {
                       </>
                     ) : activeTab === "Quotations" ? (
                       <>
-                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.accountNumber}</td>
-                        <td>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-                            <span style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</span>
-                            {item.company ? (
-                              <span style={{ color: "#64748b", fontSize: "0.8rem" }}>{item.company}</span>
-                            ) : null}
-                          </div>
-                        </td>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <QuotationPdfLink
+                            url={item.generatedPdfUrl}
+                            label="PDF"
+                            title={item.generatedPdfName}
+                          />
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {item.signedPdfUrl ? (
+                            <QuotationPdfLink
+                              url={item.signedPdfUrl}
+                              label="PDF"
+                              title={item.signedPdfName}
+                            />
+                          ) : canCreateSurveys ? (
+                            <SignedQuotationUpload
+                              customerId={item._id}
+                              onUploaded={fetchWorkflowData}
+                              label="Sign"
+                            />
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
+                          )}
+                        </td>
                         <td>
                           <div className={styles.statusCell}>
                             <span
                               className={styles.statusDotActive}
                               style={{
-                                backgroundColor: getQuotationStatusStyle(item.quotationDisplayStatus).color,
+                                backgroundColor: getQuotationStatusStyle(item.quotationStatus).color,
                               }}
                             />
                             <span style={{ color: "#1e293b", fontWeight: 600 }}>
-                              {item.quotationDisplayStatus}
+                              {item.statusLabel}
                             </span>
                           </div>
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
-                          {item.pdfUrl ? (
-                            <a
-                              href={item.pdfUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={workflowStyles.btnPrimary}
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "0.35rem",
-                                textDecoration: "none",
-                              }}
-                              title={item.pdfName}
-                            >
-                              <FileText size={14} />
-                              PDF
-                            </a>
-                          ) : (
-                            <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
-                          )}
-                        </td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
+                          <button
+                            type="button"
+                            className={styles.assignBtn}
+                            onClick={() =>
+                              router.push(`/workflow/quotations/${item._id}?from=Quotations`)
+                            }
+                          >
+                            View
+                          </button>
                         </td>
                       </>
                     ) : activeTab === "Installations" ? (

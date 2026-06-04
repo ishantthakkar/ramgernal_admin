@@ -144,6 +144,11 @@ export const adminApi = {
     apiRequest("/customer/quotations-admin", {
       method: "GET",
     }),
+  uploadQuotation: (customerId: string, formData: FormData) =>
+    apiRequest(`/customer/customers/${customerId}/quotation/upload`, {
+      method: "POST",
+      body: formData,
+    }),
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),
