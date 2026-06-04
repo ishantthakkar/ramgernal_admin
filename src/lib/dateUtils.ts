@@ -54,3 +54,27 @@ export function formatDateTimeWithSeconds(dateInput: any, fallback: string = "")
 
   return `${month}/${day}/${year}, ${hoursStr}:${minutes}:${seconds} ${ampm}`;
 }
+
+const NOTE_META_MONTHS = [
+  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+] as const;
+
+/** e.g. SEP 15, 2026, 3:56 PM — for note list metadata */
+export function formatNoteListDateTime(dateInput: unknown, fallback = ""): string {
+  if (!dateInput) return fallback;
+  const date = new Date(dateInput as string | number | Date);
+  if (isNaN(date.getTime())) return fallback;
+
+  const month = NOTE_META_MONTHS[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+
+  return `${month} ${day}, ${year}, ${hours}:${minutes} ${ampm}`;
+}

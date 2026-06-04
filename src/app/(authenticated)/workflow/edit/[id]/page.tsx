@@ -18,14 +18,17 @@ import {
 import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
-import { formatDate, formatDateTime } from "@/lib/dateUtils";
+import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
 import {
   mapNotes,
+  mapSiteDetailGroups,
   mapSiteDetails,
   mapSurveyDetails,
   type NoteEntry,
   type SiteDetailRow,
+  type SiteDetailSurveyGroup,
 } from "@/lib/workflow-survey-view";
+import detailStyles from "../../workflow-details.module.css";
 import modalStyles from "../../../commissions/commissions-modal.module.css";
 import { hasPermission } from "@/lib/permissions";
 
@@ -67,6 +70,215 @@ function formatSurveyStatusLabel(status: string): string {
   if (status === "reopen" || status === "reopened") return "Reopened";
   if (!status) return "Pending";
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+}
+
+function EditableField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className={styles.formGroup}>
+      <label>{label}</label>
+      <input
+        type={type}
+        className={styles.formInput}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function formatNoteMeta(authorName: string | undefined, timestamp: string | null): string {
+  const parts: string[] = [];
+  if (authorName?.trim()) {
+    parts.push(authorName.trim().toUpperCase());
+  }
+  if (timestamp) {
+    const formatted = formatNoteListDateTime(timestamp);
+    if (formatted) parts.push(formatted);
+  }
+  return parts.join(", ");
+}
+
+function NotesList({ entries }: { entries: NoteEntry[] }) {
+  if (!entries.length) return null;
+
+  return (
+    <div className={detailStyles.notesList}>
+      {entries.map((entry, index) => {
+        const title = (entry.title || (entry.source === "survey" ? "Survey Note" : "Note")).trim();
+        const meta = formatNoteMeta(entry.authorName, entry.timestamp);
+
+        return (
+          <article key={entry.id} className={detailStyles.noteListItem}>
+            <div className={detailStyles.noteListHeader}>
+              <h4 className={detailStyles.noteListTitle}>
+                {index + 1}. {title.toUpperCase()}
+              </h4>
+              {meta ? <span className={detailStyles.noteListMeta}>{meta}</span> : null}
+            </div>
+            <p className={detailStyles.noteListBody}>{entry.text}</p>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function SiteRoomEditCard({
+  row,
+  roomIndex,
+  onFieldChange,
+}: {
+  row: SiteDetailRow;
+  roomIndex: number;
+  onFieldChange: (rowId: string, field: keyof SiteDetailRow, value: string) => void;
+}) {
+  const change = (field: keyof SiteDetailRow) => (value: string) =>
+    onFieldChange(row._id, field, value);
+
+  return (
+    <article className={detailStyles.siteRoomCard}>
+      <div className={styles.formGrid} style={{ marginBottom: "1.25rem" }}>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <EditableField
+            label="Area"
+            value={row.area || ""}
+            onChange={change("area")}
+            placeholder="Room name"
+          />
+        </div>
+      </div>
+      <div className={styles.formGrid}>
+        <EditableField
+          label="Existing Fixture Type"
+          value={row.existingFixtureType || ""}
+          onChange={change("existingFixtureType")}
+        />
+        <EditableField
+          label="Height"
+          value={row.heightInInches || ""}
+          onChange={change("heightInInches")}
+          placeholder={'e.g. 2\'5"'}
+        />
+        <EditableField
+          label="Existing Bulb"
+          value={row.existingBulbs || ""}
+          onChange={change("existingBulbs")}
+        />
+        <EditableField
+          label="Existing Quantity"
+          value={row.existingQuantity || ""}
+          onChange={change("existingQuantity")}
+          type="number"
+        />
+      </div>
+
+      <div className={`${styles.formGroup} ${detailStyles.siteMediaBlock}`}>
+        <label>Images / Videos</label>
+        <div
+          className={styles.formInput}
+          style={{
+            background: "#f8fafc",
+            color: "#94a3b8",
+            fontWeight: 600,
+            border: "1px solid #e2e8f0",
+            minHeight: "2.75rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+          }}
+        >
+          <ImageIcon size={16} />
+          {row.images?.length ? `${row.images.length} image(s) on file` : "No images"}
+        </div>
+      </div>
+
+      <div className={styles.formGrid}>
+        <EditableField
+          label="Proposed Fixture"
+          value={row.proposedFixture || ""}
+          onChange={change("proposedFixture")}
+        />
+        <EditableField
+          label="Proposed Quantity"
+          value={row.proposedQuantity || ""}
+          onChange={change("proposedQuantity")}
+          type="number"
+        />
+        <EditableField
+          label="Price Per Unit"
+          value={row.pricePerUnit === "—" ? "" : row.pricePerUnit || ""}
+          onChange={change("pricePerUnit")}
+        />
+        <EditableField
+          label="Total Price"
+          value={row.totalPrice === "—" ? "" : row.totalPrice || ""}
+          onChange={change("totalPrice")}
+        />
+        <div className={styles.formGroup} style={{ gridColumn: "1 / -1" }}>
+          <label>Note</label>
+          <textarea
+            className={styles.formInput}
+            value={row.note || ""}
+            onChange={(e) => change("note")(e.target.value)}
+            rows={3}
+            style={{ resize: "vertical", minHeight: "5rem" }}
+          />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function SiteDetailsEditCards({
+  groups,
+  onFieldChange,
+}: {
+  groups: SiteDetailSurveyGroup[];
+  onFieldChange: (rowId: string, field: keyof SiteDetailRow, value: string) => void;
+}) {
+  const hasAreas = groups.some((g) => g.areas.length > 0);
+
+  if (!groups.length || !hasAreas) {
+    return <div className={addStyles.emptyState}>No survey records found.</div>;
+  }
+
+  const showSurveyHeaders = groups.length > 1;
+
+  return (
+    <div className={detailStyles.siteDetailsStack}>
+      {groups.map((group) => (
+        <div key={group.surveyId} className={detailStyles.siteSurveyBox}>
+          {showSurveyHeaders && (
+            <div className={detailStyles.siteSurveyBoxHeader}>
+              Survey {group.surveyIndex + 1}
+              {group.surveyDate ? ` · ${formatDate(group.surveyDate)}` : ""}
+            </div>
+          )}
+          {group.areas.map((row, roomIndex) => (
+            <SiteRoomEditCard
+              key={row._id}
+              row={row}
+              roomIndex={roomIndex}
+              onFieldChange={onFieldChange}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function WorkflowEditPage() {
@@ -129,10 +341,25 @@ export default function WorkflowEditPage() {
     return mapNotes(rawSurveyRecords, customer);
   }, [customer, rawSurveyRecords]);
 
+  const siteDetailGroups = useMemo(() => {
+    const groups = mapSiteDetailGroups(rawSurveyRecords);
+    const byId = new Map(siteRows.map((r) => [r._id, r]));
+    return groups.map((g) => ({
+      ...g,
+      areas: g.areas.map((a) => byId.get(a._id) ?? a),
+    }));
+  }, [rawSurveyRecords, siteRows]);
+
   const handleSiteRowChange = (idx: number, field: keyof SiteDetailRow, value: string) => {
     const updated = [...siteRows];
     updated[idx] = { ...updated[idx], [field]: value };
     setSiteRows(updated);
+  };
+
+  const handleSiteRowChangeById = (rowId: string, field: keyof SiteDetailRow, value: string) => {
+    const idx = siteRows.findIndex((r) => r._id === rowId);
+    if (idx === -1) return;
+    handleSiteRowChange(idx, field, value);
   };
 
   const handleAddNote = async () => {
@@ -347,21 +574,7 @@ export default function WorkflowEditPage() {
                 >
                   Verified
                 </span>
-              ) : (
-                <span
-                  style={{
-                    backgroundColor: "#f1f5f9",
-                    color: "#64748b",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "99px",
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Not Verified
-                </span>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -440,220 +653,51 @@ export default function WorkflowEditPage() {
             <div className={styles.sectionTitle}>
               <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
             </div>
-            <p className={styles.sectionSubtitle}>Modify fixtures, quantities, and pricing for surveyed areas.</p>
-
-            <div className={styles.userTableContainer} style={{ marginTop: "0.5rem", overflowX: "auto" }}>
-              <table className={styles.userTable}>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: "120px" }}>Area</th>
-                    <th style={{ minWidth: "80px" }}>Height</th>
-                    <th style={{ minWidth: "150px" }}>Existing Fixture Type</th>
-                    <th style={{ minWidth: "120px" }}>Existing Bulbs</th>
-                    <th style={{ minWidth: "80px" }}>Existing Qty</th>
-                    <th style={{ minWidth: "150px" }}>Proposed Fixture</th>
-                    <th style={{ minWidth: "80px" }}>Proposed Qty</th>
-                    <th style={{ minWidth: "100px" }}>Price / Unit</th>
-                    <th style={{ minWidth: "100px" }}>Total Price</th>
-                    <th style={{ minWidth: "150px" }}>Note</th>
-                    <th style={{ minWidth: "100px" }}>Images</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {siteRows.map((row, index) => (
-                    <tr key={row._id || index}>
-                      <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          value={row.area || ""}
-                          onChange={(e) => handleSiteRowChange(index, "area", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem" }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          value={row.heightInInches || ""}
-                          onChange={(e) => handleSiteRowChange(index, "heightInInches", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem" }}
-                          placeholder="in"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          value={row.existingFixtureType || ""}
-                          onChange={(e) => handleSiteRowChange(index, "existingFixtureType", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem" }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          value={row.existingBulbs || ""}
-                          onChange={(e) => handleSiteRowChange(index, "existingBulbs", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem" }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          className={styles.formInput}
-                          value={row.existingQuantity || ""}
-                          onChange={(e) => handleSiteRowChange(index, "existingQuantity", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem" }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          value={row.proposedFixture || ""}
-                          onChange={(e) => handleSiteRowChange(index, "proposedFixture", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem", fontWeight: 600 }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          className={styles.formInput}
-                          value={row.proposedQuantity || ""}
-                          onChange={(e) => handleSiteRowChange(index, "proposedQuantity", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem" }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          value={row.pricePerUnit || ""}
-                          onChange={(e) => handleSiteRowChange(index, "pricePerUnit", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem" }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className={styles.formInput}
-                          value={row.totalPrice || ""}
-                          onChange={(e) => handleSiteRowChange(index, "totalPrice", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.85rem", fontWeight: 700 }}
-                        />
-                      </td>
-                      <td>
-                        <textarea
-                          className={styles.formInput}
-                          value={row.note || ""}
-                          onChange={(e) => handleSiteRowChange(index, "note", e.target.value)}
-                          style={{ padding: "0.4rem", fontSize: "0.8rem", height: "35px", resize: "none" }}
-                        />
-                      </td>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600 }}>
-                          <ImageIcon size={14} /> {row.images?.length || 0}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {siteRows.length === 0 && (
-                    <tr>
-                      <td colSpan={11} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontWeight: 600 }}>
-                        No survey records found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <p className={styles.sectionSubtitle}>
+              Surveyed areas, fixtures, quantities, and pricing.
+            </p>
+            <SiteDetailsEditCards
+              groups={siteDetailGroups}
+              onFieldChange={handleSiteRowChangeById}
+            />
           </section>
 
           <section className={styles.formSection}>
-            <div className={styles.sectionTitle}>
-              <FileText size={22} color="var(--admin-primary, #004d4d)" /> Notes
+            <div className={detailStyles.notesSectionTitle}>
+              <span className={detailStyles.notesSectionIcon} aria-hidden>
+                <FileText size={22} color="#ea580c" strokeWidth={2} />
+              </span>
+              Notes
             </div>
 
-            <div className={styles.formGrid}>
-              <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-                {noteEntries.length > 0 && (
-                  <div
-                    style={{
-                      marginBottom: "1rem",
-                      padding: "1rem",
-                      background: "#f8fafc",
-                      borderRadius: 12,
-                      border: "1px solid #e2e8f0",
-                    }}
-                  >
-                    <label
-                      style={{
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        color: "#94a3b8",
-                        marginBottom: "0.75rem",
-                        display: "block",
-                      }}
-                    >
-                      PAST NOTES
-                    </label>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                      {noteEntries.map((entry, index) => (
-                        <div
-                          key={entry.id}
-                          style={{
-                            paddingBottom: index !== noteEntries.length - 1 ? "0.75rem" : "0",
-                            borderBottom:
-                              index !== noteEntries.length - 1 ? "1px solid #f1f5f9" : "none",
-                          }}
-                        >
-                          <div
-                            style={{
-                              color: "#64748b",
-                              fontSize: "0.7rem",
-                              marginBottom: "0.25rem",
-                              display: "flex",
-                              justifyContent: "space-between",
-                              gap: "0.5rem",
-                            }}
-                          >
-                            <span>
-                              {entry.title || (entry.source === "survey" ? "Survey" : "Customer")}
-                            </span>
-                            <span>{entry.timestamp ? formatDateTime(entry.timestamp) : ""}</span>
-                          </div>
-                          <div style={{ color: "#475569", fontSize: "0.85rem", fontWeight: 500, whiteSpace: "pre-wrap" }}>
-                            {entry.text}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            {noteEntries.length === 0 ? (
+              <div className={addStyles.emptyState}>No notes on file.</div>
+            ) : (
+              <NotesList entries={noteEntries} />
+            )}
 
-                <label>New note</label>
-                <textarea
-                  className={styles.formInput}
-                  value={newNoteText}
-                  onChange={(e) => setNewNoteText(e.target.value)}
-                  placeholder="Enter note text..."
-                  rows={4}
-                  style={{ width: "100%", resize: "vertical", minHeight: "100px" }}
-                />
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.75rem" }}>
-                  <button
-                    type="button"
-                    className={addStyles.modalSaveBtn}
-                    onClick={handleAddNote}
-                    disabled={addingNote || !newNoteText.trim()}
-                    style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
-                  >
-                    {addingNote ? <Loader2 size={16} className={styles.spinner} /> : <Plus size={16} />}
-                    {addingNote ? "Adding..." : "Add Note"}
-                  </button>
-                </div>
+            <div className={detailStyles.notesAddBlock}>
+              <label htmlFor="workflow-new-note">New note</label>
+              <textarea
+                id="workflow-new-note"
+                className={styles.formInput}
+                value={newNoteText}
+                onChange={(e) => setNewNoteText(e.target.value)}
+                placeholder="Enter note text..."
+                rows={4}
+                style={{ width: "100%", resize: "vertical", minHeight: "100px" }}
+              />
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.75rem" }}>
+                <button
+                  type="button"
+                  className={addStyles.modalSaveBtn}
+                  onClick={handleAddNote}
+                  disabled={addingNote || !newNoteText.trim()}
+                  style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
+                >
+                  {addingNote ? <Loader2 size={16} className={styles.spinner} /> : <Plus size={16} />}
+                  {addingNote ? "Adding..." : "Add Note"}
+                </button>
               </div>
             </div>
           </section>

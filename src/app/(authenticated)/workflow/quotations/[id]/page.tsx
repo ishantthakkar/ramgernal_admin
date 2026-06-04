@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
-import modalStyles from "../../view/[id]/workflow-details.module.css";
+import modalStyles from "../../workflow-details.module.css";
 import docStyles from "../quotations-view.module.css";
 import addStyles from "../../../leads/add/leads-add.module.css";
 import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";

@@ -469,24 +469,6 @@ export default function WorkflowPage() {
     }
   };
 
-  const handleVerify = async (record: any) => {
-    if (!window.confirm(`Are you sure you want to verify the survey for ${record.leadName || record.customerName}?`)) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const response = await adminApi.verifyCustomerSurvey(record._id);
-      toast.success(response.message || "Survey verified successfully!");
-      fetchWorkflowData();
-    } catch (err: any) {
-      console.error("Verification error:", err);
-      toast.error(err.message || "Failed to verify survey.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAdminApproval = async (record: any, status: "Approved" | "Rejected") => {
     if (!window.confirm(`Are you sure you want to ${status.toLowerCase()} the survey edits for ${record.leadName || record.customerName}?`)) {
       return;
@@ -751,16 +733,8 @@ export default function WorkflowPage() {
                             </div>
                           ) : item.verifyStatus === "verified" ? (
                             <span className={workflowStyles.verifiedLabel}>Verified</span>
-                          ) : canCreateSurveys ? (
-                            <button
-                              type="button"
-                              className={workflowStyles.btnPrimary}
-                              onClick={() => handleVerify(item)}
-                            >
-                              Verify
-                            </button>
                           ) : (
-                            <span className={workflowStyles.pendingLabel}>Pending</span>
+                            <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
                           )}
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>

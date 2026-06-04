@@ -3,30 +3,31 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
-import modalStyles from "./workflow-details.module.css";
+import modalStyles from "../../workflow-details.module.css";
 import {
   Loader2,
   X,
   ClipboardCheck,
   Image as ImageIcon,
   Download,
-  Eye,
   FileText,
   Hammer,
   Edit2,
   Info,
+  CheckCircle2,
 } from "lucide-react";
 import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
-import { formatDate, formatDateTime } from "@/lib/dateUtils";
+import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
 import {
   mapNotes,
-  mapSiteDetails,
+  mapSiteDetailGroups,
   mapSurveyDetails,
   type NoteEntry,
   type SiteDetailRow,
+  type SiteDetailSurveyGroup,
 } from "@/lib/workflow-survey-view";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
@@ -70,93 +71,165 @@ function formatSurveyStatusLabel(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
 }
 
-function SiteDetailsTable({
-  rows,
+function formatPriceDisplay(value: string): string {
+  if (!value || value === "—") return "—";
+  return `${value} $`;
+}
+
+function SiteRoomCard({
+  row,
+  roomIndex,
   onViewImages,
 }: {
-  rows: SiteDetailRow[];
+  row: SiteDetailRow;
+  roomIndex: number;
   onViewImages: (images: string[], area: string) => void;
 }) {
-  if (!rows.length) {
-    return <div className={addStyles.emptyState}>No site survey details found.</div>;
+  const previewImages = row.images.slice(0, 4);
+  const hasMoreImages = row.images.length > previewImages.length;
+
+  const roomLabel = row.area?.trim() ? row.area : `Room ${roomIndex + 1}`;
+
+  return (
+    <article className={modalStyles.siteRoomCard}>
+      <h4 className={modalStyles.siteRoomTitle}>{roomLabel}</h4>
+      <div className={styles.formGrid}>
+        <ReadOnlyField label="Existing Fixture Type" value={row.existingFixtureType} />
+        <ReadOnlyField label="Height" value={row.heightInInches} />
+        <ReadOnlyField label="Existing Bulb" value={row.existingBulbs} />
+        <ReadOnlyField label="Existing Quantity" value={row.existingQuantity} />
+      </div>
+
+      <div className={`${styles.formGroup} ${modalStyles.siteMediaBlock}`}>
+        <label>Images / Videos</label>
+        {row.images.length > 0 ? (
+          <div className={modalStyles.siteMediaGrid}>
+            {previewImages.map((img, idx) => (
+              <button
+                key={`${row._id}-img-${idx}`}
+                type="button"
+                className={modalStyles.siteMediaThumb}
+                onClick={() => onViewImages(row.images, row.area)}
+                title="View all images"
+              >
+                <img src={img} alt={`${row.area} ${idx + 1}`} />
+              </button>
+            ))}
+            {hasMoreImages && (
+              <button
+                type="button"
+                className={modalStyles.siteMediaMore}
+                onClick={() => onViewImages(row.images, row.area)}
+              >
+                +{row.images.length - previewImages.length}
+              </button>
+            )}
+          </div>
+        ) : (
+          <div
+            className={styles.formInput}
+            style={{
+              background: "#f8fafc",
+              color: "#94a3b8",
+              fontWeight: 600,
+              border: "1px solid #e2e8f0",
+              minHeight: "2.75rem",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            No images
+          </div>
+        )}
+      </div>
+
+      <div className={styles.formGrid}>
+        <ReadOnlyField label="Proposed Fixture" value={row.proposedFixture} />
+        <ReadOnlyField label="Proposed Quantity" value={row.proposedQuantity} />
+        <ReadOnlyField label="Price Per Unit" value={formatPriceDisplay(row.pricePerUnit)} />
+        <ReadOnlyField label="Total Price" value={formatPriceDisplay(row.totalPrice)} />
+        <div style={{ gridColumn: "1 / -1" }}>
+          <ReadOnlyField label="Note" value={row.note} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function formatNoteMeta(authorName: string | undefined, timestamp: string | null): string {
+  const parts: string[] = [];
+  if (authorName?.trim()) {
+    parts.push(authorName.trim().toUpperCase());
+  }
+  if (timestamp) {
+    const formatted = formatNoteListDateTime(timestamp);
+    if (formatted) parts.push(formatted);
+  }
+  return parts.join(", ");
+}
+
+function NotesList({ entries }: { entries: NoteEntry[] }) {
+  if (!entries.length) {
+    return <div className={addStyles.emptyState}>No notes on file.</div>;
   }
 
   return (
-    <div className={styles.userTableContainer} style={{ marginTop: "0.5rem", overflowX: "auto" }}>
-      <table className={styles.userTable}>
-        <thead>
-          <tr>
-            <th style={{ minWidth: "140px" }}>Area</th>
-            <th>Height</th>
-            <th>Existing Fixture Type</th>
-            <th>Existing Bulbs</th>
-            <th>Existing Qty</th>
-            <th>Proposed Fixture</th>
-            <th>Proposed Qty</th>
-            <th>Price / Unit</th>
-            <th>Total Price</th>
-            <th>Note</th>
-            <th>Images</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row._id}>
-              <td style={{ fontWeight: 600, color: "#1e293b" }}>{row.area}</td>
-              <td style={{ color: "#64748b" }}>{row.heightInInches}</td>
-              <td style={{ color: "#64748b" }}>{row.existingFixtureType}</td>
-              <td style={{ color: "#64748b" }}>{row.existingBulbs}</td>
-              <td style={{ color: "#64748b", fontWeight: 600 }}>{row.existingQuantity}</td>
-              <td style={{ color: "var(--admin-primary, #004d4d)", fontWeight: 600 }}>{row.proposedFixture}</td>
-              <td style={{ color: "#1e293b", fontWeight: 700 }}>{row.proposedQuantity}</td>
-              <td style={{ color: "#64748b" }}>
-                {row.pricePerUnit !== "—" ? `$${row.pricePerUnit}` : "—"}
-              </td>
-              <td style={{ fontWeight: 700, color: "#1e293b" }}>
-                {row.totalPrice !== "—" ? `$${row.totalPrice}` : "—"}
-              </td>
-              <td
-                style={{
-                  maxWidth: "200px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: "#64748b",
-                  fontSize: "0.8rem",
-                }}
-                title={row.note}
-              >
-                {row.note || "—"}
-              </td>
-              <td>
-                {row.images.length > 0 ? (
-                  <button
-                    type="button"
-                    className={modalStyles.viewImgBtn}
-                    onClick={() => onViewImages(row.images, row.area)}
-                  >
-                    <Eye size={14} /> View
-                    <span style={{ opacity: 0.7, fontWeight: 500 }}>({row.images.length})</span>
-                  </button>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.4rem",
-                      color: "#94a3b8",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    <ImageIcon size={14} /> None
-                  </div>
-                )}
-              </td>
-            </tr>
+    <div className={modalStyles.notesList}>
+      {entries.map((entry, index) => {
+        const title = (entry.title || (entry.source === "survey" ? "Survey Note" : "Note")).trim();
+        const meta = formatNoteMeta(entry.authorName, entry.timestamp);
+
+        return (
+          <article key={entry.id} className={modalStyles.noteListItem}>
+            <div className={modalStyles.noteListHeader}>
+              <h4 className={modalStyles.noteListTitle}>
+                {index + 1}. {title.toUpperCase()}
+              </h4>
+              {meta ? <span className={modalStyles.noteListMeta}>{meta}</span> : null}
+            </div>
+            <p className={modalStyles.noteListBody}>{entry.text}</p>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function SiteDetailsCards({
+  groups,
+  onViewImages,
+}: {
+  groups: SiteDetailSurveyGroup[];
+  onViewImages: (images: string[], area: string) => void;
+}) {
+  const hasAreas = groups.some((g) => g.areas.length > 0);
+
+  if (!groups.length || !hasAreas) {
+    return <div className={addStyles.emptyState}>No site survey details found.</div>;
+  }
+
+  const showSurveyHeaders = groups.length > 1;
+
+  return (
+    <div className={modalStyles.siteDetailsStack}>
+      {groups.map((group) => (
+        <div key={group.surveyId} className={modalStyles.siteSurveyBox}>
+          {showSurveyHeaders && (
+            <div className={modalStyles.siteSurveyBoxHeader}>
+              Survey {group.surveyIndex + 1}
+              {group.surveyDate ? ` · ${formatDate(group.surveyDate)}` : ""}
+            </div>
+          )}
+          {group.areas.map((row, roomIndex) => (
+            <SiteRoomCard
+              key={row._id}
+              row={row}
+              roomIndex={roomIndex}
+              onViewImages={onViewImages}
+            />
           ))}
-        </tbody>
-      </table>
+        </div>
+      ))}
     </div>
   );
 }
@@ -165,14 +238,14 @@ function SurveyViewSections({
   surveyName,
   salesPerson,
   surveyDate,
-  siteDetails,
+  siteDetailGroups,
   noteEntries,
   onViewImages,
 }: {
   surveyName: string;
   salesPerson: string;
   surveyDate: string | null;
-  siteDetails: SiteDetailRow[];
+  siteDetailGroups: SiteDetailSurveyGroup[];
   noteEntries: NoteEntry[];
   onViewImages: (images: string[], area: string) => void;
 }) {
@@ -197,42 +270,19 @@ function SurveyViewSections({
           <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
         </div>
         <p className={styles.sectionSubtitle}>
-          All surveyed areas, fixtures, quantities, and pricing.
+          Surveyed areas, fixtures, quantities, and pricing.
         </p>
-        <SiteDetailsTable rows={siteDetails} onViewImages={onViewImages} />
+        <SiteDetailsCards groups={siteDetailGroups} onViewImages={onViewImages} />
       </section>
 
       <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <FileText size={22} color="var(--admin-primary, #004d4d)" /> Notes
+        <div className={modalStyles.notesSectionTitle}>
+          <span className={modalStyles.notesSectionIcon} aria-hidden>
+            <FileText size={22} color="#ea580c" strokeWidth={2} />
+          </span>
+          Notes
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {noteEntries.length === 0 ? (
-              <div className={addStyles.emptyState}>No notes on file.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
-                {noteEntries.map((entry) => (
-                  <div key={entry.id} className={addStyles.itemCard}>
-                    <div className={addStyles.itemHeader}>
-                      <span className={addStyles.itemTitle}>
-                        {entry.title || (entry.source === "survey" ? "Survey" : "Customer")}
-                      </span>
-                      {entry.timestamp && (
-                        <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
-                          {formatDateTime(entry.timestamp)}
-                        </span>
-                      )}
-                    </div>
-                    <div className={addStyles.itemContent} style={{ whiteSpace: "pre-wrap" }}>
-                      {entry.text}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <NotesList entries={noteEntries} />
       </section>
     </>
   );
@@ -247,6 +297,7 @@ export default function WorkflowViewPage() {
   const fromTab = searchParams.get("from");
 
   const [loading, setLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
   const [data, setData] = useState<any>(null);
   const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
   const [activeArea, setActiveArea] = useState<string>("");
@@ -283,7 +334,10 @@ export default function WorkflowViewPage() {
     return mapSurveyDetails(data.customer, surveyRecords);
   }, [data, surveyRecords]);
 
-  const siteDetails = useMemo(() => mapSiteDetails(surveyRecords), [surveyRecords]);
+  const siteDetailGroups = useMemo(
+    () => mapSiteDetailGroups(surveyRecords),
+    [surveyRecords]
+  );
 
   const noteEntries = useMemo(() => {
     if (!data?.customer) return [];
@@ -293,6 +347,26 @@ export default function WorkflowViewPage() {
   const handleViewImages = (images: string[], area: string) => {
     setSelectedImages(images);
     setActiveArea(area);
+  };
+
+  const handleVerify = async () => {
+    const name = surveyDetails.surveyName !== "N/A" ? surveyDetails.surveyName : "this survey";
+    if (!window.confirm(`Are you sure you want to verify the survey for ${name}?`)) {
+      return;
+    }
+
+    try {
+      setVerifying(true);
+      const response = await adminApi.verifyCustomerSurvey(id);
+      toast.success(response.message || "Survey verified successfully!");
+      const result = await adminApi.getCustomerWorkflowDetails(id);
+      setData(result);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to verify survey.";
+      toast.error(message);
+    } finally {
+      setVerifying(false);
+    }
   };
 
   if (loading) {
@@ -308,6 +382,7 @@ export default function WorkflowViewPage() {
   const { customer } = data;
   const isContractorAssigned = !!(customer.assignToContractor || customer.contractorName || customer.contractor);
   const canEditSurveys = hasPermission("Surveys", "edit");
+  const canVerifySurveys = hasPermission("Surveys", "create");
   const workflowTab = fromTab || (isSurveyView ? "Surveys" : "Installations");
   const backUrl = `/workflow?tab=${workflowTab}`;
   const surveyStatus = customer.status || "Pending";
@@ -361,34 +436,40 @@ export default function WorkflowViewPage() {
                 >
                   Verified
                 </span>
-              ) : (
-                <span
-                  style={{
-                    backgroundColor: "#f1f5f9",
-                    color: "#64748b",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "99px",
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Not Verified
-                </span>
-              )}
+              ) : null}
             </div>
           )}
         </div>
 
-        {isSurveyView && canEditSurveys && (
-          <button
-            type="button"
-            className={styles.addBtn}
-            onClick={() => router.push(`/workflow/edit/${id}?from=Surveys`)}
-          >
-            <Edit2 size={20} /> Edit
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          {isSurveyView &&
+            customer.verifyStatus !== "verified" &&
+            canVerifySurveys && (
+              <button
+                type="button"
+                className={styles.createBtn}
+                onClick={handleVerify}
+                disabled={verifying}
+                style={{ background: "#10b981" }}
+              >
+                {verifying ? (
+                  <Loader2 size={18} className={styles.spinner} />
+                ) : (
+                  <CheckCircle2 size={18} />
+                )}
+                {verifying ? "Verifying..." : "Verify Survey"}
+              </button>
+            )}
+          {isSurveyView && canEditSurveys && (
+            <button
+              type="button"
+              className={styles.addBtn}
+              onClick={() => router.push(`/workflow/edit/${id}?from=Surveys`)}
+            >
+              <Edit2 size={20} /> Edit
+            </button>
+          )}
+        </div>
       </div>
 
       {!isSurveyView && (
@@ -434,7 +515,7 @@ export default function WorkflowViewPage() {
           surveyName={surveyDetails.surveyName}
           salesPerson={surveyDetails.salesPerson}
           surveyDate={surveyDetails.surveyDate}
-          siteDetails={siteDetails}
+          siteDetailGroups={siteDetailGroups}
           noteEntries={noteEntries}
           onViewImages={handleViewImages}
         />

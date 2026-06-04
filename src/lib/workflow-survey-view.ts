@@ -42,6 +42,7 @@ export interface NoteEntry {
   timestamp: string | null;
   source: "survey" | "customer";
   title?: string;
+  authorName?: string;
 }
 
 interface SurveyRecord {
@@ -105,14 +106,12 @@ export function mapSurveyDetails(
   };
 }
 
-export function mapSiteDetails(surveys: SurveyRecord[]): SiteDetailRow[] {
-  const rows: SiteDetailRow[] = [];
+function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
+  const areas = survey.areas || [];
 
-  for (const survey of surveys) {
-    const areas = survey.areas || [];
-
-    if (!areas.length) {
-      rows.push({
+  if (!areas.length) {
+    return [
+      {
         _id: `${survey._id}-0`,
         area: survey.areaName || "General",
         heightInInches: "N/A",
@@ -125,51 +124,87 @@ export function mapSiteDetails(surveys: SurveyRecord[]): SiteDetailRow[] {
         totalPrice: "—",
         note: survey.note || survey.notes || "",
         images: [],
-      });
-      continue;
-    }
-
-    areas.forEach((area, index) => {
-      const qty = parseFloat(area.proposedQty || "0") || 0;
-      const unitPrice =
-        parseFloat(area.price || "0") ||
-        Number(area.product?.salesPrice) ||
-        Number(area.product?.price) ||
-        0;
-      const total = qty * unitPrice;
-
-      rows.push({
-        _id: `${survey._id}-${index}`,
-        area: resolveAreaName(survey, area, index),
-        heightInInches: formatHeight(area) || "N/A",
-        existingFixtureType: area.existingFixtureType || "N/A",
-        existingBulbs: area.existingBulbs || "N/A",
-        existingQuantity: area.existingQty ?? "0",
-        proposedFixture:
-          area.product?.name || area.existingFixtureType || "N/A",
-        proposedQuantity: area.proposedQty ?? "0",
-        pricePerUnit: formatMoney(unitPrice),
-        totalPrice: formatMoney(total),
-        note: area.note || "",
-        images: toImageUrls(area.images),
-      });
-    });
+      },
+    ];
   }
 
-  return rows;
+  return areas.map((area, index) => {
+    const qty = parseFloat(area.proposedQty || "0") || 0;
+    const unitPrice =
+      parseFloat(area.price || "0") ||
+      Number(area.product?.salesPrice) ||
+      Number(area.product?.price) ||
+      0;
+    const total = qty * unitPrice;
+
+    return {
+      _id: `${survey._id}-${index}`,
+      area: resolveAreaName(survey, area, index),
+      heightInInches: formatHeight(area) || "N/A",
+      existingFixtureType: area.existingFixtureType || "N/A",
+      existingBulbs: area.existingBulbs || "N/A",
+      existingQuantity: area.existingQty ?? "0",
+      proposedFixture: area.product?.name || area.existingFixtureType || "N/A",
+      proposedQuantity: area.proposedQty ?? "0",
+      pricePerUnit: formatMoney(unitPrice),
+      totalPrice: formatMoney(total),
+      note: area.note || "",
+      images: toImageUrls(area.images),
+    };
+  });
+}
+
+export interface SiteDetailSurveyGroup {
+  surveyId: string;
+  surveyIndex: number;
+  surveyDate: string | null;
+  areas: SiteDetailRow[];
+}
+
+export function mapSiteDetailGroups(surveys: SurveyRecord[]): SiteDetailSurveyGroup[] {
+  return surveys.map((survey, surveyIndex) => ({
+    surveyId: survey._id,
+    surveyIndex,
+    surveyDate: survey.surveyDate || survey.createdAt || null,
+    areas: mapSurveyAreas(survey),
+  }));
+}
+
+export function mapSiteDetails(surveys: SurveyRecord[]): SiteDetailRow[] {
+  return surveys.flatMap((survey) => mapSurveyAreas(survey));
 }
 
 function surveyNoteTimestamp(survey: SurveyRecord): string | null {
   return survey.updatedAt || survey.surveyDate || survey.createdAt || null;
 }
 
+function resolveDefaultAuthor(customer: {
+  user_id?: { fullName?: string; name?: string };
+}): string {
+  return (
+    customer.user_id?.fullName?.trim() ||
+    customer.user_id?.name?.trim() ||
+    ""
+  );
+}
+
 /** Survey-level + customer notes with timestamps for display. */
 export function mapNotes(
   surveys: SurveyRecord[],
-  customer: { notes?: { _id?: string; note?: string; title?: string; createdAt?: string }[] }
+  customer: {
+    notes?: {
+      _id?: string;
+      note?: string;
+      title?: string;
+      createdAt?: string;
+      writtenByName?: string;
+    }[];
+    user_id?: { fullName?: string; name?: string };
+  }
 ): NoteEntry[] {
   const entries: NoteEntry[] = [];
   const seen = new Set<string>();
+  const defaultAuthor = resolveDefaultAuthor(customer);
 
   const add = (entry: NoteEntry) => {
     const key = `${entry.source}:${entry.text}:${entry.timestamp || ""}`;
@@ -187,6 +222,7 @@ export function mapNotes(
         timestamp: ts,
         source: "survey",
         title: "Survey Notes",
+        authorName: defaultAuthor || undefined,
       });
     }
     if (survey.note?.trim() && survey.note.trim() !== survey.notes?.trim()) {
@@ -196,18 +232,22 @@ export function mapNotes(
         timestamp: ts,
         source: "survey",
         title: "Survey Note",
+        authorName: defaultAuthor || undefined,
       });
     }
   }
 
   for (const entry of customer.notes || []) {
     if (!entry.note?.trim()) continue;
+    const author =
+      entry.writtenByName?.trim() || defaultAuthor || undefined;
     add({
       id: entry._id || `customer-${entry.createdAt || entries.length}`,
       text: entry.note.trim(),
       timestamp: entry.createdAt || null,
       source: "customer",
       title: entry.title?.trim() || "Customer Note",
+      authorName: author,
     });
   }
 
