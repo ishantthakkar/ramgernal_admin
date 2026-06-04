@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styles from "../dashboard.module.css";
+import workflowStyles from "./workflow.module.css";
 import {
-  Plus,
   ClipboardCheck,
   Hammer,
-  Search as SearchIcon,
-  Filter,
+  ClipboardList,
   ChevronLeft,
   ChevronRight,
   Search,
   Loader2,
-  Calendar,
   User,
-  MapPin,
   UserPlus,
-  X
+  X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { adminApi } from "@/lib/api";
@@ -200,7 +197,6 @@ export default function WorkflowPage() {
   const [assignType, setAssignType] = useState<"Contractor" | "Project Manager">("Contractor");
   const [targetRecord, setTargetRecord] = useState<any>(null);
   const [availableStaff, setAvailableStaff] = useState<any[]>([]);
-  const [projectManagers, setProjectManagers] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [counts, setCounts] = useState({
     Surveys: 0,
@@ -208,33 +204,34 @@ export default function WorkflowPage() {
     inspections: 0
   });
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchWorkflowData = async () => {
     setLoading(true);
     setData([]);
     try {
       if (activeTab === "Surveys") {
-        const pmResponse = await adminApi.getUserList(); // Fetch all users to be safe
-        const pmList = pmResponse.users || pmResponse.data || pmResponse;
-        setProjectManagers(Array.isArray(pmList) ? pmList : []);
-
         const response = await adminApi.getCustomers();
         const customers = response.customers || response.data || [];
 
         const totalSurveys = response.count || response.total || customers.length;
         setCounts(prev => ({ ...prev, Surveys: totalSurveys }));
 
-        const normalizedData = customers.map((c: any) => ({
-          _id: c.id,
-          customerName: c.name,
-          company: c.company,
-          salesperson: c.salesPersonName || "Unassigned",
-          projectManager: (typeof c.assignedTo === 'object' && c.assignedTo !== null) ? (c.assignedTo._id || c.assignedTo.id) : (c.assignedTo || c.projectManager || ""),
-          pmName: (typeof c.assignedTo === 'object' && c.assignedTo !== null ? c.assignedTo.fullName : null) || (typeof c.projectManager === 'object' && c.projectManager !== null ? c.projectManager.fullName : null),
-          surveyStatus: c.status || "Pending",
-          verifyStatus: c.verifyStatus || "pending",
-          date: c.convertedDate || c.createdDate
-        })).filter((item: any) => {
+        const normalizedData = customers.map((c: any) => {
+          const lead = typeof c.leadId === "object" && c.leadId !== null ? c.leadId : null;
+          return {
+            _id: c.id || c._id,
+            leadId: c.lead_id || lead?.lead_id || "",
+            leadName: c.leadName || lead?.leadName || lead?.name || c.name || "",
+            dba: c.dba || lead?.dba || "",
+            salesPerson: c.salesPersonName || "Unassigned",
+            salesManager: c.salesManagerName || "",
+            surveyStatus: c.status || "Pending",
+            verifyStatus: c.verifyStatus || "pending",
+            date: c.convertedDate || c.createdDate,
+          };
+        }).filter((item: any) => {
           const status = item.surveyStatus?.toLowerCase();
           return status === "completed" || status === "reopened" || status === "reopen" || status === "pending_edit_approval";
         });
@@ -288,6 +285,10 @@ export default function WorkflowPage() {
   useEffect(() => {
     fetchWorkflowData();
   }, [activeTab]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
 
   useEffect(() => {
     const fetchAllCounts = async () => {
@@ -360,7 +361,7 @@ export default function WorkflowPage() {
   };
 
   const handleVerify = async (record: any) => {
-    if (!window.confirm(`Are you sure you want to verify the survey for ${record.customerName}?`)) {
+    if (!window.confirm(`Are you sure you want to verify the survey for ${record.leadName || record.customerName}?`)) {
       return;
     }
 
@@ -378,7 +379,7 @@ export default function WorkflowPage() {
   };
 
   const handleAdminApproval = async (record: any, status: "Approved" | "Rejected") => {
-    if (!window.confirm(`Are you sure you want to ${status.toLowerCase()} the survey edits for ${record.customerName}?`)) {
+    if (!window.confirm(`Are you sure you want to ${status.toLowerCase()} the survey edits for ${record.leadName || record.customerName}?`)) {
       return;
     }
 
@@ -396,25 +397,27 @@ export default function WorkflowPage() {
   };
 
   const summaryStats = [
-    { label: "Total Surveys", value: counts.Surveys.toLocaleString(), icon: ClipboardCheck, color: "#0076ce", bg: "#e0e7ff" },
+    { label: "Total Surveys", value: counts.Surveys.toLocaleString(), icon: ClipboardCheck, color: "#3b6fd9", bg: "#e8f0fe" },
     { label: "Total Installations", value: counts.installations.toLocaleString(), icon: Hammer, color: "#475569", bg: "#f1f5f9" },
-    { label: "Total Inspections", value: counts.inspections.toLocaleString(), icon: SearchIcon, color: "#854d0e", bg: "#fef3c7" },
+    { label: "Total Inspections", value: counts.inspections.toLocaleString(), icon: ClipboardList, color: "#0d9488", bg: "#ccfbf1" },
   ];
 
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["S.No", "name", "COMPANY", "SALES PERSON", "PROJECT MANAGER", "SURVEY STATUS", "VERIFY / APPROVAL", "ACTIONS"];
+      return ["ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Verify", "Actions"];
     }
 
     if (activeTab === "Installations") {
-      return ["S.No", "CUSTOMER", "AC NUMBER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSTALLATION STATUS", "ACTIONS"];
+      return ["S.No", "Customer", "AC Number", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
     }
 
     if (activeTab === "Inspections") {
-      return ["S.No", "CUSTOMER", "AC NUMBER", "COMPANY", "SALES PERSON", "CONTRACTOR", "PROJECT MANAGER", "INSPECTION STATUS", "ACTIONS"];
+      return ["S.No", "Customer", "AC Number", "Company", "Sales Person", "Contractor", "Project Manager", "Inspection Status", "Actions"];
     }
     return [];
   };
+
+  const tableColSpan = getHeaders().length;
 
   const getStatusStyle = (status: string) => {
     if (!status || status === "-") return { color: "#94a3b8", bg: "#f1f5f9" };
@@ -434,43 +437,77 @@ export default function WorkflowPage() {
     }
   };
 
-  const filteredData = data.filter(item =>
-    item.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.salesPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.projectManager?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.status?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredData = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return data.filter((item) => {
+      if (activeTab === "Surveys") {
+        return (
+          item.leadId?.toLowerCase().includes(q) ||
+          item.leadName?.toLowerCase().includes(q) ||
+          item.dba?.toLowerCase().includes(q) ||
+          item.salesPerson?.toLowerCase().includes(q) ||
+          item.salesManager?.toLowerCase().includes(q) ||
+          item.surveyStatus?.toLowerCase().includes(q)
+        );
+      }
+      return (
+        item.customerName?.toLowerCase().includes(q) ||
+        item.company?.toLowerCase().includes(q) ||
+        item.salesPerson?.toLowerCase().includes(q) ||
+        item.contractor?.toLowerCase().includes(q) ||
+        item.projectManager?.toLowerCase().includes(q) ||
+        item.status?.toLowerCase().includes(q)
+      );
+    });
+  }, [data, searchTerm, activeTab]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  function formatSurveyStatus(status: string): string {
+    if (status === "pending_edit_approval") return "Pending Approval";
+    if (status === "reopen" || status === "reopened") return "Reopened";
+    if (!status) return "N/A";
+    return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+  }
 
   return (
     <div className={styles.usersPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>WORKFLOW</span>
+        <span className={styles.breadcrumbCurrent}>WORKFLOW</span>
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Workflow Management</h1>
+        <h1 className={styles.welcomeText}>Workflow</h1>
       </div>
 
-      <div className={styles.userStatsGrid}>
+      <div className={workflowStyles.workflowStatsGrid}>
         {summaryStats.map((stat) => (
-          <div key={stat.label} className={styles.userStatCard}>
+          <div key={stat.label} className={workflowStyles.workflowStatCard}>
             <div
-              className={styles.userStatIcon}
+              className={workflowStyles.workflowStatIcon}
               style={{ backgroundColor: stat.bg, color: stat.color }}
             >
               <stat.icon size={22} />
             </div>
-            <div className={styles.userStatValue}>{stat.value}</div>
-            <div className={styles.userStatLabel}>{stat.label}</div>
+            <div className={workflowStyles.workflowStatValue}>{stat.value}</div>
+            <div className={workflowStyles.workflowStatLabel}>{stat.label}</div>
           </div>
         ))}
       </div>
 
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
-          <div className={styles.tabs}>
+          <div className={workflowStyles.workflowTabs}>
             {validTabs.map((tab) => (
               <div
                 key={tab}
@@ -486,20 +523,18 @@ export default function WorkflowPage() {
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div className={styles.searchUsers}>
-              <SearchIcon size={16} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder={`Search ${activeTab}...`}
-                className={styles.searchInputSmall}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div style={{ fontSize: "0.85rem", color: "#94a3b8", fontWeight: 500 }}>
-              Showing {filteredData.length} {activeTab}
-            </div>
+          <div className={styles.searchUsers}>
+            <Search size={16} color="#94a3b8" />
+            <input
+              type="text"
+              placeholder={`Search ${activeTab}...`}
+              className={styles.searchInputSmall}
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
           </div>
         </div>
 
@@ -513,109 +548,102 @@ export default function WorkflowPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem" }}>
+                  <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", color: "#94a3b8" }}>
                       <Loader2 size={32} className={styles.spinner} />
-                      <span style={{ fontWeight: 600 }}>Fetching workflow data...</span>
+                      <span style={{ fontWeight: 600 }}>Synchronizing workflow data...</span>
                     </div>
                   </td>
                 </tr>
-              ) : filteredData.length === 0 ? (
+              ) : currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
-                    No {activeTab.toLowerCase()} found.
+                  <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                    No {activeTab.toLowerCase()} found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item, index) => (
+                currentItems.map((item, index) => (
                   <tr key={item._id || `${activeTab}-${index}`}>
                     {activeTab === "Surveys" ? (
                       <>
-                        <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId || "—"}</td>
                         <td>
                           <span
-                            style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
+                            className={workflowStyles.linkName}
                             onClick={() => router.push(`/workflow/view/${item._id}?from=Surveys`)}
                           >
-                            {item.customerName}
+                            {item.leadName || "—"}
                           </span>
                         </td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesperson}</td>
-                        <td>
-                          {item.projectManager ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
-                              <User size={14} color="#94a3b8" />
-                              {item.pmName || projectManagers.find(pm => {
-                                const pmId = (pm._id || pm.id || "").toString().toLowerCase();
-                                const targetId = (item.projectManager || "").toString().toLowerCase();
-                                return pmId === targetId && targetId !== "";
-                              })?.fullName || item.projectManager || "Unknown PM"}
-                            </div>
-                          ) : ((item.surveyStatus?.toLowerCase() === "completed" || item.surveyStatus?.toLowerCase() === "reopened" || item.surveyStatus?.toLowerCase() === "reopen" || item.surveyStatus?.toLowerCase() === "pending_edit_approval") && canCreateSurveys) ? (
-                            <button
-                              className={styles.assignBtn}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAssignModal("Project Manager", item);
-                              }}
-                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
-                            >
-                              <UserPlus size={14} /> Assign
-                            </button>
-                          ) : (
-                            <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontStyle: "italic" }}>
-                              {(item.surveyStatus?.toLowerCase() === "completed" || item.surveyStatus?.toLowerCase() === "reopened" || item.surveyStatus?.toLowerCase() === "reopen" || item.surveyStatus?.toLowerCase() === "pending_edit_approval") ? "No Assign Permission" : "Awaiting Completion"}
-                            </span>
-                          )}
-                        </td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.dba || "—"}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager || "—"}</td>
                         <td>
                           <div className={styles.statusCell}>
                             {item.surveyStatus !== "-" && (
                               <span className={styles.statusDotActive} style={{ backgroundColor: getStatusStyle(item.surveyStatus).color }}></span>
                             )}
-                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
-                              {item.surveyStatus === "pending_edit_approval"
-                                ? "Pending Approval"
-                                : item.surveyStatus === "reopen" || item.surveyStatus === "reopened"
-                                  ? "Reopened"
-                                  : item.surveyStatus || "N/A"}
+                            <span style={{ color: "#1e293b", fontWeight: 600 }}>
+                              {formatSurveyStatus(item.surveyStatus)}
                             </span>
                           </div>
                         </td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           {item.surveyStatus?.toLowerCase() === "pending_edit_approval" ? (
-                            <div style={{ display: "flex", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
+                            <div className={workflowStyles.actionGroup}>
                               <button
-                                className={styles.assignBtn}
+                                type="button"
+                                className={workflowStyles.btnSuccess}
                                 onClick={() => handleAdminApproval(item, "Approved")}
-                                style={{ background: "#10b981", color: "white", border: "none" }}
                               >
                                 Approve
                               </button>
                               <button
-                                className={styles.assignBtn}
+                                type="button"
+                                className={workflowStyles.btnDanger}
                                 onClick={() => handleAdminApproval(item, "Rejected")}
-                                style={{ background: "#ef4444", color: "white", border: "none" }}
                               >
                                 Reject
                               </button>
                             </div>
                           ) : item.verifyStatus === "verified" ? (
-                            <span style={{ color: "#10b981", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Verified</span>
+                            <span className={workflowStyles.verifiedLabel}>Verified</span>
+                          ) : canCreateSurveys ? (
+                            <button
+                              type="button"
+                              className={workflowStyles.btnPrimary}
+                              onClick={() => handleVerify(item)}
+                            >
+                              Verify
+                            </button>
                           ) : (
-                            <span style={{ color: "#64748b", fontWeight: 700, fontSize: "0.85rem", textTransform: "uppercase" }}>Pending</span>
+                            <span className={workflowStyles.pendingLabel}>Pending</span>
+                          )}
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {canEditSurveys ? (
+                            <button
+                              type="button"
+                              className={styles.assignBtn}
+                              onClick={() => router.push(`/workflow/edit/${item._id}?from=Surveys`)}
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
                           )}
                         </td>
                       </>
                     ) : activeTab === "Installations" ? (
                       <>
-                        <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
-                        <td
-                          style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
-                          onClick={() => router.push(`/workflow/view/${item._id}?from=Installations`)}
-                        >
-                          {item.customerName}
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
+                        <td>
+                          <span
+                            className={workflowStyles.linkName}
+                            onClick={() => router.push(`/workflow/view/${item._id}?from=Installations`)}
+                          >
+                            {item.customerName}
+                          </span>
                         </td>
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
@@ -628,6 +656,7 @@ export default function WorkflowPage() {
                             </div>
                           ) : canCreateInstallations ? (
                             <button
+                              type="button"
                               className={styles.assignBtn}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -670,7 +699,7 @@ export default function WorkflowPage() {
                                 style={{ backgroundColor: getStatusStyle(item.status).color }}
                               ></span>
                             )}
-                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
+                            <span style={{ color: "#1e293b", fontWeight: 600 }}>
                               {item.status}
                             </span>
                           </div>
@@ -678,12 +707,14 @@ export default function WorkflowPage() {
                       </>
                     ) : (
                       <>
-                        <td style={{ color: "#64748b", fontWeight: 500 }}>{index + 1}</td>
-                        <td
-                          style={{ color: "#0076ce", fontWeight: 700, cursor: "pointer", textDecoration: "underline", textDecorationColor: "#0076ce" }}
-                          onClick={() => router.push(`/workflow/view/${item._id}?from=Inspections`)}
-                        >
-                          {item.customerName}
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
+                        <td>
+                          <span
+                            className={workflowStyles.linkName}
+                            onClick={() => router.push(`/workflow/view/${item._id}?from=Inspections`)}
+                          >
+                            {item.customerName}
+                          </span>
                         </td>
                         <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
@@ -738,7 +769,7 @@ export default function WorkflowPage() {
                                 style={{ backgroundColor: getStatusStyle(item.status).color }}
                               ></span>
                             )}
-                            <span style={{ color: "rgb(30, 41, 59)", fontWeight: 600 }}>
+                            <span style={{ color: "#1e293b", fontWeight: 600 }}>
                               {item.status || "N/A"}
                             </span>
                           </div>
@@ -746,18 +777,20 @@ export default function WorkflowPage() {
                       </>
                     )}
 
-                    <td>
-                      {((activeTab === "Surveys" && canEditSurveys) ||
-                        (activeTab === "Installations" && canEditInstallations) ||
-                        (activeTab === "Inspections" && canEditInspections)) && (
-                          <button
-                            className={styles.assignBtn}
-                            onClick={() => router.push(`/workflow/edit/${item._id}?from=${activeTab}`)}
-                          >
-                            Edit
-                          </button>
-                        )}
-                    </td>
+                    {activeTab !== "Surveys" && (
+                      <td>
+                        {((activeTab === "Installations" && canEditInstallations) ||
+                          (activeTab === "Inspections" && canEditInspections)) && (
+                            <button
+                              type="button"
+                              className={styles.assignBtn}
+                              onClick={() => router.push(`/workflow/edit/${item._id}?from=${activeTab}`)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -767,12 +800,33 @@ export default function WorkflowPage() {
 
         <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {filteredData.length} {activeTab}
+            Showing {filteredData.length === 0 ? 0 : indexOfFirstItem + 1} to{" "}
+            {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length} results
           </div>
           <div className={styles.pagination}>
-            <div className={styles.pageBtn}><ChevronLeft size={18} /></div>
-            <div className={`${styles.pageBtn} ${styles.pageActive}`}>1</div>
-            <div className={styles.pageBtn}><ChevronRight size={18} /></div>
+            <div
+              className={`${styles.pageBtn} ${currentPage === 1 ? styles.disabled : ""}`}
+              onClick={() => handlePageChange(currentPage - 1)}
+            >
+              <ChevronLeft size={18} />
+            </div>
+
+            {[...Array(totalPages)].map((_, i) => (
+              <div
+                key={i}
+                className={`${styles.pageBtn} ${currentPage === i + 1 ? styles.pageActive : ""}`}
+                onClick={() => handlePageChange(i + 1)}
+              >
+                {i + 1}
+              </div>
+            ))}
+
+            <div
+              className={`${styles.pageBtn} ${currentPage === totalPages ? styles.disabled : ""}`}
+              onClick={() => handlePageChange(currentPage + 1)}
+            >
+              <ChevronRight size={18} />
+            </div>
           </div>
         </div>
       </div>

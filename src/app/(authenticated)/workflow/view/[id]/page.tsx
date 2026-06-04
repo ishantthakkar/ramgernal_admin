@@ -1,36 +1,242 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
 import modalStyles from "./workflow-details.module.css";
 import {
-  User,
-  ShieldCheck,
   Loader2,
-  Edit2,
   X,
   ClipboardCheck,
-  Building,
-  Phone,
-  Mail,
-  MapPin,
   Image as ImageIcon,
-  ChevronRight,
   Download,
   Eye,
   FileText,
-  Calendar,
   Hammer,
-  ArrowLeft,
-  Plus,
-  Hash,
-  Briefcase,
-  Activity
+  Edit2,
+  Info,
 } from "lucide-react";
+import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
+import { hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
 import { formatDate, formatDateTime } from "@/lib/dateUtils";
+import {
+  mapNotes,
+  mapSiteDetails,
+  mapSurveyDetails,
+  type NoteEntry,
+  type SiteDetailRow,
+} from "@/lib/workflow-survey-view";
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  const display = value?.trim() || "—";
+  return (
+    <div className={styles.formGroup}>
+      <label>{label}</label>
+      <div
+        className={styles.formInput}
+        style={{
+          background: "#f8fafc",
+          color: display === "—" ? "#94a3b8" : "#1e293b",
+          fontWeight: 600,
+          border: "1px solid #e2e8f0",
+          minHeight: "2.75rem",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        {display}
+      </div>
+    </div>
+  );
+}
+
+function getSurveyStatusColor(status: string): string {
+  const s = (status || "").toLowerCase();
+  if (s === "completed") return "#64748b";
+  if (s === "verified") return "#10b981";
+  if (s === "pending_edit_approval") return "#d97706";
+  if (s === "reopened" || s === "reopen") return "#f59e0b";
+  if (s === "pending" || s === "not started") return "#ef4444";
+  if (s === "in progress" || s === "in-process") return "#3b82f6";
+  return "#64748b";
+}
+
+function formatSurveyStatusLabel(status: string): string {
+  if (status === "pending_edit_approval") return "Pending Approval";
+  if (status === "reopen" || status === "reopened") return "Reopened";
+  if (!status) return "Pending";
+  return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+}
+
+function SiteDetailsTable({
+  rows,
+  onViewImages,
+}: {
+  rows: SiteDetailRow[];
+  onViewImages: (images: string[], area: string) => void;
+}) {
+  if (!rows.length) {
+    return <div className={addStyles.emptyState}>No site survey details found.</div>;
+  }
+
+  return (
+    <div className={styles.userTableContainer} style={{ marginTop: "0.5rem", overflowX: "auto" }}>
+      <table className={styles.userTable}>
+        <thead>
+          <tr>
+            <th style={{ minWidth: "140px" }}>Area</th>
+            <th>Height</th>
+            <th>Existing Fixture Type</th>
+            <th>Existing Bulbs</th>
+            <th>Existing Qty</th>
+            <th>Proposed Fixture</th>
+            <th>Proposed Qty</th>
+            <th>Price / Unit</th>
+            <th>Total Price</th>
+            <th>Note</th>
+            <th>Images</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row._id}>
+              <td style={{ fontWeight: 600, color: "#1e293b" }}>{row.area}</td>
+              <td style={{ color: "#64748b" }}>{row.heightInInches}</td>
+              <td style={{ color: "#64748b" }}>{row.existingFixtureType}</td>
+              <td style={{ color: "#64748b" }}>{row.existingBulbs}</td>
+              <td style={{ color: "#64748b", fontWeight: 600 }}>{row.existingQuantity}</td>
+              <td style={{ color: "var(--admin-primary, #004d4d)", fontWeight: 600 }}>{row.proposedFixture}</td>
+              <td style={{ color: "#1e293b", fontWeight: 700 }}>{row.proposedQuantity}</td>
+              <td style={{ color: "#64748b" }}>
+                {row.pricePerUnit !== "—" ? `$${row.pricePerUnit}` : "—"}
+              </td>
+              <td style={{ fontWeight: 700, color: "#1e293b" }}>
+                {row.totalPrice !== "—" ? `$${row.totalPrice}` : "—"}
+              </td>
+              <td
+                style={{
+                  maxWidth: "200px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: "#64748b",
+                  fontSize: "0.8rem",
+                }}
+                title={row.note}
+              >
+                {row.note || "—"}
+              </td>
+              <td>
+                {row.images.length > 0 ? (
+                  <button
+                    type="button"
+                    className={modalStyles.viewImgBtn}
+                    onClick={() => onViewImages(row.images, row.area)}
+                  >
+                    <Eye size={14} /> View
+                    <span style={{ opacity: 0.7, fontWeight: 500 }}>({row.images.length})</span>
+                  </button>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.4rem",
+                      color: "#94a3b8",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <ImageIcon size={14} /> None
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SurveyViewSections({
+  surveyName,
+  salesPerson,
+  surveyDate,
+  siteDetails,
+  noteEntries,
+  onViewImages,
+}: {
+  surveyName: string;
+  salesPerson: string;
+  surveyDate: string | null;
+  siteDetails: SiteDetailRow[];
+  noteEntries: NoteEntry[];
+  onViewImages: (images: string[], area: string) => void;
+}) {
+  return (
+    <>
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <Info size={22} color="var(--admin-primary, #004d4d)" /> Survey Details
+        </div>
+        <div className={styles.formGrid}>
+          <ReadOnlyField label="Survey Name" value={surveyName} />
+          <ReadOnlyField label="Sales Person Name" value={salesPerson} />
+          <ReadOnlyField
+            label="Survey Date"
+            value={surveyDate ? formatDate(surveyDate) : "—"}
+          />
+        </div>
+      </section>
+
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
+        </div>
+        <p className={styles.sectionSubtitle}>
+          All surveyed areas, fixtures, quantities, and pricing.
+        </p>
+        <SiteDetailsTable rows={siteDetails} onViewImages={onViewImages} />
+      </section>
+
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <FileText size={22} color="var(--admin-primary, #004d4d)" /> Notes
+        </div>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            {noteEntries.length === 0 ? (
+              <div className={addStyles.emptyState}>No notes on file.</div>
+            ) : (
+              <div className={addStyles.itemGrid}>
+                {noteEntries.map((entry) => (
+                  <div key={entry.id} className={addStyles.itemCard}>
+                    <div className={addStyles.itemHeader}>
+                      <span className={addStyles.itemTitle}>
+                        {entry.title || (entry.source === "survey" ? "Survey" : "Customer")}
+                      </span>
+                      {entry.timestamp && (
+                        <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
+                          {formatDateTime(entry.timestamp)}
+                        </span>
+                      )}
+                    </div>
+                    <div className={addStyles.itemContent} style={{ whiteSpace: "pre-wrap" }}>
+                      {entry.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
 
 export default function WorkflowViewPage() {
   const router = useRouter();
@@ -44,7 +250,11 @@ export default function WorkflowViewPage() {
   const [data, setData] = useState<any>(null);
   const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
   const [activeArea, setActiveArea] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"survey" | "installations">(fromTab?.toLowerCase() === "installations" ? "installations" : "survey");
+  const [activeTab, setActiveTab] = useState<"survey" | "installations">(
+    fromTab?.toLowerCase() === "installations" ? "installations" : "survey"
+  );
+
+  const isSurveyView = fromTab === "Surveys";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,6 +271,30 @@ export default function WorkflowViewPage() {
     if (id) fetchData();
   }, [id, router]);
 
+  const surveyRecords = useMemo(() => {
+    const list = data?.surveys;
+    return Array.isArray(list) ? list : [];
+  }, [data]);
+
+  const surveyDetails = useMemo(() => {
+    if (!data?.customer) {
+      return { surveyName: "N/A", salesPerson: "N/A", surveyDate: null as string | null };
+    }
+    return mapSurveyDetails(data.customer, surveyRecords);
+  }, [data, surveyRecords]);
+
+  const siteDetails = useMemo(() => mapSiteDetails(surveyRecords), [surveyRecords]);
+
+  const noteEntries = useMemo(() => {
+    if (!data?.customer) return [];
+    return mapNotes(surveyRecords, data.customer);
+  }, [data, surveyRecords]);
+
+  const handleViewImages = (images: string[], area: string) => {
+    setSelectedImages(images);
+    setActiveArea(area);
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
@@ -71,191 +305,170 @@ export default function WorkflowViewPage() {
 
   if (!data?.customer) return null;
 
-  const { customer, surveys, activities = [] } = data;
+  const { customer } = data;
   const isContractorAssigned = !!(customer.assignToContractor || customer.contractorName || customer.contractor);
-
-  console.log(activities)
+  const canEditSurveys = hasPermission("Surveys", "edit");
+  const workflowTab = fromTab || (isSurveyView ? "Surveys" : "Installations");
+  const backUrl = `/workflow?tab=${workflowTab}`;
+  const surveyStatus = customer.status || "Pending";
+  const statusColor = getSurveyStatusColor(surveyStatus);
+  const displayName = surveyDetails.surveyName !== "N/A" ? surveyDetails.surveyName : "Survey";
 
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}>WORKFLOW</span>
+        <span style={{ cursor: "pointer" }} onClick={() => router.push(backUrl)}>
+          WORKFLOW
+        </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>VIEW SURVEY</span>
+        <span className={styles.breadcrumbCurrent}>
+          {isSurveyView ? "VIEW SURVEY" : "VIEW WORKFLOW"}
+        </span>
       </div>
 
-      <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>Workflow Details</h1>
-      </div>
-
-      <div className={styles.tabs} style={{ marginBottom: "2rem", width: "fit-content" }}>
-        {(fromTab !== "Installations") && (
-          <button
-            className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
-            onClick={() => setActiveTab("survey")}
-            style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
-          >
-            <ClipboardCheck size={18} /> Survey
-          </button>
-        )}
-        {(fromTab !== "Surveys") && (
-          <button
-            className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
-            onClick={() => {
-              if (isContractorAssigned) {
-                setActiveTab("installations");
-              } else {
-                toast.warning("Materials are only available after contractor assignment.");
-              }
-            }}
-            style={{
-              border: "none",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              opacity: isContractorAssigned ? 1 : 0.5,
-              cursor: isContractorAssigned ? "pointer" : "not-allowed"
-            }}
-            title={!isContractorAssigned ? "Contractor not assigned" : ""}
-          >
-            <Hammer size={18} /> Installations
-          </button>
-        )}
-      </div>
-
-      {/* Customer Information */}
-      <div className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <User size={22} color="#0076ce" /> Customer Information
+      <div className={styles.pageHeader} style={{ marginBottom: isSurveyView ? "2rem" : undefined }}>
+        <div>
+          <h1 className={styles.welcomeText}>
+            {isSurveyView ? `Survey Profile: ${displayName}` : "Workflow Details"}
+          </h1>
+          {isSurveyView && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  backgroundColor: `${statusColor}15`,
+                  color: statusColor,
+                  padding: "0.25rem 0.75rem",
+                  borderRadius: "99px",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                {formatSurveyStatusLabel(surveyStatus)}
+              </span>
+              {customer.verifyStatus === "verified" ? (
+                <span
+                  style={{
+                    backgroundColor: "rgba(16, 185, 129, 0.12)",
+                    color: "#10b981",
+                    padding: "0.25rem 0.75rem",
+                    borderRadius: "99px",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Verified
+                </span>
+              ) : (
+                <span
+                  style={{
+                    backgroundColor: "#f1f5f9",
+                    color: "#64748b",
+                    padding: "0.25rem 0.75rem",
+                    borderRadius: "99px",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Not Verified
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup}>
-            <label>Name</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <User size={16} color="#64748b" />
-                {customer.name}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Account Number</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#64748b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Hash size={16} color="#64748b" />
-                {customer.accountNumber || "N/A"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Company</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Building size={16} color="#64748b" />
-                {customer.company}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Mobile Number</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Phone size={16} color="#64748b" />
-                {customer.mobileNumber}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Sales Person</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Briefcase size={16} color="#64748b" />
-                {customer.user_id?.fullName || "N/A"}
-              </div>
-            </div>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Current Status</label>
-            <div className={styles.formInput} style={{ background: "#f8fafc", color: "#0076ce", fontWeight: 700, border: "1px solid #e2e8f0", textTransform: "uppercase" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Activity size={16} color="#0076ce" />
-                {customer.status}
-              </div>
-            </div>
-          </div>
-        </div>
+        {isSurveyView && canEditSurveys && (
+          <button
+            type="button"
+            className={styles.addBtn}
+            onClick={() => router.push(`/workflow/edit/${id}?from=Surveys`)}
+          >
+            <Edit2 size={20} /> Edit
+          </button>
+        )}
       </div>
 
-      {/* Survey Information Table */}
-      {activeTab === "survey" ? (
-        <div className={styles.formSection} style={{ marginTop: "2rem" }}>
+      {!isSurveyView && (
+        <div
+          className={styles.tabs}
+          style={{ marginBottom: "2rem", width: "fit-content", background: "#f1f5f9", padding: "4px", borderRadius: "10px" }}
+        >
+          {fromTab !== "Installations" && (
+            <button
+              type="button"
+              className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
+              onClick={() => setActiveTab("survey")}
+              style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <ClipboardCheck size={18} /> Survey
+            </button>
+          )}
+          {fromTab !== "Surveys" && (
+            <button
+              type="button"
+              className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
+              onClick={() => {
+                if (isContractorAssigned) setActiveTab("installations");
+                else toast.warning("Materials are only available after contractor assignment.");
+              }}
+              style={{
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                opacity: isContractorAssigned ? 1 : 0.5,
+                cursor: isContractorAssigned ? "pointer" : "not-allowed",
+              }}
+            >
+              <Hammer size={18} /> Installations
+            </button>
+          )}
+        </div>
+      )}
+
+      {isSurveyView || activeTab === "survey" ? (
+        <SurveyViewSections
+          surveyName={surveyDetails.surveyName}
+          salesPerson={surveyDetails.salesPerson}
+          surveyDate={surveyDetails.surveyDate}
+          siteDetails={siteDetails}
+          noteEntries={noteEntries}
+          onViewImages={handleViewImages}
+        />
+      ) : (
+        <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <ClipboardCheck size={22} color="#10b981" /> Survey Details
+            <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Materials Delivered to Site
           </div>
-
-          {surveys && surveys.length > 0 ? (
-            <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+          <p className={styles.sectionSubtitle}>Items and quantities issued for this installation.</p>
+          {data.materials?.length > 0 ? (
+            <div className={styles.userTableContainer} style={{ marginTop: "0.5rem" }}>
               <table className={styles.userTable}>
                 <thead>
-                  <tr style={{ background: "#f8fafc" }}>
-                    <th style={{ minWidth: "150px" }}>Area</th>
-                    <th>Height</th>
-                    <th>Existing Fixture Type</th>
-                    <th>Existing Bulbs</th>
-                    <th>Existing Qty</th>
-                    <th>Proposed Fixture</th>
-                    <th>Proposed Qty</th>
-                    <th>Price / Unit</th>
-                    <th>Total Price</th>
-                    <th>Note</th>
-                    <th>Images/Videos</th>
+                  <tr>
+                    <th style={{ width: "80px" }}>Sr. No</th>
+                    <th>Item Name</th>
+                    <th>Issued Qty</th>
+                    <th>Image</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {surveys.map((survey: any) => (
-                    <tr key={survey._id}>
-                      <td style={{ fontWeight: 600, color: "#1e293b" }}>{survey.area}</td>
-                      <td style={{ color: "#64748b" }}>{survey.heightInInches || "N/A"}</td>
-                      <td style={{ color: "#64748b" }}>
-                        {survey.existingFixtureType === "Other" ? survey.otherFixtureType : survey.existingFixtureType}
-                      </td>
-                      <td style={{ color: "#64748b" }}>{survey.existingBulbs || "N/A"}</td>
-                      <td style={{ color: "#ef4444", fontWeight: 700 }}>{survey.existingQuantity}</td>
-                      <td style={{ color: "#0076ce", fontWeight: 600 }}>{survey.proposedFixture}</td>
-                      <td style={{ color: "#10b981", fontWeight: 700 }}>{survey.proposedQuantity}</td>
-                      <td style={{ color: "#64748b" }}>${survey.pricePerUnit}</td>
-                      <td style={{ fontWeight: 700, color: "#1e293b" }}>${survey.totalPrice}</td>
-                      <td style={{
-                        maxWidth: "200px",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        color: "#64748b",
-                        fontSize: "0.8rem"
-                      }} title={survey.note}>
-                        {survey.note || "N/A"}
-                      </td>
+                  {data.materials.map((item: any, index: number) => (
+                    <tr key={index}>
+                      <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
+                      <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.item_name}</td>
+                      <td style={{ fontWeight: 700, color: "var(--admin-primary, #004d4d)" }}>{item.issued_qty}</td>
                       <td>
-                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                          {survey.images && survey.images.length > 0 ? (
-                            <button
-                              className={modalStyles.viewImgBtn}
-                              onClick={() => {
-                                setSelectedImages(survey.images);
-                                setActiveArea(survey.area);
-                              }}
-                            >
-                              <Eye size={14} /> View
-                              <span style={{ opacity: 0.7, fontWeight: 500 }}>({survey.images.length})</span>
-                            </button>
-                          ) : (
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600 }}>
-                              <ImageIcon size={14} /> None
-                            </div>
-                          )}
-                        </div>
+                        {(item.images || []).length > 0 ? (
+                          <span style={{ color: "#64748b", fontSize: "0.875rem", fontWeight: 500 }}>
+                            {item.images.length} image(s)
+                          </span>
+                        ) : (
+                          <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>No image</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -263,241 +476,25 @@ export default function WorkflowViewPage() {
               </table>
             </div>
           ) : (
-            <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
-              <p style={{ color: "#94a3b8", fontWeight: 500 }}>No survey records found for this customer.</p>
-            </div>
+            <div className={addStyles.emptyState}>No materials recorded yet.</div>
           )}
-        </div>
-      ) : (
-        <>
-          <div className={styles.formSection} style={{ marginTop: "2rem" }}>
-            <div className={styles.sectionTitle}>
-              <Hammer size={22} color="#475569" /> Materials Deliverd to Site
-            </div>
-            <p className={styles.sectionSubtitle}>Items and quantities issued for this installation.</p>
-
-            {data.materials && data.materials.length > 0 ? (
-              <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-                <table className={styles.userTable}>
-                  <thead>
-                    <tr style={{ background: "#f8fafc" }}>
-                      <th style={{ width: "80px" }}>Sr. No</th>
-                      <th style={{ minWidth: "200px" }}>Item Name</th>
-                      <th style={{ width: "150px" }}>Issued Qty</th>
-                      <th>Image</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.materials.map((item: any, index: number) => (
-                      <tr key={index}>
-                        <td style={{ fontWeight: 600, color: "#64748b" }}>{index + 1}</td>
-                        <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.item_name}</td>
-                        <td style={{ fontWeight: 700, color: "#0076ce" }}>{item.issued_qty}</td>
-                        <td>
-                          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                            {(item.images || item.image ? [item.image || item.images].flat().filter(Boolean) : []).map((img: string, i: number) => (
-                              <div key={i} style={{ width: "50px", height: "50px", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                                <img
-                                  src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`}
-                                  alt="Material"
-                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                />
-                              </div>
-                            ))}
-                            {(!item.image && (!item.images || item.images.length === 0)) && (
-                              <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>No image</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
-                <p style={{ color: "#94a3b8", fontWeight: 500 }}>No materials recorded yet.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Also show Survey History in Installations view if requested */}
-          <div className={styles.formSection} style={{ marginTop: "2rem" }}>
-            <div className={styles.sectionTitle}>
-              <ClipboardCheck size={22} color="#10b981" /> Survey Details
-            </div>
-            {surveys && surveys.length > 0 ? (
-              <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-                <table className={styles.userTable}>
-                  <thead>
-                    <tr style={{ background: "#f8fafc" }}>
-                      <th style={{ minWidth: "150px" }}>Area</th>
-                      <th>Height</th>
-                      <th>Existing Fixture Type</th>
-                      <th>Existing Bulbs</th>
-                      <th>Existing Qty</th>
-                      <th>Proposed Fixture</th>
-                      <th>Proposed Qty</th>
-                      <th>Price / Unit</th>
-                      <th>Total Price</th>
-                      <th>Note</th>
-                      <th>Images/Videos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {surveys.map((survey: any) => (
-                      <tr key={survey._id}>
-                        <td style={{ fontWeight: 600, color: "#1e293b" }}>{survey.area}</td>
-                        <td style={{ color: "#64748b" }}>{survey.heightInInches || "N/A"}</td>
-                        <td style={{ color: "#64748b" }}>
-                          {survey.existingFixtureType === "Other" ? survey.otherFixtureType : survey.existingFixtureType}
-                        </td>
-                        <td style={{ color: "#64748b" }}>{survey.existingBulbs || "N/A"}</td>
-                        <td style={{ color: "#ef4444", fontWeight: 700 }}>{survey.existingQuantity}</td>
-                        <td style={{ color: "#0076ce", fontWeight: 600 }}>{survey.proposedFixture}</td>
-                        <td style={{ color: "#10b981", fontWeight: 700 }}>{survey.proposedQuantity}</td>
-                        <td style={{ color: "#64748b" }}>${survey.pricePerUnit}</td>
-                        <td style={{ fontWeight: 700, color: "#1e293b" }}>${survey.totalPrice}</td>
-                        <td style={{
-                          maxWidth: "200px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          color: "#64748b",
-                          fontSize: "0.8rem"
-                        }} title={survey.note}>
-                          {survey.note || "N/A"}
-                        </td>
-                        <td>
-                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                            {survey.images && survey.images.length > 0 ? (
-                              <button
-                                className={modalStyles.viewImgBtn}
-                                onClick={() => {
-                                  setSelectedImages(survey.images);
-                                  setActiveArea(survey.area);
-                                }}
-                              >
-                                <Eye size={14} /> View
-                                <span style={{ opacity: 0.7, fontWeight: 500 }}>({survey.images.length})</span>
-                              </button>
-                            ) : (
-                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.75rem", fontWeight: 600 }}>
-                                <ImageIcon size={14} /> None
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ textAlign: "center", padding: "3rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
-                <p style={{ color: "#94a3b8", fontWeight: 500 }}>No survey records found.</p>
-              </div>
-            )}
-          </div>
-        </>
+        </section>
       )}
 
-
-
-
-      {/* Notes Section */}
-      <div className={styles.formSection} style={{ marginTop: "2rem" }}>
-        <div className={styles.sectionTitle}>
-          <FileText size={22} color="#f59e0b" /> Internal Notes
-        </div>
-
-        {customer.notes && customer.notes.length > 0 ? (
-          <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-            <table className={styles.userTable}>
-              <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  <th style={{ width: "200px" }}>Date</th>
-                  <th>Note Content</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customer.notes.map((note: any) => (
-                  <tr key={note._id}>
-                    <td style={{ color: "#64748b", fontWeight: 600 }}>{formatDateTime(note.createdAt)}</td>
-                    <td style={{ color: "#1e293b", fontWeight: 500 }}>{note.note}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={{ textAlign: "center", padding: "2rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
-            <p style={{ color: "#94a3b8", fontWeight: 500 }}>No notes found.</p>
-          </div>
-        )}
-      </div>
-
-      {/* Activities Section */}
-      <div className={styles.formSection} style={{ marginTop: "2rem" }}>
-        <div className={styles.sectionTitle}>
-          <Calendar size={22} color="#8b5cf6" /> Activities
-        </div>
-        <p className={styles.sectionSubtitle}>Call logs, meetings, and follow-ups.</p>
-
-        {activities && activities.length > 0 ? (
-          <div className={styles.userTableContainer} style={{ marginTop: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-            <table className={styles.userTable}>
-              <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  <th style={{ width: "150px" }}>Date</th>
-                  <th style={{ width: "150px" }}>Type</th>
-                  <th>Outcome</th>
-                  <th style={{ width: "180px" }}>Next Follow-up</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activities.map((activity: any) => (
-                  <tr key={activity._id}>
-                    <td style={{ color: "#64748b", fontWeight: 600 }}>{formatDate(activity.date)}</td>
-                    <td>
-                      <span style={{
-                        padding: "0.25rem 0.6rem",
-                        borderRadius: "6px",
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        background: "#eff6ff",
-                        color: "#1d4ed8",
-                        textTransform: "uppercase"
-                      }}>
-                        {activity.activityType}
-                      </span>
-                    </td>
-                    <td style={{ color: "#1e293b", fontWeight: 500 }}>{activity.outcome}</td>
-                    <td style={{ color: "#64748b" }}>
-                      {activity.nextFollowUpDate ? formatDate(activity.nextFollowUpDate) : "N/A"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={{ textAlign: "center", padding: "2rem", background: "#f8fafc", borderRadius: "12px", marginTop: "1rem" }}>
-            <p style={{ color: "#94a3b8", fontWeight: 500 }}>No activities recorded.</p>
-          </div>
-        )}
-      </div>
-      <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
+      <div
+        className={styles.actionFooter}
+        style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}
+      >
         <button
           type="button"
           className={styles.cancelBtn}
-          onClick={() => router.push(`/workflow?tab=${fromTab || (activeTab === "survey" ? "Surveys" : "Installations")}`)}
+          onClick={() => router.push(backUrl)}
           style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
         >
           <X size={20} /> Close
         </button>
       </div>
-      {/* Image Modal */}
+
       {selectedImages && (
         <div className={modalStyles.imgModalOverlay} onClick={() => setSelectedImages(null)}>
           <div className={modalStyles.imgModalContent} onClick={(e) => e.stopPropagation()}>
@@ -508,7 +505,7 @@ export default function WorkflowViewPage() {
                   Area: <span style={{ color: "#1e293b", fontWeight: 700 }}>{activeArea}</span>
                 </p>
               </div>
-              <button className={modalStyles.closeBtn} onClick={() => setSelectedImages(null)}>
+              <button type="button" className={modalStyles.closeBtn} onClick={() => setSelectedImages(null)}>
                 <X size={20} />
               </button>
             </div>

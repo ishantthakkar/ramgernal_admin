@@ -1,0 +1,134 @@
+.workflowStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 3rem;
+}
+
+.workflowStatCard {
+  background: var(--admin-card-bg, #ffffff);
+  padding: 1.5rem 1.25rem;
+  border-radius: 14px;
+  border: 1px solid var(--admin-card-border, #f0f1f3);
+  box-shadow: var(--admin-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04));
+}
+
+.workflowStatIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.workflowStatValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--admin-text-primary, #1a1a1a);
+  margin-bottom: 0.25rem;
+}
+
+.workflowStatLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--admin-text-secondary, #666666);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+}
+
+.workflowTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  max-width: 100%;
+}
+
+.btnPrimary {
+  background: var(--admin-primary, #004d4d);
+  color: #ffffff;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.btnPrimary:hover {
+  background: #003d3d;
+}
+
+.btnSuccess {
+  background: #10b981;
+  color: #ffffff;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnSuccess:hover {
+  background: #059669;
+}
+
+.btnDanger {
+  background: #ef4444;
+  color: #ffffff;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnDanger:hover {
+  background: #dc2626;
+}
+
+.verifiedLabel {
+  color: #10b981;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pendingLabel {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.actionGroup {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.linkName {
+  color: var(--admin-primary, #004d4d);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .workflowStatsGrid {
+    grid-template-columns: 1fr;
+  }
+}
