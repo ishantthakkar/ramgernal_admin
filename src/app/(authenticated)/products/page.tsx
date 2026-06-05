@@ -40,7 +40,7 @@ interface Product {
   salesPrice: number;
   commission: number;
   installationCost: number;
-  pendingUpload?: "create" | "update";
+  pendingUpload?: "create" | "add-also" | "overwrite";
 }
 
 interface PendingUpload {
@@ -94,7 +94,22 @@ function mapUploadRow(
   };
 }
 
-function mapDuplicateUploadRow(item: DuplicateUploadItem): Product {
+function mapDuplicateAddAlsoRow(
+  item: DuplicateUploadItem,
+  index: number
+): Product {
+  return {
+    id: `upload-add-also-${item.rowNumber}-${index}`,
+    sku: item.sku,
+    name: item.uploadedName,
+    salesPrice: item.salesPrice,
+    commission: item.commission,
+    installationCost: item.installationCost,
+    pendingUpload: "add-also",
+  };
+}
+
+function mapDuplicateOverwriteRow(item: DuplicateUploadItem): Product {
   return {
     id: item.existingId,
     sku: item.sku,
@@ -102,9 +117,11 @@ function mapDuplicateUploadRow(item: DuplicateUploadItem): Product {
     salesPrice: item.salesPrice,
     commission: item.commission,
     installationCost: item.installationCost,
-    pendingUpload: "update",
+    pendingUpload: "overwrite",
   };
 }
+
+type DuplicateResolution = "skip" | "add-also" | "overwrite";
 
 function buildSkuLookup(products: Product[]): Map<string, Product> {
   return new Map(products.map((product) => [product.sku.trim().toLowerCase(), product]));
@@ -118,6 +135,10 @@ export default function ProductsPage() {
   const [dataSource, setDataSource] = useState<DataSource>("api");
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateQueueIndex, setDuplicateQueueIndex] = useState(0);
+  const [duplicateResolutions, setDuplicateResolutions] = useState<
+    Map<string, DuplicateResolution>
+  >(new Map());
   const [uploadErrors, setUploadErrors] = useState<
     { rowNumber: number; message: string }[]
   >([]);
@@ -144,6 +165,8 @@ export default function ProductsPage() {
       setUploadErrors([]);
       setPendingUpload(null);
       setDuplicateModalOpen(false);
+      setDuplicateQueueIndex(0);
+      setDuplicateResolutions(new Map());
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load products";
       toast.error(message);
@@ -230,18 +253,34 @@ export default function ProductsPage() {
 
   function applyUploadedProducts(
     newRows: ProductExcelRow[],
-    approvedDuplicates: DuplicateUploadItem[],
+    addAlsoDuplicates: DuplicateUploadItem[],
+    overwriteDuplicates: DuplicateUploadItem[],
     skippedDuplicates: DuplicateUploadItem[],
     errors: ProductExcelParseError[]
   ) {
-    const uploadedProducts = [
-      ...newRows.map(mapUploadRow),
-      ...approvedDuplicates.map(mapDuplicateUploadRow),
-    ];
+    const uploadedProducts: Product[] = [];
+    const includedExistingIds = new Set<string>();
+
+    newRows.forEach((row, index) => {
+      uploadedProducts.push(mapUploadRow(row, index));
+    });
+
+    addAlsoDuplicates.forEach((item, index) => {
+      const existing = serverProducts.find((product) => product.id === item.existingId);
+      if (existing && !includedExistingIds.has(existing.id)) {
+        uploadedProducts.push({ ...existing });
+        includedExistingIds.add(existing.id);
+      }
+      uploadedProducts.push(mapDuplicateAddAlsoRow(item, index));
+    });
+
+    overwriteDuplicates.forEach((item) => {
+      uploadedProducts.push(mapDuplicateOverwriteRow(item));
+    });
 
     const skippedErrors = skippedDuplicates.map((item) => ({
       rowNumber: item.rowNumber,
-      message: `SKU "${item.sku}" already exists and was skipped.`,
+      message: `SKU "${item.sku}" was not added (not-add).`,
     }));
 
     setProducts(uploadedProducts);
@@ -251,6 +290,8 @@ export default function ProductsPage() {
     setSearchQuery("");
     setPendingUpload(null);
     setDuplicateModalOpen(false);
+    setDuplicateQueueIndex(0);
+    setDuplicateResolutions(new Map());
 
     const totalLoaded = uploadedProducts.length;
     if (totalLoaded === 0) {
@@ -259,8 +300,11 @@ export default function ProductsPage() {
     }
 
     const parts: string[] = [`Loaded ${totalLoaded} product(s) from Excel.`];
-    if (approvedDuplicates.length > 0) {
-      parts.push(`${approvedDuplicates.length} existing product(s) marked for update.`);
+    if (addAlsoDuplicates.length > 0) {
+      parts.push(`${addAlsoDuplicates.length} duplicate product(s) set to add-also.`);
+    }
+    if (overwriteDuplicates.length > 0) {
+      parts.push(`${overwriteDuplicates.length} product(s) marked to overwrite.`);
     }
     if (skippedDuplicates.length > 0) {
       parts.push(`${skippedDuplicates.length} existing product(s) were skipped.`);
@@ -276,28 +320,69 @@ export default function ProductsPage() {
     }
   }
 
-  function handleDuplicateUploadConfirm(approvedSkus: string[]) {
+  function finishDuplicateUpload(resolutions: Map<string, DuplicateResolution>) {
     if (!pendingUpload) return;
 
-    const approvedSet = new Set(approvedSkus.map((sku) => sku.trim().toLowerCase()));
-    const approvedDuplicates = pendingUpload.duplicates.filter((item) =>
-      approvedSet.has(item.sku.trim().toLowerCase())
-    );
-    const skippedDuplicates = pendingUpload.duplicates.filter(
-      (item) => !approvedSet.has(item.sku.trim().toLowerCase())
-    );
+    const addAlsoDuplicates: DuplicateUploadItem[] = [];
+    const overwriteDuplicates: DuplicateUploadItem[] = [];
+    const skippedDuplicates: DuplicateUploadItem[] = [];
+
+    for (const duplicate of pendingUpload.duplicates) {
+      const action = resolutions.get(duplicate.sku.trim().toLowerCase()) ?? "skip";
+      if (action === "add-also") {
+        addAlsoDuplicates.push(duplicate);
+      } else if (action === "overwrite") {
+        overwriteDuplicates.push(duplicate);
+      } else {
+        skippedDuplicates.push(duplicate);
+      }
+    }
 
     applyUploadedProducts(
       pendingUpload.newRows,
-      approvedDuplicates,
+      addAlsoDuplicates,
+      overwriteDuplicates,
       skippedDuplicates,
       pendingUpload.errors
     );
   }
 
+  function resolveCurrentDuplicate(action: DuplicateResolution) {
+    if (!pendingUpload) return;
+
+    const current = pendingUpload.duplicates[duplicateQueueIndex];
+    if (!current) return;
+
+    const nextResolutions = new Map(duplicateResolutions);
+    nextResolutions.set(current.sku.trim().toLowerCase(), action);
+    setDuplicateResolutions(nextResolutions);
+
+    const nextIndex = duplicateQueueIndex + 1;
+    if (nextIndex < pendingUpload.duplicates.length) {
+      setDuplicateQueueIndex(nextIndex);
+      return;
+    }
+
+    finishDuplicateUpload(nextResolutions);
+  }
+
+  function handleDuplicateNo() {
+    resolveCurrentDuplicate("skip");
+  }
+
+  function handleDuplicateAddAlso() {
+    resolveCurrentDuplicate("add-also");
+  }
+
+  function handleDuplicateOverwrite() {
+    resolveCurrentDuplicate("overwrite");
+  }
+
   function handleDuplicateUploadCancel() {
     setPendingUpload(null);
     setDuplicateModalOpen(false);
+    setDuplicateQueueIndex(0);
+    setDuplicateResolutions(new Map());
   }
 
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -347,11 +432,13 @@ export default function ProductsPage() {
 
       if (duplicates.length > 0) {
         setPendingUpload({ rows, errors, duplicates, newRows });
+        setDuplicateQueueIndex(0);
+        setDuplicateResolutions(new Map());
         setDuplicateModalOpen(true);
         return;
       }
 
-      applyUploadedProducts(newRows, [], [], errors);
+      applyUploadedProducts(newRows, [], [], [], errors);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to read Excel file.";
@@ -387,7 +474,7 @@ export default function ProductsPage() {
       };
 
       try {
-        if (product.pendingUpload === "update") {
+        if (product.pendingUpload === "overwrite") {
           await adminApi.updateProduct(product.id, payload);
           updated += 1;
         } else {
@@ -422,6 +509,17 @@ export default function ProductsPage() {
   async function handleAddProduct(data: ProductFormData) {
     setIsSubmitting(true);
     try {
+      const existing = buildSkuLookup(serverProducts).get(
+        data.sku.trim().toLowerCase()
+      );
+
+      if (existing) {
+        toast.error(
+          `SKU "${data.sku}" already exists. Edit the product or upload a sheet to overwrite.`
+        );
+        return;
+      }
+
       await adminApi.createProduct(data);
       closeModal();
       setCurrentPage(1);
@@ -482,7 +580,7 @@ export default function ProductsPage() {
             ) : (
               <Upload size={18} />
             )}
-            Import
+            Upload Sheet
           </button>
           <input
             ref={fileInputRef}
@@ -545,8 +643,8 @@ export default function ProductsPage() {
           <span>
             Showing <strong>{products.length}</strong> product(s) from your uploaded
             sheet
-            {products.some((p) => p.pendingUpload === "update")
-              ? " (including approved updates)"
+            {products.some((p) => p.pendingUpload === "overwrite")
+              ? " (including products to overwrite)"
               : ""}
             .
             {unsavedCount > 0
@@ -623,7 +721,8 @@ export default function ProductsPage() {
               ) : (
                 currentItems.map((product) => {
                   const isPendingCreate = product.pendingUpload === "create";
-                  const isPendingUpdate = product.pendingUpload === "update";
+                  const isPendingAddAlso = product.pendingUpload === "add-also";
+                  const isPendingOverwrite = product.pendingUpload === "overwrite";
                   return (
                     <tr key={product.id}>
                       <td className={styles.skuCell}>
@@ -631,8 +730,11 @@ export default function ProductsPage() {
                         {isPendingCreate && (
                           <span className={styles.unsavedBadge}>New</span>
                         )}
-                        {isPendingUpdate && (
-                          <span className={styles.updateBadge}>Update</span>
+                        {isPendingAddAlso && (
+                          <span className={styles.unsavedBadge}>Add Also</span>
+                        )}
+                        {isPendingOverwrite && (
+                          <span className={styles.updateBadge}>Overwrite</span>
                         )}
                       </td>
                       <td className={styles.nameCell}>{product.name}</td>
@@ -708,10 +810,13 @@ export default function ProductsPage() {
 
       <ProductUploadDuplicateModal
         isOpen={duplicateModalOpen}
-        duplicates={pendingUpload?.duplicates ?? []}
-        newCount={pendingUpload?.newRows.length ?? 0}
-        onClose={handleDuplicateUploadCancel}
-        onConfirm={handleDuplicateUploadConfirm}
+        duplicate={pendingUpload?.duplicates[duplicateQueueIndex] ?? null}
+        currentIndex={duplicateQueueIndex}
+        totalCount={pendingUpload?.duplicates.length ?? 0}
+        onNotAdd={handleDuplicateNo}
+        onAddAlso={handleDuplicateAddAlso}
+        onOverwrite={handleDuplicateOverwrite}
+        onCancel={handleDuplicateUploadCancel}
       />
     </div>
   );

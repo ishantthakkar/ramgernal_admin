@@ -1,0 +1,134 @@
+.productCard {
+  width: 100%;
+  padding: 1rem 1.125rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+
+.sku {
+  display: block;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.875rem;
+}
+
+.nameRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.875rem;
+}
+
+@media (max-width: 520px) {
+  .nameRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nameBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nameLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nameValue {
+  font-size: 0.875rem;
+  color: #475569;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.nameValueSheet {
+  color: #0f766e;
+}
+
+.progress {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.message {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.footerActions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.noBtn,
+.yesBtn,
+.overwriteBtn {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.noBtn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
+
+.noBtn:hover:not(:disabled) {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.yesBtn {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+.yesBtn:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.overwriteBtn {
+  background: var(--admin-primary, #004d4d);
+  border: none;
+  color: #ffffff;
+}
+
+.overwriteBtn:hover:not(:disabled) {
+  background: #006bbd;
+}
+
+.noBtn:disabled,
+.yesBtn:disabled,
+.overwriteBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
