@@ -92,6 +92,19 @@
   vertical-align: middle;
 }
 
+.updateBadge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 99px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #fef3c7;
+  color: #b45309;
+  vertical-align: middle;
+}
+
 .directoryTitle {
   font-size: 1.875rem;
   font-weight: 700;

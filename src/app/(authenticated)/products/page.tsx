@@ -20,12 +20,17 @@ import {
   ProductFormModal,
   type ProductFormData,
 } from "@/components/modals/AddProductModal";
+import {
+  ProductUploadDuplicateModal,
+  type DuplicateUploadItem,
+} from "@/components/modals/ProductUploadDuplicateModal";
 import { adminApi } from "@/lib/api";
 import {
   downloadProductTemplate,
   exportProductsToExcel,
-  isMongoObjectId,
   parseProductExcelFile,
+  type ProductExcelRow,
+  type ProductExcelParseError,
 } from "@/lib/product-excel";
 
 interface Product {
@@ -35,6 +40,14 @@ interface Product {
   salesPrice: number;
   commission: number;
   installationCost: number;
+  pendingUpload?: "create" | "update";
+}
+
+interface PendingUpload {
+  rows: ProductExcelRow[];
+  errors: ProductExcelParseError[];
+  duplicates: DuplicateUploadItem[];
+  newRows: ProductExcelRow[];
 }
 
 type DataSource = "api" | "upload";
@@ -77,20 +90,40 @@ function mapUploadRow(
     salesPrice: row.salesPrice,
     commission: row.commission,
     installationCost: row.installationCost,
+    pendingUpload: "create",
   };
+}
+
+function mapDuplicateUploadRow(item: DuplicateUploadItem): Product {
+  return {
+    id: item.existingId,
+    sku: item.sku,
+    name: item.uploadedName,
+    salesPrice: item.salesPrice,
+    commission: item.commission,
+    installationCost: item.installationCost,
+    pendingUpload: "update",
+  };
+}
+
+function buildSkuLookup(products: Product[]): Map<string, Product> {
+  return new Map(products.map((product) => [product.sku.trim().toLowerCase(), product]));
 }
 
 export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
+  const [serverProducts, setServerProducts] = useState<Product[]>([]);
   const [dataSource, setDataSource] = useState<DataSource>("api");
+  const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [uploadErrors, setUploadErrors] = useState<
     { rowNumber: number; message: string }[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isSavingBulk, setIsSavingBulk] = useState(false);
   const [bulkSaveProgress, setBulkSaveProgress] = useState("");
   const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null);
@@ -106,8 +139,11 @@ export default function ProductsPage() {
         mapProduct(p)
       );
       setProducts(list);
+      setServerProducts(list);
       setDataSource("api");
       setUploadErrors([]);
+      setPendingUpload(null);
+      setDuplicateModalOpen(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load products";
       toast.error(message);
@@ -141,7 +177,7 @@ export default function ProductsPage() {
   const tableColSpan = TABLE_COLUMNS.length;
 
   const hasUnsavedUpload = dataSource === "upload";
-  const unsavedCount = products.filter((p) => !isMongoObjectId(p.id)).length;
+  const unsavedCount = products.filter((p) => p.pendingUpload).length;
 
   function handlePageChange(page: number) {
     if (page >= 1 && page <= totalPages) {
@@ -155,8 +191,8 @@ export default function ProductsPage() {
   }
 
   function openEditModal(product: Product) {
-    if (!isMongoObjectId(product.id)) {
-      toast.info("Save imported products to the server before editing.");
+    if (product.pendingUpload) {
+      toast.info("Save uploaded products to the server before editing.");
       return;
     }
     setEditingProduct(product);
@@ -192,6 +228,78 @@ export default function ProductsPage() {
     toast.success("Products exported to Excel.");
   }
 
+  function applyUploadedProducts(
+    newRows: ProductExcelRow[],
+    approvedDuplicates: DuplicateUploadItem[],
+    skippedDuplicates: DuplicateUploadItem[],
+    errors: ProductExcelParseError[]
+  ) {
+    const uploadedProducts = [
+      ...newRows.map(mapUploadRow),
+      ...approvedDuplicates.map(mapDuplicateUploadRow),
+    ];
+
+    const skippedErrors = skippedDuplicates.map((item) => ({
+      rowNumber: item.rowNumber,
+      message: `SKU "${item.sku}" already exists and was skipped.`,
+    }));
+
+    setProducts(uploadedProducts);
+    setDataSource("upload");
+    setUploadErrors([...errors, ...skippedErrors]);
+    setCurrentPage(1);
+    setSearchQuery("");
+    setPendingUpload(null);
+    setDuplicateModalOpen(false);
+
+    const totalLoaded = uploadedProducts.length;
+    if (totalLoaded === 0) {
+      toast.warn("No products were loaded from the sheet.");
+      return;
+    }
+
+    const parts: string[] = [`Loaded ${totalLoaded} product(s) from Excel.`];
+    if (approvedDuplicates.length > 0) {
+      parts.push(`${approvedDuplicates.length} existing product(s) marked for update.`);
+    }
+    if (skippedDuplicates.length > 0) {
+      parts.push(`${skippedDuplicates.length} existing product(s) were skipped.`);
+    }
+    if (errors.length > 0) {
+      parts.push(`${errors.length} row(s) had errors.`);
+    }
+
+    if (errors.length > 0 || skippedDuplicates.length > 0) {
+      toast.warn(parts.join(" "));
+    } else {
+      toast.success(parts.join(" "));
+    }
+  }
+
+  function handleDuplicateUploadConfirm(approvedSkus: string[]) {
+    if (!pendingUpload) return;
+
+    const approvedSet = new Set(approvedSkus.map((sku) => sku.trim().toLowerCase()));
+    const approvedDuplicates = pendingUpload.duplicates.filter((item) =>
+      approvedSet.has(item.sku.trim().toLowerCase())
+    );
+    const skippedDuplicates = pendingUpload.duplicates.filter(
+      (item) => !approvedSet.has(item.sku.trim().toLowerCase())
+    );
+
+    applyUploadedProducts(
+      pendingUpload.newRows,
+      approvedDuplicates,
+      skippedDuplicates,
+      pendingUpload.errors
+    );
+  }
+
+  function handleDuplicateUploadCancel() {
+    setPendingUpload(null);
+    setDuplicateModalOpen(false);
+  }
+
   async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -203,7 +311,7 @@ export default function ProductsPage() {
       return;
     }
 
-    setIsImporting(true);
+    setIsUploading(true);
     try {
       const { rows, errors } = await parseProductExcelFile(file);
 
@@ -215,30 +323,46 @@ export default function ProductsPage() {
         return;
       }
 
-      setProducts(rows.map(mapUploadRow));
-      setDataSource("upload");
-      setUploadErrors(errors);
-      setCurrentPage(1);
-      setSearchQuery("");
+      const serverBySku = buildSkuLookup(serverProducts);
+      const duplicates: DuplicateUploadItem[] = [];
+      const newRows: ProductExcelRow[] = [];
 
-      if (errors.length > 0) {
-        toast.warn(
-          `Loaded ${rows.length} product(s). ${errors.length} row(s) had errors.`
-        );
-      } else {
-        toast.success(`Loaded ${rows.length} product(s) from Excel.`);
+      for (const row of rows) {
+        const existing = serverBySku.get(row.sku.trim().toLowerCase());
+        if (existing) {
+          duplicates.push({
+            rowNumber: row.rowNumber,
+            sku: row.sku,
+            uploadedName: row.name,
+            existingName: existing.name,
+            salesPrice: row.salesPrice,
+            commission: row.commission,
+            installationCost: row.installationCost,
+            existingId: existing.id,
+          });
+        } else {
+          newRows.push(row);
+        }
       }
+
+      if (duplicates.length > 0) {
+        setPendingUpload({ rows, errors, duplicates, newRows });
+        setDuplicateModalOpen(true);
+        return;
+      }
+
+      applyUploadedProducts(newRows, [], [], errors);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to read Excel file.";
       toast.error(message);
     } finally {
-      setIsImporting(false);
+      setIsUploading(false);
     }
   }
 
   async function handleSaveBulkToServer() {
-    const toSave = products.filter((p) => !isMongoObjectId(p.id));
+    const toSave = products.filter((p) => p.pendingUpload);
     if (toSave.length === 0) {
       toast.info("No new products to save. Reload from server or upload a sheet.");
       return;
@@ -246,6 +370,7 @@ export default function ProductsPage() {
 
     setIsSavingBulk(true);
     let created = 0;
+    let updated = 0;
     let failed = 0;
     const failDetails: string[] = [];
 
@@ -253,15 +378,22 @@ export default function ProductsPage() {
       const product = toSave[i];
       setBulkSaveProgress(`${i + 1} / ${toSave.length}`);
 
+      const payload = {
+        sku: product.sku,
+        name: product.name,
+        salesPrice: product.salesPrice,
+        commission: product.commission,
+        installationCost: product.installationCost,
+      };
+
       try {
-        await adminApi.createProduct({
-          sku: product.sku,
-          name: product.name,
-          salesPrice: product.salesPrice,
-          commission: product.commission,
-          installationCost: product.installationCost,
-        });
-        created += 1;
+        if (product.pendingUpload === "update") {
+          await adminApi.updateProduct(product.id, payload);
+          updated += 1;
+        } else {
+          await adminApi.createProduct(payload);
+          created += 1;
+        }
       } catch (err: unknown) {
         failed += 1;
         const message = err instanceof Error ? err.message : "Failed to save";
@@ -272,8 +404,11 @@ export default function ProductsPage() {
     setBulkSaveProgress("");
     setIsSavingBulk(false);
 
-    if (created > 0) {
-      toast.success(`Saved ${created} product(s) to the server.`);
+    if (created > 0 || updated > 0) {
+      const parts: string[] = [];
+      if (created > 0) parts.push(`${created} created`);
+      if (updated > 0) parts.push(`${updated} updated`);
+      toast.success(`Saved ${parts.join(" and ")} on the server.`);
       await fetchProducts();
     }
 
@@ -339,23 +474,15 @@ export default function ProductsPage() {
           <button
             type="button"
             className={styles.secondaryBtn}
-            onClick={handleExport}
-            disabled={products.length === 0}
-          >
-            <FileSpreadsheet size={18} /> Export
-          </button>
-          <button
-            type="button"
-            className={styles.secondaryBtn}
             onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
+            disabled={isUploading}
           >
-            {isImporting ? (
+            {isUploading ? (
               <Loader2 size={18} className="animate-spin" />
             ) : (
               <Upload size={18} />
             )}
-            Upload Sheet
+            Import
           </button>
           <input
             ref={fileInputRef}
@@ -364,6 +491,28 @@ export default function ProductsPage() {
             className={styles.hiddenFileInput}
             onChange={handleFileUpload}
           />
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            onClick={fetchProducts}
+            disabled={loading || isSavingBulk || isUploading}
+            title="Reload products from server"
+          >
+            {loading ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <RefreshCw size={18} />
+            )}
+            Reload
+          </button>
+          <button
+            type="button"
+            className={styles.secondaryBtn}
+            onClick={handleExport}
+            disabled={products.length === 0}
+          >
+            <FileSpreadsheet size={18} /> Export
+          </button>
           {hasUnsavedUpload && unsavedCount > 0 && (
             <button
               type="button"
@@ -383,15 +532,6 @@ export default function ProductsPage() {
           )}
           <button
             type="button"
-            className={styles.secondaryBtn}
-            onClick={fetchProducts}
-            disabled={loading || isSavingBulk}
-            title="Reload products from server"
-          >
-            <RefreshCw size={18} /> Reload
-          </button>
-          <button
-            type="button"
             className={dashboardStyles.addBtn}
             onClick={openAddModal}
           >
@@ -404,7 +544,11 @@ export default function ProductsPage() {
         <div className={styles.uploadBanner}>
           <span>
             Showing <strong>{products.length}</strong> product(s) from your uploaded
-            sheet.
+            sheet
+            {products.some((p) => p.pendingUpload === "update")
+              ? " (including approved updates)"
+              : ""}
+            .
             {unsavedCount > 0
               ? ` Click "Save ${unsavedCount} to Server" when ready.`
               : ""}
@@ -415,7 +559,7 @@ export default function ProductsPage() {
       {uploadErrors.length > 0 && (
         <div className={styles.uploadErrors}>
           <p className={styles.uploadErrorsTitle}>
-            Rows skipped during import ({uploadErrors.length})
+            Rows skipped during upload ({uploadErrors.length})
           </p>
           <ul>
             {uploadErrors.slice(0, 8).map((err) => (
@@ -478,13 +622,17 @@ export default function ProductsPage() {
                 </tr>
               ) : (
                 currentItems.map((product) => {
-                  const isUnsaved = !isMongoObjectId(product.id);
+                  const isPendingCreate = product.pendingUpload === "create";
+                  const isPendingUpdate = product.pendingUpload === "update";
                   return (
                     <tr key={product.id}>
                       <td className={styles.skuCell}>
                         {product.sku}
-                        {isUnsaved && (
+                        {isPendingCreate && (
                           <span className={styles.unsavedBadge}>New</span>
+                        )}
+                        {isPendingUpdate && (
+                          <span className={styles.updateBadge}>Update</span>
                         )}
                       </td>
                       <td className={styles.nameCell}>{product.name}</td>
@@ -496,7 +644,7 @@ export default function ProductsPage() {
                           type="button"
                           className={dashboardStyles.assignBtn}
                           onClick={() => openEditModal(product)}
-                          disabled={isUnsaved}
+                          disabled={Boolean(product.pendingUpload)}
                         >
                           Edit
                         </button>
@@ -556,6 +704,14 @@ export default function ProductsPage() {
         onClose={closeModal}
         onSubmit={handleEditProduct}
         isSubmitting={isSubmitting}
+      />
+
+      <ProductUploadDuplicateModal
+        isOpen={duplicateModalOpen}
+        duplicates={pendingUpload?.duplicates ?? []}
+        newCount={pendingUpload?.newRows.length ?? 0}
+        onClose={handleDuplicateUploadCancel}
+        onConfirm={handleDuplicateUploadConfirm}
       />
     </div>
   );
