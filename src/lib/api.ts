@@ -67,6 +67,12 @@ export const adminApi = {
     apiRequest("/leads/sales-persons", {
       method: "GET",
     }),
+  getUsaStates: (state?: string) => {
+    const query = state ? `?state=${encodeURIComponent(state)}` : "";
+    return apiRequest(`/usa-states${query}`, {
+      method: "GET",
+    });
+  },
   createLead: (leadData: Record<string, unknown> | FormData) =>
     apiRequest("/leads-create", {
       method: "POST",
@@ -129,6 +135,9 @@ export const adminApi = {
   getDashboardStats: () => apiRequest("/admin/dashboard/stats", {
     method: "GET",
   }),
+  getWorkflowStats: () => apiRequest("/admin/dashboard/workflow-stats", {
+    method: "GET",
+  }),
   verifyCustomerSurvey: (id: string) => apiRequest(`/customer/customers/${id}/verify`, {
     method: "POST",
     body: JSON.stringify({ status: "verified" }),
@@ -152,6 +161,10 @@ export const adminApi = {
     apiRequest(`/customer/customers/${customerId}/quotation/upload`, {
       method: "POST",
       body: formData,
+    }),
+  approveQuotation: (customerId: string) =>
+    apiRequest(`/customer/customers/${customerId}/quotation/approve`, {
+      method: "POST",
     }),
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",

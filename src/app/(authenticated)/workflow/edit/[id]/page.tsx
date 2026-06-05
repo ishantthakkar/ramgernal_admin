@@ -31,6 +31,7 @@ import {
 import detailStyles from "../../workflow-details.module.css";
 import modalStyles from "../../../commissions/commissions-modal.module.css";
 import { hasPermission } from "@/lib/permissions";
+import { QuotationPdfPreview } from "@/components/workflow/quotation-pdf-preview";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   const display = value?.trim() || "—";
@@ -288,8 +289,9 @@ export default function WorkflowEditPage() {
 
   const searchParams = useSearchParams();
   const fromTab = searchParams.get("from");
+  const isQuotationEdit = fromTab === "Quotations";
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);
   const [customer, setCustomer] = useState<any>(null);
   const [rawSurveyRecords, setRawSurveyRecords] = useState<any[]>([]);
@@ -309,6 +311,8 @@ export default function WorkflowEditPage() {
   });
 
   useEffect(() => {
+    if (!id || isQuotationEdit) return;
+
     const fetchData = async () => {
       try {
         const result = await adminApi.getCustomerWorkflowDetails(id);
@@ -328,8 +332,8 @@ export default function WorkflowEditPage() {
         setLoading(false);
       }
     };
-    if (id) fetchData();
-  }, [id, router]);
+    fetchData();
+  }, [id, isQuotationEdit, router]);
 
   const surveyInfo = useMemo(() => {
     if (!customer) return null;
@@ -499,6 +503,16 @@ export default function WorkflowEditPage() {
       setSaving(false);
     }
   };
+
+  if (isQuotationEdit) {
+    return (
+      <QuotationPdfPreview
+        customerId={id}
+        fromTab={fromTab || "Quotations"}
+        variant="edit"
+      />
+    );
+  }
 
   if (loading) {
     return (

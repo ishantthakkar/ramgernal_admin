@@ -43,6 +43,7 @@ function toIsoOrEmpty(value: string): string {
 import { adminApi } from "@/lib/api";
 import { formatNoteAuthorLabel, withNoteAuthor } from "@/lib/leadNotes";
 import { toast } from "react-toastify";
+import { UsaAddressFields } from "@/components/address/usa-address-fields";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import modalStyles from "@/components/modals/ConfirmationModal.module.css";
 import { formatDateTime } from "@/lib/dateUtils";
@@ -1538,44 +1539,16 @@ export default function EditLeadPage() {
                   onChange={(e) => setTempAddress({ ...tempAddress, street: e.target.value })}
                 />
               </div>
-              <div className={styles.formGroup}>
-                <label>City</label>
-                <input
-                  type="text"
-                  placeholder="City"
-                  className={styles.formInput}
-                  value={tempAddress.city}
-                  onChange={(e) => setTempAddress({ ...tempAddress, city: e.target.value })}
-                />
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "1rem",
-                }}
-              >
-                <div className={styles.formGroup}>
-                  <label>State</label>
-                  <input
-                    type="text"
-                    placeholder="State"
-                    className={styles.formInput}
-                    value={tempAddress.state}
-                    onChange={(e) => setTempAddress({ ...tempAddress, state: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Zip</label>
-                  <input
-                    type="text"
-                    placeholder="Zip Code"
-                    className={styles.formInput}
-                    value={tempAddress.zip}
-                    onChange={(e) => setTempAddress({ ...tempAddress, zip: e.target.value })}
-                  />
-                </div>
-              </div>
+              <UsaAddressFields
+                city={tempAddress.city}
+                state={tempAddress.state}
+                zip={tempAddress.zip}
+                onChange={(updates) =>
+                  setTempAddress((prev) => ({ ...prev, ...updates }))
+                }
+                formGroupClassName={styles.formGroup}
+                formSelectClassName={styles.formSelect}
+              />
             </div>
             <div className={addStyles.modalFooter}>
               <button

@@ -247,11 +247,12 @@ export default function WorkflowPage() {
   const [targetRecord, setTargetRecord] = useState<any>(null);
   const [availableStaff, setAvailableStaff] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [counts, setCounts] = useState({
-    Surveys: 0,
-    Quotations: 0,
-    installations: 0,
-    inspections: 0
+    totalSurveys: 0,
+    totalQuotations: 0,
+    totalInstallations: 0,
+    totalInspections: 0,
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -263,9 +264,6 @@ export default function WorkflowPage() {
       if (activeTab === "Surveys") {
         const response = await adminApi.getCustomers();
         const customers = response.customers || response.data || [];
-
-        const totalSurveys = response.count || response.total || customers.length;
-        setCounts(prev => ({ ...prev, Surveys: totalSurveys }));
 
         const normalizedData = customers.map((c: any) => {
           const lead = typeof c.leadId === "object" && c.leadId !== null ? c.leadId : null;
@@ -292,9 +290,6 @@ export default function WorkflowPage() {
           adminApi.getCustomers(),
         ]);
         const customers = quotationsRes.customers || [];
-
-        const totalQuotations = quotationsRes.total ?? customers.length;
-        setCounts((prev) => ({ ...prev, Quotations: totalQuotations }));
 
         const customerMetaMap = new Map<
           string,
@@ -348,9 +343,6 @@ export default function WorkflowPage() {
         const response = await adminApi.getInstallations();
         const installations = response.installations || response.data || (Array.isArray(response) ? response : []);
 
-        const totalInst = response.total || response.count || installations.length;
-        setCounts(prev => ({ ...prev, installations: totalInst }));
-
         const normalizedData = installations.map((inst: any) => ({
           _id: inst.id || inst._id,
           accountNumber: inst.accountNumber || "N/A",
@@ -366,9 +358,6 @@ export default function WorkflowPage() {
       } else if (activeTab === "Inspections") {
         const response = await adminApi.getInspections();
         const customers = response.customers || response.data || [];
-
-        const totalInsp = response.total || response.count || customers.length;
-        setCounts(prev => ({ ...prev, inspections: totalInsp }));
 
         const normalizedData = customers.map((c: any) => ({
           _id: c.id || c._id,
@@ -398,27 +387,23 @@ export default function WorkflowPage() {
   }, [activeTab, searchTerm]);
 
   useEffect(() => {
-    const fetchAllCounts = async () => {
+    const fetchWorkflowStats = async () => {
+      setStatsLoading(true);
       try {
-        const [Surveys, quotations, inst, insp] = await Promise.all([
-          adminApi.getCustomers(),
-          adminApi.getQuotationsAdmin(),
-          adminApi.getInstallations(),
-          adminApi.getInspections()
-        ]);
-
+        const stats = await adminApi.getWorkflowStats();
         setCounts({
-          Surveys: Surveys.count || Surveys.total || (Surveys.customers?.length || 0),
-          Quotations: quotations.total ?? (quotations.customers?.length || 0),
-          installations: inst.count || inst.total || (inst.installations?.length || 0),
-          inspections: insp.count || insp.total || (insp.customers?.length || 0)
+          totalSurveys: stats.totalSurveys ?? 0,
+          totalQuotations: stats.totalQuotations ?? 0,
+          totalInstallations: stats.totalInstallations ?? 0,
+          totalInspections: stats.totalInspections ?? 0,
         });
       } catch (err) {
-        console.warn("Failed to fetch initial counts:", err);
-        setCounts(prev => ({ ...prev, inspections: 0 }));
+        console.warn("Failed to fetch workflow stats:", err);
+      } finally {
+        setStatsLoading(false);
       }
     };
-    fetchAllCounts();
+    fetchWorkflowStats();
   }, []);
 
   const openAssignModal = async (type: "Contractor" | "Project Manager", record: any) => {
@@ -488,9 +473,10 @@ export default function WorkflowPage() {
   };
 
   const summaryStats = [
-    { label: "Total Surveys", value: counts.Surveys.toLocaleString(), icon: ClipboardCheck, color: "#3b6fd9", bg: "#e8f0fe" },
-    { label: "Total Installations", value: counts.installations.toLocaleString(), icon: Hammer, color: "#475569", bg: "#f1f5f9" },
-    { label: "Total Inspections", value: counts.inspections.toLocaleString(), icon: ClipboardList, color: "#0d9488", bg: "#ccfbf1" },
+    { label: "Total Surveys", value: counts.totalSurveys, icon: ClipboardCheck, color: "#3b6fd9", bg: "#e8f0fe" },
+    { label: "Total Quotations", value: counts.totalQuotations, icon: FileText, color: "#7c3aed", bg: "#ede9fe" },
+    { label: "Total Installations", value: counts.totalInstallations, icon: Hammer, color: "#475569", bg: "#f1f5f9" },
+    { label: "Total Inspections", value: counts.totalInspections, icon: ClipboardList, color: "#0d9488", bg: "#ccfbf1" },
   ];
 
   const getHeaders = () => {
@@ -624,7 +610,9 @@ export default function WorkflowPage() {
             >
               <stat.icon size={22} />
             </div>
-            <div className={workflowStyles.workflowStatValue}>{stat.value}</div>
+            <div className={workflowStyles.workflowStatValue}>
+              {statsLoading ? "—" : stat.value.toLocaleString()}
+            </div>
             <div className={workflowStyles.workflowStatLabel}>{stat.label}</div>
           </div>
         ))}
@@ -754,7 +742,16 @@ export default function WorkflowPage() {
                     ) : activeTab === "Quotations" ? (
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.customerName}</td>
+                        <td>
+                          <span
+                            className={workflowStyles.linkName}
+                            onClick={() =>
+                              router.push(`/workflow/quotations/${item._id}?from=Quotations`)
+                            }
+                          >
+                            {item.customerName}
+                          </span>
+                        </td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
                         <td onClick={(e) => e.stopPropagation()}>
@@ -799,10 +796,10 @@ export default function WorkflowPage() {
                             type="button"
                             className={styles.assignBtn}
                             onClick={() =>
-                              router.push(`/workflow/quotations/${item._id}?from=Quotations`)
+                              router.push(`/workflow/edit/${item._id}?from=Quotations`)
                             }
                           >
-                            View
+                            Edit
                           </button>
                         </td>
                       </>
