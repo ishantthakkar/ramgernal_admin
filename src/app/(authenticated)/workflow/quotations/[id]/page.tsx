@@ -8,8 +8,14 @@ export default function QuotationViewPage() {
   const searchParams = useSearchParams();
   const customerId = params.id as string;
   const fromTab = searchParams.get("from") || "Quotations";
+  const surveyId = searchParams.get("surveyId") || undefined;
 
   return (
-    <QuotationPdfPreview customerId={customerId} fromTab={fromTab} variant="view" />
+    <QuotationPdfPreview
+      customerId={customerId}
+      surveyId={surveyId}
+      fromTab={fromTab}
+      variant="edit"
+    />
   );
 }

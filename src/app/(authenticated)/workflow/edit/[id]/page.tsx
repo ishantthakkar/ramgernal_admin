@@ -289,11 +289,13 @@ export default function WorkflowEditPage() {
 
   const searchParams = useSearchParams();
   const fromTab = searchParams.get("from");
+  const surveyId = searchParams.get("surveyId") || undefined;
   const isQuotationEdit = fromTab === "Quotations";
 
   const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);
   const [customer, setCustomer] = useState<any>(null);
+  const [customerCode, setCustomerCode] = useState("");
   const [rawSurveyRecords, setRawSurveyRecords] = useState<any[]>([]);
   const [siteRows, setSiteRows] = useState<SiteDetailRow[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
@@ -322,6 +324,7 @@ export default function WorkflowEditPage() {
             new Date(a.createdAt || a.surveyDate || 0).getTime()
         );
         setCustomer(result.customer);
+        setCustomerCode(String(result.customer?.customerCode || ""));
         setRawSurveyRecords(raw);
         setSiteRows(mapSiteDetails(raw));
         setMaterials(result.materials || []);
@@ -469,7 +472,10 @@ export default function WorkflowEditPage() {
     setSaving(true);
     try {
       if (activeTab === "survey") {
-        await adminApi.updateCustomerWorkflow(id, { surveys: siteRows });
+        await adminApi.updateCustomerWorkflow(id, {
+          customerCode: customerCode.trim(),
+          surveys: siteRows,
+        });
         toast.success("Survey site details saved successfully.");
         router.push(`/workflow/view/${id}?from=${fromTab || "Surveys"}`);
       } else {
@@ -508,6 +514,7 @@ export default function WorkflowEditPage() {
     return (
       <QuotationPdfPreview
         customerId={id}
+        surveyId={surveyId}
         fromTab={fromTab || "Quotations"}
         variant="edit"
       />
@@ -651,6 +658,12 @@ export default function WorkflowEditPage() {
             <Info size={22} color="var(--admin-primary, #004d4d)" /> Survey Details
           </div>
           <div className={styles.formGrid}>
+            <EditableField
+              label="Customer ID"
+              value={customerCode}
+              onChange={setCustomerCode}
+              placeholder="Enter customer ID"
+            />
             <ReadOnlyField label="Survey Name" value={surveyInfo.surveyName} />
             <ReadOnlyField label="Sales Person Name" value={surveyInfo.salesPerson} />
             <ReadOnlyField

@@ -107,3 +107,98 @@ export function formatQuotationStatusLabel(status: string): string {
   if (normalized === "pending") return "Pending";
   return status ? status.charAt(0).toUpperCase() + status.slice(1) : "Pending";
 }
+
+export interface SurveyQuotationApiRow {
+  customerId?: string;
+  customerName?: string;
+  survey_id?: string;
+  surveyName?: string;
+  quotationStatus?: string;
+  quotationApprovedAt?: string | null;
+  quotationApprovedBy?: string | null;
+  generateQuotation?: string[];
+  uploadSignedQuotation?: string[];
+}
+
+export interface WorkflowQuotationRow {
+  _id: string;
+  customerId: string;
+  surveyId: string;
+  leadId: string;
+  customerName: string;
+  surveyName: string;
+  salesManager: string;
+  salesPerson: string;
+  generatedPdfUrl: string;
+  generatedPdfName: string;
+  signedPdfUrl: string;
+  signedPdfName: string;
+  quotationStatus: string;
+  statusLabel: string;
+}
+
+export function getLatestQuotationUrl(urls: string[] | undefined): string {
+  const list = (urls || []).map((url) => url?.trim()).filter(Boolean);
+  if (!list.length) return "";
+  return sanitizePdfUrl(list[list.length - 1]);
+}
+
+export function findSurveyQuotationRow(
+  rows: SurveyQuotationApiRow[],
+  customerId: string,
+  surveyId?: string
+): SurveyQuotationApiRow | undefined {
+  if (surveyId) {
+    return rows.find((row) => String(row.survey_id) === surveyId);
+  }
+  return rows.find((row) => String(row.customerId) === customerId);
+}
+
+export function mapSurveyQuotationListItem(
+  row: SurveyQuotationApiRow,
+  index: number,
+  meta?: {
+    leadId?: string;
+    salesManagerName?: string;
+    salesPersonName?: string;
+  }
+): WorkflowQuotationRow {
+  const customerId = String(row.customerId || "");
+  const surveyId = String(row.survey_id || "");
+  const generatedUrl = getLatestQuotationUrl(row.generateQuotation);
+  const signedUrl = getLatestQuotationUrl(row.uploadSignedQuotation);
+  const quotationStatus = (row.quotationStatus || "pending").toLowerCase();
+  const surveyName = (row.surveyName || "").trim() || `Room${index + 1}`;
+
+  return {
+    _id: surveyId || `${customerId}-${index}`,
+    customerId,
+    surveyId,
+    leadId: meta?.leadId || "—",
+    customerName: row.customerName || "—",
+    surveyName,
+    salesManager: meta?.salesManagerName || "—",
+    salesPerson: meta?.salesPersonName || "—",
+    generatedPdfUrl: generatedUrl,
+    generatedPdfName: "Generated",
+    signedPdfUrl: signedUrl,
+    signedPdfName: "Signed",
+    quotationStatus,
+    statusLabel: formatQuotationStatusLabel(quotationStatus),
+  };
+}
+
+export function mapSurveyQuotationFiles(row: SurveyQuotationApiRow | undefined): {
+  generated: QuotationFile | null;
+  signed: QuotationFile | null;
+} {
+  const generatedUrl = getLatestQuotationUrl(row?.generateQuotation);
+  const signedUrl = getLatestQuotationUrl(row?.uploadSignedQuotation);
+
+  return {
+    generated: generatedUrl
+      ? { url: generatedUrl, pdfName: "Generated Quotation" }
+      : null,
+    signed: signedUrl ? { url: signedUrl, pdfName: "Signed Quotation" } : null,
+  };
+}

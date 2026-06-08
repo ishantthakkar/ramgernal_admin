@@ -23,10 +23,8 @@ import { adminApi } from "@/lib/api";
 import { canViewModule, hasPermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
 import {
-  formatQuotationStatusLabel,
-  getGeneratedQuotationFromCustomer,
-  getSignedQuotationFromCustomer,
-  sanitizePdfUrl,
+  mapSurveyQuotationListItem,
+  type SurveyQuotationApiRow,
 } from "@/lib/quotation-utils";
 
 function resolveUserDisplayName(
@@ -267,8 +265,10 @@ export default function WorkflowPage() {
 
         const normalizedData = customers.map((c: any) => {
           const lead = typeof c.leadId === "object" && c.leadId !== null ? c.leadId : null;
+          const customerId = String(c.customerCode || c.customer_code || "");
           return {
             _id: c.id || c._id,
+            customerId,
             leadId: c.lead_id || lead?.lead_id || "",
             leadName: c.leadName || lead?.leadName || lead?.name || c.name || "",
             dba: c.dba || lead?.dba || "",
@@ -289,7 +289,7 @@ export default function WorkflowPage() {
           adminApi.getQuotationsAdmin(),
           adminApi.getCustomers(),
         ]);
-        const customers = quotationsRes.customers || [];
+        const quotations = (quotationsRes.quotations || []) as SurveyQuotationApiRow[];
 
         const customerMetaMap = new Map<
           string,
@@ -305,39 +305,16 @@ export default function WorkflowPage() {
           });
         }
 
-        const normalizedData = customers.map((c: Record<string, unknown>) => {
-          const generated = getGeneratedQuotationFromCustomer(c);
-          const signed = getSignedQuotationFromCustomer(c);
-          const customerId = String(c.customerId || "");
+        const normalizedData = quotations.map((row, index) => {
+          const customerId = String(row.customerId || "");
           const meta = customerMetaMap.get(customerId);
-          const salesPersonFromApi = c.salesPerson as { fullName?: string; _id?: unknown } | undefined;
-          const quotationStatus = (c.quotationStatus as string) || "pending";
-
-          return {
-            _id: customerId,
-            leadId: meta?.leadId || "—",
-            customerName: c.customerName || "—",
-            company: c.company || "",
-            salesManager:
-              meta?.salesManagerName ||
-              resolveUserDisplayName(
-                c.quotationApprovedByUser as { fullName?: string; _id?: unknown }
-              ),
-            salesPerson:
-              meta?.salesPersonName || resolveUserDisplayName(salesPersonFromApi),
-            generatedPdfUrl: sanitizePdfUrl((generated?.url as string) || ""),
-            generatedPdfName:
-              (generated?.pdfName as string) ||
-              (generated?.filename as string) ||
-              "Generated",
-            signedPdfUrl: sanitizePdfUrl((signed?.url as string) || ""),
-            signedPdfName:
-              (signed?.pdfName as string) || (signed?.filename as string) || "Signed",
-            quotationStatus,
-            statusLabel: formatQuotationStatusLabel(quotationStatus),
-          };
+          return mapSurveyQuotationListItem(row, index, meta);
         });
         setData(normalizedData);
+        setCounts((prev) => ({
+          ...prev,
+          totalQuotations: quotationsRes.total ?? normalizedData.length,
+        }));
 
       } else if (activeTab === "Installations") {
         const response = await adminApi.getInstallations();
@@ -481,13 +458,14 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Verify", "Actions"];
+      return ["ID", "Customer ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Verify", "Actions"];
     }
 
     if (activeTab === "Quotations") {
       return [
         "ID",
         "Customer",
+        "Survey",
         "Sales Manager",
         "Sales Person",
         "Generated",
@@ -533,6 +511,7 @@ export default function WorkflowPage() {
       if (activeTab === "Surveys") {
         return (
           item.leadId?.toLowerCase().includes(q) ||
+          item.customerId?.toLowerCase().includes(q) ||
           item.leadName?.toLowerCase().includes(q) ||
           item.dba?.toLowerCase().includes(q) ||
           item.salesPerson?.toLowerCase().includes(q) ||
@@ -544,7 +523,7 @@ export default function WorkflowPage() {
         return (
           item.leadId?.toString().toLowerCase().includes(q) ||
           item.customerName?.toLowerCase().includes(q) ||
-          item.company?.toLowerCase().includes(q) ||
+          item.surveyName?.toLowerCase().includes(q) ||
           item.salesManager?.toLowerCase().includes(q) ||
           item.salesPerson?.toLowerCase().includes(q) ||
           item.statusLabel?.toLowerCase().includes(q)
@@ -680,6 +659,7 @@ export default function WorkflowPage() {
                     {activeTab === "Surveys" ? (
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId || "—"}</td>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.customerId || "—"}</td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
@@ -746,12 +726,15 @@ export default function WorkflowPage() {
                           <span
                             className={workflowStyles.linkName}
                             onClick={() =>
-                              router.push(`/workflow/quotations/${item._id}?from=Quotations`)
+                              router.push(
+                                `/workflow/quotations/${item.customerId}?surveyId=${item.surveyId}&from=Quotations`
+                              )
                             }
                           >
                             {item.customerName}
                           </span>
                         </td>
+                        <td style={{ color: "#1e293b", fontWeight: 700 }}>{item.surveyName}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
                         <td onClick={(e) => e.stopPropagation()}>
@@ -770,9 +753,9 @@ export default function WorkflowPage() {
                             />
                           ) : canCreateSurveys ? (
                             <SignedQuotationUpload
-                              customerId={item._id}
+                              customerId={item.customerId}
+                              surveyId={item.surveyId}
                               onUploaded={fetchWorkflowData}
-                              label="Sign"
                             />
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
@@ -796,7 +779,9 @@ export default function WorkflowPage() {
                             type="button"
                             className={styles.assignBtn}
                             onClick={() =>
-                              router.push(`/workflow/edit/${item._id}?from=Quotations`)
+                              router.push(
+                                `/workflow/edit/${item.customerId}?surveyId=${item.surveyId}&from=Quotations`
+                              )
                             }
                           >
                             Edit

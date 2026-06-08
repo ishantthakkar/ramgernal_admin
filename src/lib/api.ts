@@ -154,17 +154,20 @@ export const adminApi = {
     method: "GET",
   }),
   getQuotationsAdmin: () =>
-    apiRequest("/customer/quotations-admin", {
+    apiRequest("/customer/survey-quotations-list", {
       method: "GET",
     }),
-  uploadQuotation: (customerId: string, formData: FormData) =>
-    apiRequest(`/customer/customers/${customerId}/quotation/upload`, {
+  uploadQuotation: (surveyId: string, formData: FormData) => {
+    formData.append("surveyId", surveyId);
+    return apiRequest("/customer/quotation/upload", {
       method: "POST",
       body: formData,
-    }),
-  approveQuotation: (customerId: string) =>
-    apiRequest(`/customer/customers/${customerId}/quotation/approve`, {
+    });
+  },
+  approveQuotation: (surveyId: string) =>
+    apiRequest("/customer/quotation/approve", {
       method: "POST",
+      body: JSON.stringify({ surveyId }),
     }),
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",

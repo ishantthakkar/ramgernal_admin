@@ -10,12 +10,12 @@ import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-up
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import {
+  findSurveyQuotationRow,
   formatQuotationCardDate,
   formatQuotationStatusLabel,
-  getGeneratedQuotationFromCustomer,
-  getSignedQuotationFromCustomer,
-  mapQuotationFile,
+  mapSurveyQuotationFiles,
   type QuotationFile,
+  type SurveyQuotationApiRow,
 } from "@/lib/quotation-utils";
 import { CheckCircle2, Download, FileText, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
@@ -169,12 +169,14 @@ function QuotationProfileHeader({
 
 interface QuotationPdfPreviewProps {
   customerId: string;
+  surveyId?: string;
   fromTab?: string;
   variant?: "view" | "edit";
 }
 
 export function QuotationPdfPreview({
   customerId,
+  surveyId,
   fromTab = "Quotations",
   variant = "view",
 }: QuotationPdfPreviewProps) {
@@ -188,6 +190,8 @@ export function QuotationPdfPreview({
   const [generatedFile, setGeneratedFile] = useState<QuotationFile | null>(null);
   const [signedFile, setSignedFile] = useState<QuotationFile | null>(null);
   const [activePdf, setActivePdf] = useState<"generated" | "signed">("generated");
+  const [resolvedSurveyId, setResolvedSurveyId] = useState(surveyId || "");
+  const [surveyName, setSurveyName] = useState("");
 
   const canUploadSign = hasPermission("Surveys", "create");
   const canVerify = hasPermission("Surveys", "edit");
@@ -208,26 +212,25 @@ export function QuotationPdfPreview({
     setLoading(true);
     try {
       const quotationsRes = await adminApi.getQuotationsAdmin();
-      const customers = quotationsRes.customers || [];
-      const customer = customers.find(
-        (row: Record<string, unknown>) => String(row.customerId) === customerId
-      );
+      const quotations = (quotationsRes.quotations || []) as SurveyQuotationApiRow[];
+      const quotation = findSurveyQuotationRow(quotations, customerId, surveyId);
 
-      if (!customer) {
-        toast.error("Quotation record not found for this customer.");
+      if (!quotation) {
+        toast.error("Quotation record not found for this survey.");
         router.push(backUrl);
         return;
       }
 
-      const nextGenerated = mapQuotationFile(getGeneratedQuotationFromCustomer(customer));
-      const nextSigned = mapQuotationFile(getSignedQuotationFromCustomer(customer));
+      const files = mapSurveyQuotationFiles(quotation);
 
-      setCustomerName((customer.customerName as string) || "Customer");
-      setCompany((customer.company as string) || "—");
-      setQuotationStatus((customer.quotationStatus as string) || "pending");
-      setGeneratedFile(nextGenerated);
-      setSignedFile(nextSigned);
-      setActivePdf(nextGenerated ? "generated" : "signed");
+      setResolvedSurveyId(String(quotation.survey_id || surveyId || ""));
+      setCustomerName(quotation.customerName || "Customer");
+      setSurveyName((quotation.surveyName || "").trim());
+      setCompany("—");
+      setQuotationStatus((quotation.quotationStatus as string) || "pending");
+      setGeneratedFile(files.generated);
+      setSignedFile(files.signed);
+      setActivePdf(files.generated ? "generated" : "signed");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load quotation details.";
       toast.error(message);
@@ -241,7 +244,7 @@ export function QuotationPdfPreview({
     if (customerId) {
       fetchQuotationDetails();
     }
-  }, [customerId]);
+  }, [customerId, surveyId]);
 
   const handleVerify = async () => {
     if (!signedFile) {
@@ -256,7 +259,12 @@ export function QuotationPdfPreview({
 
     try {
       setVerifying(true);
-      const response = await adminApi.approveQuotation(customerId);
+      if (!resolvedSurveyId) {
+        toast.error("Survey ID is missing for this quotation.");
+        return;
+      }
+
+      const response = await adminApi.approveQuotation(resolvedSurveyId);
       toast.success(response.message || "Quotation verified successfully.");
       await fetchQuotationDetails();
     } catch (err: unknown) {
@@ -326,6 +334,7 @@ export function QuotationPdfPreview({
                   canUploadSign ? (
                     <SignedQuotationUpload
                       customerId={customerId}
+                      surveyId={resolvedSurveyId}
                       onUploaded={fetchQuotationDetails}
                     />
                   ) : undefined
@@ -334,6 +343,7 @@ export function QuotationPdfPreview({
                   canUploadSign && signedFile ? (
                     <SignedQuotationUpload
                       customerId={customerId}
+                      surveyId={resolvedSurveyId}
                       onUploaded={fetchQuotationDetails}
                       hasSignedFile
                       variant="outline"
@@ -368,6 +378,26 @@ export function QuotationPdfPreview({
             >
               <X size={20} /> Close
             </button>
+
+            {canVerify ? (
+              <button
+                type="button"
+                className={styles.createBtn}
+                onClick={handleVerify}
+                disabled={verifying || isApproved || !signedFile}
+                style={{
+                  padding: "0.875rem 3rem",
+                  background: isApproved ? "#94a3b8" : "#10b981",
+                }}
+              >
+                {verifying ? (
+                  <Loader2 size={18} className={styles.spinner} />
+                ) : (
+                  <CheckCircle2 size={18} />
+                )}
+                {verifying ? "Verifying..." : isApproved ? "Verified" : "Verify"}
+              </button>
+            ) : null}
           </div>
         </>
       ) : (

@@ -10,6 +10,7 @@ const ACCEPTED_TYPES = "application/pdf,image/*";
 
 interface SignedQuotationUploadProps {
   customerId: string;
+  surveyId: string;
   onUploaded?: () => void | Promise<void>;
   label?: string;
   variant?: "primary" | "outline";
@@ -19,8 +20,9 @@ interface SignedQuotationUploadProps {
 
 export function SignedQuotationUpload({
   customerId,
+  surveyId,
   onUploaded,
-  label = "Sign",
+  label = "Upload",
   variant = "primary",
   hasSignedFile = false,
   disabled = false,
@@ -105,7 +107,7 @@ export function SignedQuotationUpload({
 
     try {
       setUploading(true);
-      const response = await adminApi.uploadQuotation(customerId, formData);
+      const response = await adminApi.uploadQuotation(surveyId, formData);
       toast.success(response.message || "Signed quotation uploaded successfully.");
       closeModal();
       await onUploaded?.();
@@ -117,7 +119,7 @@ export function SignedQuotationUpload({
     }
   };
 
-  const triggerLabel = hasSignedFile ? "Replace Sign" : label;
+  const triggerLabel = hasSignedFile ? "Replace Upload" : label;
   const triggerClass =
     variant === "outline"
       ? `${uploadStyles.trigger} ${uploadStyles.triggerOutline}`
