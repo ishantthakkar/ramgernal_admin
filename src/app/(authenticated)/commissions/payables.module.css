@@ -70,16 +70,10 @@
 }
 
 .nameCell {
-  color: var(--admin-primary);
+  color: var(--admin-primary, #004d4d);
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-
-.nameCell:hover {
-  opacity: 0.85;
   text-decoration: underline;
-  text-decoration-color: rgba(0, 77, 77, 0.35);
 }
 
 .textCell {
