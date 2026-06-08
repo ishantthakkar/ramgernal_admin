@@ -51,6 +51,7 @@ interface SurveyRecord {
   createdAt?: string;
   updatedAt?: string;
   areaName?: string;
+  status?: string;
   note?: string;
   notes?: string;
   areas?: SurveyArea[];
@@ -82,6 +83,23 @@ function resolveAreaName(survey: SurveyRecord, area: SurveyArea, index: number):
   return name || `Area ${index + 1}`;
 }
 
+export function resolveSurveyName(survey: SurveyRecord, surveyIndex: number): string {
+  const surveyLevelName = (survey.areaName || "").trim();
+  if (surveyLevelName) return surveyLevelName;
+
+  const firstAreaName = (survey.areas?.[0]?.areaName || "").trim();
+  if (firstAreaName) return firstAreaName;
+
+  return `Room${surveyIndex + 1}`;
+}
+
+function buildAreasSummary(rows: SiteDetailRow[]): string {
+  const names = rows
+    .map((row) => row.area.trim())
+    .filter((name) => name && !/^area\s+\d+$/i.test(name));
+  return [...new Set(names)].join(", ");
+}
+
 function formatMoney(value: number): string {
   if (!value || Number.isNaN(value)) return "—";
   return value.toFixed(2);
@@ -98,8 +116,14 @@ export function mapSurveyDetails(
   const latest = surveys[0];
   const lead =
     customer.leadId && typeof customer.leadId === "object" ? customer.leadId : null;
+  const customerName =
+    customer.name?.trim() ||
+    lead?.leadName ||
+    lead?.name ||
+    "N/A";
+
   return {
-    surveyName: lead?.leadName || lead?.name || customer.name || "N/A",
+    surveyName: customerName,
     salesPerson:
       customer.user_id?.fullName || customer.user_id?.name || "N/A",
     surveyDate: latest?.surveyDate || latest?.createdAt || null,
@@ -157,17 +181,26 @@ function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
 export interface SiteDetailSurveyGroup {
   surveyId: string;
   surveyIndex: number;
+  surveyName: string;
   surveyDate: string | null;
+  status: string;
+  areasSummary: string;
   areas: SiteDetailRow[];
 }
 
 export function mapSiteDetailGroups(surveys: SurveyRecord[]): SiteDetailSurveyGroup[] {
-  return surveys.map((survey, surveyIndex) => ({
-    surveyId: survey._id,
-    surveyIndex,
-    surveyDate: survey.surveyDate || survey.createdAt || null,
-    areas: mapSurveyAreas(survey),
-  }));
+  return surveys.map((survey, surveyIndex) => {
+    const areas = mapSurveyAreas(survey);
+    return {
+      surveyId: survey._id,
+      surveyIndex,
+      surveyName: resolveSurveyName(survey, surveyIndex),
+      surveyDate: survey.surveyDate || survey.createdAt || null,
+      status: survey.status || "Draft",
+      areasSummary: buildAreasSummary(areas),
+      areas,
+    };
+  });
 }
 
 export function mapSiteDetails(surveys: SurveyRecord[]): SiteDetailRow[] {

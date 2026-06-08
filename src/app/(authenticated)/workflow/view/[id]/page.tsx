@@ -195,41 +195,88 @@ function NotesList({ entries }: { entries: NoteEntry[] }) {
   );
 }
 
-function SiteDetailsCards({
+function SiteSurveyList({
   groups,
-  onViewImages,
+  onSelectSurvey,
 }: {
   groups: SiteDetailSurveyGroup[];
-  onViewImages: (images: string[], area: string) => void;
+  onSelectSurvey: (group: SiteDetailSurveyGroup) => void;
 }) {
-  const hasAreas = groups.some((g) => g.areas.length > 0);
-
-  if (!groups.length || !hasAreas) {
+  if (!groups.length) {
     return <div className={addStyles.emptyState}>No site survey details found.</div>;
   }
 
-  const showSurveyHeaders = groups.length > 1;
+  return (
+    <div className={modalStyles.siteSurveyList}>
+      {groups.map((group) => (
+        <button
+          key={group.surveyId}
+          type="button"
+          className={modalStyles.siteSurveyListItem}
+          onClick={() => onSelectSurvey(group)}
+        >
+          <div className={modalStyles.siteSurveyListMain}>
+            <h4 className={modalStyles.siteSurveyListName}>{group.surveyName}</h4>
+            <p className={modalStyles.siteSurveyListDate}>
+              {group.surveyDate ? formatDate(group.surveyDate) : "—"}
+            </p>
+            {group.areasSummary ? (
+              <p className={modalStyles.siteSurveyListAreas}>Areas: {group.areasSummary}</p>
+            ) : null}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SiteSurveyDetailModal({
+  group,
+  onClose,
+  onViewImages,
+}: {
+  group: SiteDetailSurveyGroup | null;
+  onClose: () => void;
+  onViewImages: (images: string[], area: string) => void;
+}) {
+  if (!group) return null;
 
   return (
-    <div className={modalStyles.siteDetailsStack}>
-      {groups.map((group) => (
-        <div key={group.surveyId} className={modalStyles.siteSurveyBox}>
-          {showSurveyHeaders && (
-            <div className={modalStyles.siteSurveyBoxHeader}>
-              Survey {group.surveyIndex + 1}
-              {group.surveyDate ? ` · ${formatDate(group.surveyDate)}` : ""}
-            </div>
-          )}
-          {group.areas.map((row, roomIndex) => (
-            <SiteRoomCard
-              key={row._id}
-              row={row}
-              roomIndex={roomIndex}
-              onViewImages={onViewImages}
-            />
-          ))}
+    <div className={modalStyles.imgModalOverlay} onClick={onClose}>
+      <div
+        className={modalStyles.imgModalContent}
+        style={{ maxWidth: 920 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={modalStyles.imgModalHeader}>
+          <div>
+            <h3>{group.surveyName}</h3>
+            <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
+              {group.surveyDate ? formatDate(group.surveyDate) : "—"}
+              {group.areasSummary ? ` · Areas: ${group.areasSummary}` : ""}
+            </p>
+          </div>
+          <button type="button" className={modalStyles.closeBtn} onClick={onClose}>
+            <X size={20} />
+          </button>
         </div>
-      ))}
+        <div className={modalStyles.siteSurveyDetailModalBody}>
+          {group.areas.length > 0 ? (
+            <div className={modalStyles.siteDetailsStack}>
+              {group.areas.map((row, roomIndex) => (
+                <SiteRoomCard
+                  key={row._id}
+                  row={row}
+                  roomIndex={roomIndex}
+                  onViewImages={onViewImages}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className={addStyles.emptyState}>No area details found for this survey.</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -249,6 +296,9 @@ function SurveyViewSections({
   noteEntries: NoteEntry[];
   onViewImages: (images: string[], area: string) => void;
 }) {
+  const [selectedSurveyGroup, setSelectedSurveyGroup] =
+    useState<SiteDetailSurveyGroup | null>(null);
+
   return (
     <>
       <section className={styles.formSection}>
@@ -270,9 +320,17 @@ function SurveyViewSections({
           <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
         </div>
         <p className={styles.sectionSubtitle}>
-          Surveyed areas, fixtures, quantities, and pricing.
+          Select a survey to view fixtures, quantities, pricing, and images.
         </p>
-        <SiteDetailsCards groups={siteDetailGroups} onViewImages={onViewImages} />
+        <SiteSurveyList
+          groups={siteDetailGroups}
+          onSelectSurvey={setSelectedSurveyGroup}
+        />
+        <SiteSurveyDetailModal
+          group={selectedSurveyGroup}
+          onClose={() => setSelectedSurveyGroup(null)}
+          onViewImages={onViewImages}
+        />
       </section>
 
       <section className={styles.formSection}>
@@ -324,7 +382,12 @@ export default function WorkflowViewPage() {
 
   const surveyRecords = useMemo(() => {
     const list = data?.surveys;
-    return Array.isArray(list) ? list : [];
+    if (!Array.isArray(list)) return [];
+    return [...list].sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.surveyDate || 0).getTime();
+      const timeB = new Date(b.createdAt || b.surveyDate || 0).getTime();
+      return timeA - timeB;
+    });
   }, [data]);
 
   const surveyDetails = useMemo(() => {
@@ -387,7 +450,9 @@ export default function WorkflowViewPage() {
   const backUrl = `/workflow?tab=${workflowTab}`;
   const surveyStatus = customer.status || "Pending";
   const statusColor = getSurveyStatusColor(surveyStatus);
-  const displayName = surveyDetails.surveyName !== "N/A" ? surveyDetails.surveyName : "Survey";
+  const displayName =
+    customer.name?.trim() ||
+    (surveyDetails.surveyName !== "N/A" ? surveyDetails.surveyName : "Survey");
 
   return (
     <div className={styles.addUserPage}>
