@@ -73,22 +73,41 @@ export default function EditCommissionPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [commissionResponse, detailsResponse] = await Promise.all([
-          adminApi.getCommissionList(),
-          adminApi.getCustomerWorkflowDetails(id),
-        ]);
-        const found = (commissionResponse.customers || []).find((c: ApiCustomer) => c.id === id);
-        if (found) {
-          setCustomer(found);
-        } else {
+        const detailsResponse = await adminApi.getCustomerWorkflowDetails(id);
+        const raw = detailsResponse?.customer;
+        if (!raw) {
           toast.error("Customer not found.");
+          return;
         }
-        if (detailsResponse?.customer) {
-          setCustomerDetails(detailsResponse.customer);
-        }
+        setCustomerDetails(raw);
+        const commissions = (raw.commissions || []).map((comm: ApiCommission) => {
+          const amount = comm.amount || 0;
+          const paid = comm.paidAmount || 0;
+          return { ...comm, pending: amount - paid };
+        });
+        const totals = commissions.reduce(
+          (acc: { total: number; paid: number; pending: number }, comm: ApiCommission & { pending: number }) => {
+            acc.total += comm.amount || 0;
+            acc.paid += comm.paidAmount || 0;
+            acc.pending += comm.pending || 0;
+            return acc;
+          },
+          { total: 0, paid: 0, pending: 0 }
+        );
+        setCustomer({
+          id: raw._id || id,
+          name: raw.name || raw.legalName || "",
+          company: raw.company || "",
+          salesPerson: raw.user_id?.fullName || raw.user_id?.name || "",
+          contractor: raw.assignToContractor?.fullName || "",
+          total_overall_amount: totals.total,
+          total_paid_amount: totals.paid,
+          total_pending_amount: totals.pending,
+          commissions,
+        });
       } catch (err: any) {
         console.error("Failed to fetch commissions:", err);
-        toast.error(err.message || "Failed to load commission data.");
+        toast.error(err.message || "Failed to load payable data.");
       } finally {
         setLoading(false);
       }
@@ -97,7 +116,7 @@ export default function EditCommissionPage() {
   }, [id]);
 
   const [formData, setFormData] = useState({
-    commissionType: "Survey Commission" as string,
+    commissionType: "Survey Payable" as string,
     commissionName: "",
     customerName: "",
     companyName: "",
@@ -108,7 +127,7 @@ export default function EditCommissionPage() {
   useEffect(() => {
     if (customer) {
       setFormData({
-        commissionType: customer.commissions[0]?.commissionType || "Survey Commission",
+        commissionType: customer.commissions[0]?.commissionType || "Survey Payable",
         commissionName: customer.commissions[0]?.otherName || "",
         customerName: customer.name,
         companyName: customer.company,
@@ -171,8 +190,8 @@ export default function EditCommissionPage() {
 
   const getPaidToOptions = () => {
     if (!customer) return [];
-    if (addFormData.commissionType === "Survey Commission") return customer.salesPerson ? [customer.salesPerson] : [];
-    if (addFormData.commissionType === "Installation Commission") return customer.contractor ? [customer.contractor] : [];
+    if (addFormData.commissionType === "Survey Payable") return customer.salesPerson ? [customer.salesPerson] : [];
+    if (addFormData.commissionType === "Installation Payable") return customer.contractor ? [customer.contractor] : [];
     if (addFormData.commissionType === "Others") {
       const opts = [];
       if (customer.salesPerson) opts.push(customer.salesPerson);
@@ -205,8 +224,8 @@ export default function EditCommissionPage() {
       setSaving(true);
 
       const mapCommissionType = (type: string) => {
-        if (type === "Survey Commission") return "Survey";
-        if (type === "Installation Commission") return "Installation";
+        if (type === "Survey Payable") return "Survey";
+        if (type === "Installation Payable") return "Installation";
         return "Other";
       };
 
@@ -231,12 +250,38 @@ export default function EditCommissionPage() {
       }
 
       await adminApi.updateCustomerCommissions(id, [newCommission]);
-      toast.success("Commission added successfully.");
+      toast.success("Payable added successfully.");
 
       // Refresh data
-      const response = await adminApi.getCommissionList();
-      const found = (response.customers || []).find((c: ApiCustomer) => c.id === id);
-      if (found) setCustomer(found);
+      const detailsResponse = await adminApi.getCustomerWorkflowDetails(id);
+      const raw = detailsResponse?.customer;
+      if (raw) {
+        const commissions = (raw.commissions || []).map((comm: ApiCommission) => {
+          const amount = comm.amount || 0;
+          const paid = comm.paidAmount || 0;
+          return { ...comm, pending: amount - paid };
+        });
+        const totals = commissions.reduce(
+          (acc: { total: number; paid: number; pending: number }, comm: ApiCommission & { pending: number }) => {
+            acc.total += comm.amount || 0;
+            acc.paid += comm.paidAmount || 0;
+            acc.pending += comm.pending || 0;
+            return acc;
+          },
+          { total: 0, paid: 0, pending: 0 }
+        );
+        setCustomer({
+          id: raw._id || id,
+          name: raw.name || raw.legalName || "",
+          company: raw.company || "",
+          salesPerson: raw.user_id?.fullName || raw.user_id?.name || "",
+          contractor: raw.assignToContractor?.fullName || "",
+          total_overall_amount: totals.total,
+          total_paid_amount: totals.paid,
+          total_pending_amount: totals.pending,
+          commissions,
+        });
+      }
 
       setShowAddModal(false);
       setAddFormData({
@@ -249,7 +294,7 @@ export default function EditCommissionPage() {
       });
       setAddPayment({ paidAmount: "", paymentMethod: "", paymentDate: "" });
     } catch (err: any) {
-      toast.error(err.message || "Failed to save commission.");
+      toast.error(err.message || "Failed to save payable.");
     } finally {
       setSaving(false);
     }
@@ -270,7 +315,7 @@ export default function EditCommissionPage() {
       <div className={styles.editPage}>
         <div className={dashboardStyles.breadcrumb}>
           ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-          <span style={{ cursor: "pointer" }} onClick={() => router.push("/commissions")}>COMMISSIONS</span>
+          <span style={{ cursor: "pointer" }} onClick={() => router.push("/commissions")}>PAYABLES</span>
         </div>
         <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
           Customer not found.
@@ -285,15 +330,15 @@ export default function EditCommissionPage() {
       <div className={dashboardStyles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ cursor: "pointer" }} onClick={() => router.push("/commissions")}>
-          COMMISSIONS
+          PAYABLES
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>EDIT COMMISSION</span>
+        <span style={{ color: "#0076ce" }}>EDIT PAYABLE</span>
       </div>
 
       <div className={styles.titleArea}>
         <h1 className={styles.profileTitle}>
-          Edit Commission: {customer.name}
+          Edit Payable: {customer.name}
         </h1>
       </div>
 
@@ -313,17 +358,17 @@ export default function EditCommissionPage() {
         </div>
       </section>
 
-      {/* Commission History */}
+      {/* Payable History */}
       <section className={styles.paymentsSection}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2.5rem" }}>
-          <h2 className={styles.sectionHeading} style={{ marginBottom: 0 }}>Commission</h2>
+          <h2 className={styles.sectionHeading} style={{ marginBottom: 0 }}>Payables</h2>
           <button className={styles.addCommissionBtn} onClick={() => setShowAddModal(true)}>
-            <Plus size={18} /> Add Commission
+            <Plus size={18} /> Add Payable
           </button>
         </div>
         {(customer.commissions || []).length === 0 ? (
           <div style={{ textAlign: "center", padding: "2rem", color: "#94a3b8", fontWeight: 500 }}>
-            No commissions recorded.
+            No payables recorded.
           </div>
         ) : (
           <table className={styles.paymentTable}>
@@ -392,15 +437,15 @@ export default function EditCommissionPage() {
         </button>
       </div>
 
-      {/* Add Commission Modal */}
+      {/* Add Payable Modal */}
       {showAddModal && (
         <div className={modalStyles.modalOverlay} onClick={() => setShowAddModal(false)}>
           <div className={`${modalStyles.modalContent} ${modalStyles.modalLarge}`} onClick={(e) => e.stopPropagation()}>
             <div className={modalStyles.modalHeader}>
               <div>
-                <h3>Add Commission</h3>
+                <h3>Add Payable</h3>
                 <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
-                  Create a new commission for {customer.name}.
+                  Create a new payable for {customer.name}.
                 </div>
               </div>
               <button className={modalStyles.closeBtn} onClick={() => setShowAddModal(false)}>
@@ -411,7 +456,7 @@ export default function EditCommissionPage() {
             <div className={modalStyles.modalBody}>
               <div className={modalStyles.formGrid}>
                 <div className={modalStyles.formGroup}>
-                  <label>Commission Type <span style={{ color: "#ef4444" }}>*</span></label>
+                  <label>Payable Type <span style={{ color: "#ef4444" }}>*</span></label>
                   <div style={{ position: "relative" }}>
                     <select
                       name="commissionType"
@@ -420,8 +465,8 @@ export default function EditCommissionPage() {
                       onChange={handleAddFormChange}
                     >
                       <option value="">Select Type</option>
-                      <option value="Survey Commission">Survey Commission</option>
-                      <option value="Installation Commission">Installation Commission</option>
+                      <option value="Survey Payable">Survey Payable</option>
+                      <option value="Installation Payable">Installation Payable</option>
                       <option value="Others">Others</option>
                     </select>
                     <ChevronDown size={18} style={{ position: "absolute", right: "1rem", top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "#64748b" }} />
@@ -430,7 +475,7 @@ export default function EditCommissionPage() {
 
                 {addFormData.commissionType === "Others" && (
                   <div className={modalStyles.formGroup}>
-                    <label>Commission Name <span style={{ color: "#ef4444" }}>*</span></label>
+                    <label>Payable Name <span style={{ color: "#ef4444" }}>*</span></label>
                     <input
                       type="text"
                       name="commissionName"
@@ -453,7 +498,7 @@ export default function EditCommissionPage() {
                       disabled={!addFormData.commissionType}
                     >
                       <option value="">
-                        {addFormData.commissionType ? "Select" : "Select Commission Type First"}
+                        {addFormData.commissionType ? "Select" : "Select Payable Type First"}
                       </option>
                       {getPaidToOptions().map((opt) => (
                         <option key={opt} value={opt}>
@@ -466,7 +511,7 @@ export default function EditCommissionPage() {
                 </div>
 
                 <div className={modalStyles.formGroup}>
-                  <label>Total Commission <span style={{ color: "#ef4444" }}>*</span></label>
+                  <label>Total Payable <span style={{ color: "#ef4444" }}>*</span></label>
                   <input
                     type="number"
                     name="totalAmount"
@@ -531,15 +576,15 @@ export default function EditCommissionPage() {
               {/* Summary */}
               <div className={modalStyles.summaryBox}>
                 <div className={modalStyles.summaryItem}>
-                  <span>Total Commission</span>
+                  <span>Total Payable</span>
                   <strong>${(parseFloat(addFormData.totalAmount) || 0).toLocaleString()}</strong>
                 </div>
                 <div className={modalStyles.summaryItem}>
-                  <span>Paid Commission</span>
+                  <span>Paid Amount</span>
                   <strong style={{ color: "#10b981" }}>${computedPaid.toLocaleString()}</strong>
                 </div>
                 <div className={modalStyles.summaryItem}>
-                  <span>Pending Commission</span>
+                  <span>Pending Amount</span>
                   <strong style={{ color: "#f59e0b" }}>${computedPending.toLocaleString()}</strong>
                 </div>
               </div>
@@ -556,7 +601,7 @@ export default function EditCommissionPage() {
                 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
               >
                 {saving ? <Loader2 size={18} className={dashboardStyles.spinner} /> : <CheckCircle2 size={18} />}
-                {saving ? "Saving..." : "Save Commission"}
+                {saving ? "Saving..." : "Save Payable"}
               </button>
             </div>
           </div>

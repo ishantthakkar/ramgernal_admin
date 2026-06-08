@@ -1,0 +1,118 @@
+.payablesPage {
+  display: flex;
+  flex-direction: column;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.directoryTitle {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  font-family: var(--font-outfit), sans-serif;
+}
+
+.payablesTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.tab {
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tabActive {
+  background: #ffffff;
+  color: var(--admin-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tableScroll {
+  overflow-x: auto;
+  margin: 0 -0.25rem;
+  padding: 0 0.25rem;
+}
+
+.tableScroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.loadingWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.nameCell {
+  color: var(--admin-primary);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.nameCell:hover {
+  opacity: 0.85;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 77, 77, 0.35);
+}
+
+.textCell {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.mutedCell {
+  color: #64748b;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.monoCell {
+  font-weight: 600;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.priceCell {
+  font-weight: 700;
+  color: var(--admin-primary);
+}
+
+.moneyCell {
+  font-weight: 600;
+  color: #475569;
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 4rem;
+  color: #94a3b8;
+  font-weight: 600;
+}

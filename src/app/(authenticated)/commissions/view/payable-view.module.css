@@ -1,0 +1,89 @@
+.paymentSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.paymentTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.paymentTable th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.paymentTable td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.875rem;
+  color: #1e293b;
+}
+
+.indexCell {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.dateCell {
+  color: #64748b;
+}
+
+.amountCell {
+  font-weight: 700;
+  color: #059669;
+}
+
+.methodCell {
+  font-weight: 600;
+  color: #475569;
+}
+
+.emptyState {
+  padding: 2rem;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #e2e8f0;
+}
+
+.readonlyField {
+  background: #f8fafc;
+  color: #1e293b;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+}
+
+.readonlyFieldSuccess {
+  color: #059669;
+  font-weight: 700;
+}
+
+.readonlyFieldWarning {
+  color: #d97706;
+  font-weight: 700;
+}
+
+.readonlyFieldPrimary {
+  color: var(--admin-primary, #004d4d);
+  font-weight: 700;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

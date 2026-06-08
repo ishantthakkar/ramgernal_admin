@@ -76,7 +76,7 @@ export default function DashboardLayout({
       isVisible: canViewModule("Surveys") || canViewModule("Installation") || canViewModule("Inspection") 
     },
     { name: "Services", icon: Settings, path: "/services", module: "Services" },
-    { name: "Commissions", icon: Wallet, path: "/commissions", module: "Commission" },
+    { name: "Payables", icon: Wallet, path: "/commissions", module: "Payables" },
     { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", isVisible: isSuperAdmin() },
     { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit" },
   ];

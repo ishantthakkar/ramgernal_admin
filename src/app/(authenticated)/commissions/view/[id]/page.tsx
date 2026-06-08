@@ -1,264 +1,283 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import styles from "../../edit/[id]/commission-edit.module.css";
-import dashboardStyles from "../../../dashboard.module.css";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
+import styles from "../../../dashboard.module.css";
+import viewStyles from "../payable-view.module.css";
 import modalStyles from "../../commissions-modal.module.css";
 import {
   X,
   Loader2,
   User,
-  Building,
+  DollarSign,
+  Plus,
+  ChevronDown,
+  CheckCircle2,
+  Hash,
   Briefcase,
-  HardHat,
-  DollarSign
+  FileText,
+  Clock,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { formatDate } from "@/lib/dateUtils";
 
-interface ApiCommission {
-  _id: string;
-  commissionType: string;
-  salesPerson: string | null;
-  contractor: string | null;
-  otherName?: string;
+interface PaymentEntry {
+  _id?: string;
   amount: number;
-  paidAmount: number;
   paymentMethod: string;
   paymentDate: string;
-  paymentStatus: string;
-  date: string;
-  paidTo: string;
-  pending: number;
+  createdAt?: string;
 }
 
-interface ApiCustomer {
-  id: string;
-  name: string;
-  company: string;
-  salesPerson: string;
-  contractor: string;
-  total_overall_amount: number;
-  total_paid_amount: number;
-  total_pending_amount: number;
-  commissions: ApiCommission[];
+interface PayableDetails {
+  customerId: string;
+  surveyId: string | null;
+  commissionId: string | null;
+  legalName: string;
+  commission: number;
+  paid: number;
+  pending: number;
+  leadId: string;
+  leadSource: string;
+  quotationNumber: string;
+  quotationAmount: number;
+  payments: PaymentEntry[];
+}
+
+const PAYMENT_METHODS = [
+  "Cash",
+  "ACH Transfer",
+  "Wire Transfer",
+  "Check",
+  "Credit Card",
+  "Debit Card",
+  "PayPal",
+  "Stripe",
+  "Other",
+];
+
+const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
+const MUTED_ICON = "#64748b";
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value || 0);
 }
 
 export default function ViewCommissionPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const surveyId = searchParams.get("surveyId") || undefined;
+  const payableFor = searchParams.get("for") === "contractor" ? ("contractor" as const) : undefined;
 
   const [loading, setLoading] = useState(true);
-  const [customer, setCustomer] = useState<ApiCustomer | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [details, setDetails] = useState<PayableDetails | null>(null);
+  const [showAddPayment, setShowAddPayment] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: "",
+    paymentMethod: "",
+    paymentDate: new Date().toISOString().split("T")[0],
+  });
+
+  const fetchDetails = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await adminApi.getPayableDetails(id, { surveyId, for: payableFor });
+      setDetails(response.details || null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load payable data.";
+      console.error("Failed to fetch payable details:", err);
+      toast.error(message);
+      setDetails(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, surveyId, payableFor]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const response = await adminApi.getCommissionList();
-        const found = (response.customers || []).find((c: ApiCustomer) => c.id === id);
-        if (found) {
-          setCustomer(found);
-        } else {
-          toast.error("Customer not found.");
-        }
-      } catch (err: any) {
-        console.error("Failed to fetch commissions:", err);
-        toast.error(err.message || "Failed to load commission data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [id]);
+    fetchDetails();
+  }, [fetchDetails]);
+
+  const handleAddPayment = async () => {
+    if (!details?.surveyId) {
+      toast.error("Survey not found for this payable.");
+      return;
+    }
+
+    const amount = parseFloat(paymentForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid payment amount.");
+      return;
+    }
+    if (amount > details.pending) {
+      toast.error(`Payment cannot exceed pending commission of ${formatMoney(details.pending)}.`);
+      return;
+    }
+    if (!paymentForm.paymentMethod) {
+      toast.error("Select a payment method.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await adminApi.addCommissionPayment(id, {
+        surveyId: details.surveyId,
+        ...(payableFor ? { for: payableFor } : {}),
+        amount,
+        paymentMethod: paymentForm.paymentMethod,
+        paymentDate: paymentForm.paymentDate,
+      });
+      await fetchDetails();
+      setShowAddPayment(false);
+      setPaymentForm({
+        amount: "",
+        paymentMethod: "",
+        paymentDate: new Date().toISOString().split("T")[0],
+      });
+      toast.success("Payment added successfully.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to add payment.";
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
-        <Loader2 size={48} className={dashboardStyles.spinner} />
+        <Loader2 size={48} className={styles.spinner} />
       </div>
     );
   }
 
-  if (!customer) {
+  if (!details) {
     return (
-      <div className={dashboardStyles.addUserPage}>
-        <div className={dashboardStyles.breadcrumb}>
+      <div className={styles.addUserPage}>
+        <div className={styles.breadcrumb}>
           ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-          <span style={{ cursor: "pointer" }} onClick={() => router.push("/commissions")}>COMMISSIONS</span>
+          <span style={{ cursor: "pointer" }} onClick={() => router.push("/commissions")}>
+            PAYABLES
+          </span>
         </div>
-        <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8" }}>
-          Customer not found.
+        <div className={viewStyles.emptyState} style={{ marginTop: "2rem" }}>
+          Payable details not found.
         </div>
       </div>
     );
   }
 
   return (
-    <div className={dashboardStyles.addUserPage}>
-      {/* Breadcrumb */}
-      <div className={dashboardStyles.breadcrumb}>
+    <div className={styles.addUserPage}>
+      <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ cursor: "pointer" }} onClick={() => router.push("/commissions")}>
-          COMMISSIONS
+          PAYABLES
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>VIEW COMMISSION</span>
+        <span className={styles.breadcrumbCurrent}>VIEW PAYABLE</span>
       </div>
 
-      <div className={dashboardStyles.pageHeader}>
-        <h1 className={dashboardStyles.welcomeText}>
-          Commission Details: {customer.name}
-        </h1>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.welcomeText}>View Payable Details</h1>
       </div>
 
-      {/* Customer Information */}
-      <div className={dashboardStyles.formSection}>
-        <div className={dashboardStyles.sectionTitle}>
-          <User size={22} color="#0076ce" /> Commission Profile
+      <div className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <User size={22} color={PRIMARY_ICON} /> Customer Information
         </div>
-
-        <div className={dashboardStyles.formGrid}>
-          <div className={dashboardStyles.formGroup}>
-            <label>Customer Name</label>
-            <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <User size={16} color="#64748b" />
-                {customer.name}
-              </div>
-            </div>
-          </div>
-
-          <div className={dashboardStyles.formGroup}>
-            <label>Company Name</label>
-            <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Building size={16} color="#64748b" />
-                {customer.company}
-              </div>
-            </div>
-          </div>
-
-          <div className={dashboardStyles.formGroup}>
-            <label>Sales Person</label>
-            <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Briefcase size={16} color="#64748b" />
-                {customer.salesPerson}
-              </div>
-            </div>
-          </div>
-
-          <div className={dashboardStyles.formGroup}>
-            <label>Contractor</label>
-            <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <HardHat size={16} color="#64748b" />
-                {customer.contractor}
-              </div>
-            </div>
-          </div>
-
-          <div className={dashboardStyles.formGroup}>
-            <label>Total Commission</label>
-            <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#0076ce", fontWeight: 700, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <DollarSign size={16} />
-                {(customer.total_overall_amount || 0).toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          <div className={dashboardStyles.formGroup}>
-            <label>Paid Amount</label>
-            <div className={dashboardStyles.formInput} style={{ background: "#f8fafc", color: "#10b981", fontWeight: 700, border: "1px solid #e2e8f0" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <DollarSign size={16} />
-                {(customer.total_paid_amount || 0).toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          <div className={dashboardStyles.formGroup}>
-            <label>Pending Amount</label>
-            <div className={dashboardStyles.formInput} style={{ background: "#fff1f2", color: "#e11d48", fontWeight: 700, border: "1px solid #fecdd3" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <DollarSign size={16} />
-                {(customer.total_pending_amount || 0).toLocaleString()}
-              </div>
-            </div>
-          </div>
+        <div className={styles.formGrid}>
+          <ReadOnlyField label="Legal Name" icon={<User size={16} color={MUTED_ICON} />}>
+            {details.legalName || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Commission"
+            icon={<DollarSign size={16} color={MUTED_ICON} />}
+            valueClassName={viewStyles.readonlyFieldPrimary}
+          >
+            {formatMoney(details.commission)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Lead ID" icon={<Hash size={16} color={MUTED_ICON} />}>
+            {details.leadId || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Lead Source" icon={<Briefcase size={16} color={MUTED_ICON} />}>
+            {details.leadSource || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Quotation Number" icon={<FileText size={16} color={MUTED_ICON} />}>
+            {details.quotationNumber || "—"}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Quotation Amount"
+            icon={<DollarSign size={16} color={MUTED_ICON} />}
+            valueClassName={viewStyles.readonlyFieldPrimary}
+          >
+            {formatMoney(details.quotationAmount)}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Paid Amount"
+            icon={<CheckCircle2 size={16} color="#059669" />}
+            valueClassName={viewStyles.readonlyFieldSuccess}
+          >
+            {formatMoney(details.paid)}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Pending Amount"
+            icon={<Clock size={16} color="#d97706" />}
+            valueClassName={viewStyles.readonlyFieldWarning}
+          >
+            {formatMoney(details.pending)}
+          </ReadOnlyField>
         </div>
       </div>
 
-      {/* Commission History */}
-      <div className={dashboardStyles.formSection}>
-        <div className={dashboardStyles.sectionTitle}>
-          <DollarSign size={22} color="#0076ce" /> Commission History
+      <div className={styles.formSection}>
+        <div className={viewStyles.paymentSectionHeader}>
+          <div>
+            <div className={styles.sectionTitle} style={{ marginBottom: "0.35rem" }}>
+              <DollarSign size={22} color={PRIMARY_ICON} /> Payment History
+            </div>
+          </div>
+          <button
+            type="button"
+            className={styles.addBtn}
+            onClick={() => setShowAddPayment(true)}
+            disabled={details.pending <= 0}
+            style={{ opacity: details.pending <= 0 ? 0.55 : 1 }}
+          >
+            <Plus size={20} /> Add Payment
+          </button>
         </div>
 
-        {(customer.commissions || []).length === 0 ? (
-          <div style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 500, background: "#f8fafc", borderRadius: "12px", border: "1px dashed #e2e8f0" }}>
-            No commissions recorded for this account.
-          </div>
+        {details.payments.length === 0 ? (
+          <div className={viewStyles.emptyState}>No payments recorded yet.</div>
         ) : (
-          <div className={dashboardStyles.userTableContainer} style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden" }}>
-            <table className={dashboardStyles.userTable}>
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.paymentTable}>
               <thead>
                 <tr>
                   <th>S.No</th>
-                  <th>Type</th>
-                  <th>Amount</th>
-                  <th>Paid</th>
-                  <th>Pending</th>
-                  <th>Status</th>
-                  <th>Method</th>
                   <th>Date</th>
+                  <th>Amount</th>
+                  <th>Payment Method</th>
                 </tr>
               </thead>
               <tbody>
-                {(customer.commissions || []).map((comm, idx) => (
-                  <tr key={comm._id}>
-                    <td style={{ fontWeight: 600, color: "#64748b" }}>{idx + 1}</td>
-                    <td style={{ fontWeight: 600, color: "#1e293b" }}>
-                      {comm.commissionType === "Other" && comm.otherName
-                        ? `${comm.commissionType} (${comm.otherName})`
-                        : comm.commissionType}
+                {details.payments.map((payment, idx) => (
+                  <tr key={payment._id || `${payment.paymentDate}-${idx}`}>
+                    <td className={viewStyles.indexCell}>{idx + 1}</td>
+                    <td className={viewStyles.dateCell}>
+                      {payment.paymentDate ? formatDate(payment.paymentDate) : "—"}
                     </td>
-                    <td style={{ fontWeight: 700, color: "#0076ce" }}>
-                      ${(comm.amount || 0).toLocaleString()}
-                    </td>
-                    <td style={{ fontWeight: 700, color: "#10b981" }}>
-                      ${(comm.paidAmount || 0).toLocaleString()}
-                    </td>
-                    <td style={{ fontWeight: 700, color: "#e11d48" }}>
-                      ${(comm.pending || 0).toLocaleString()}
-                    </td>
-                    <td>
-                      <span
-                        className={`${modalStyles.badge} ${comm.paymentStatus === "paid" ? modalStyles.badgeBlue : ""}`}
-                        style={{
-                          background: comm.paymentStatus === "paid" ? "#ecfdf5" : "#fffbeb",
-                          color: comm.paymentStatus === "paid" ? "#10b981" : "#f59e0b",
-                          padding: "4px 10px",
-                          borderRadius: "6px",
-                          fontSize: "0.7rem",
-                          fontWeight: 700,
-                          textTransform: "uppercase"
-                        }}
-                      >
-                        {comm.paymentStatus === "payment pending" ? "pending" : comm.paymentStatus}
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: 600, color: "#475569" }}>
-                      {comm.paymentMethod}
-                    </td>
-                    <td style={{ color: "#64748b", fontSize: "0.85rem" }}>
-                      {comm.paymentDate ? formatDate(comm.paymentDate) : "N/A"}
-                    </td>
+                    <td className={viewStyles.amountCell}>{formatMoney(payment.amount)}</td>
+                    <td className={viewStyles.methodCell}>{payment.paymentMethod || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -267,16 +286,133 @@ export default function ViewCommissionPage() {
         )}
       </div>
 
-      {/* Back Footer */}
-      <div className={dashboardStyles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end", display: "flex" }}>
+      <div
+        className={styles.actionFooter}
+        style={{
+          background: "#f1f5f9",
+          padding: "2.5rem",
+          borderRadius: "16px",
+          marginTop: "3rem",
+          justifyContent: "flex-end",
+        }}
+      >
         <button
           type="button"
-          className={dashboardStyles.cancelBtn}
+          className={styles.cancelBtn}
           onClick={() => router.push("/commissions")}
-          style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff", display: "flex", alignItems: "center", gap: "0.5rem", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: 600 }}
+          style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
         >
           <X size={20} /> Close
         </button>
+      </div>
+
+      {showAddPayment && (
+        <div className={modalStyles.modalOverlay} onClick={() => !saving && setShowAddPayment(false)}>
+          <div className={modalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={modalStyles.modalHeader}>
+              <div>
+                <h3>Add Payment</h3>
+                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
+                  Pending commission:{" "}
+                  <strong style={{ color: "#d97706" }}>{formatMoney(details.pending)}</strong>
+                </div>
+              </div>
+              <button className={modalStyles.closeBtn} onClick={() => !saving && setShowAddPayment(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className={modalStyles.modalBody}>
+              <div className={modalStyles.formGrid}>
+                <div className={modalStyles.formGroup}>
+                  <label>Amount <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    max={details.pending}
+                    className={modalStyles.formInput}
+                    placeholder="0.00"
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm((prev) => ({ ...prev, amount: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Payment Method <span style={{ color: "#ef4444" }}>*</span></label>
+                  <div style={{ position: "relative" }}>
+                    <select
+                      className={modalStyles.formSelect}
+                      value={paymentForm.paymentMethod}
+                      onChange={(e) => setPaymentForm((prev) => ({ ...prev, paymentMethod: e.target.value }))}
+                    >
+                      <option value="">Select Method</option>
+                      {PAYMENT_METHODS.map((method) => (
+                        <option key={method} value={method}>
+                          {method}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={16}
+                      style={{
+                        position: "absolute",
+                        right: "0.75rem",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        pointerEvents: "none",
+                        color: "#64748b",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label>Date <span style={{ color: "#ef4444" }}>*</span></label>
+                  <input
+                    type="date"
+                    className={modalStyles.formInput}
+                    value={paymentForm.paymentDate}
+                    onChange={(e) => setPaymentForm((prev) => ({ ...prev, paymentDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={modalStyles.modalFooter}>
+              <button className={modalStyles.cancelBtn} onClick={() => setShowAddPayment(false)} disabled={saving}>
+                <X size={18} /> Cancel
+              </button>
+              <button
+                className={modalStyles.saveBtn}
+                onClick={handleAddPayment}
+                disabled={saving}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                {saving ? <Loader2 size={18} className={styles.spinner} /> : <CheckCircle2 size={18} />}
+                {saving ? "Saving..." : "Save Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ReadOnlyFieldProps {
+  label: string;
+  icon?: React.ReactNode;
+  valueClassName?: string;
+  children: React.ReactNode;
+}
+
+function ReadOnlyField({ label, icon, valueClassName, children }: ReadOnlyFieldProps) {
+  return (
+    <div className={styles.formGroup}>
+      <label>{label}</label>
+      <div className={`${styles.formInput} ${viewStyles.readonlyField} ${valueClassName || ""}`}>
+        {icon ? <div className={viewStyles.fieldRow}>{icon}{children}</div> : children}
       </div>
     </div>
   );

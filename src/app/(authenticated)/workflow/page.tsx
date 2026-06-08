@@ -280,8 +280,9 @@ export default function WorkflowPage() {
           };
         }).filter((item: any) => {
           const status = item.surveyStatus?.toLowerCase();
-          return status === "completed" || status === "reopened" || status === "reopen" || status === "pending_edit_approval";
+          return status === "submitted" || status === "reopened" || status === "reopen" || status === "pending_edit_approval";
         });
+        console.log(normalizedData);
         setData(normalizedData);
 
       } else if (activeTab === "Quotations") {

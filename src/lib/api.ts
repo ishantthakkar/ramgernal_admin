@@ -172,6 +172,29 @@ export const adminApi = {
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),
+  getPayableDetails: (id: string, params?: { surveyId?: string; for?: "contractor" }) => {
+    const query = new URLSearchParams();
+    if (params?.surveyId) query.set("surveyId", params.surveyId);
+    if (params?.for) query.set("for", params.for);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/customer/customers/${id}/payable-details${suffix}`, {
+      method: "GET",
+    });
+  },
+  addCommissionPayment: (
+    id: string,
+    payload: {
+      surveyId: string;
+      amount: number;
+      paymentMethod: string;
+      paymentDate?: string;
+      for?: "contractor";
+    }
+  ) =>
+    apiRequest(`/customer/customers/${id}/commission-payments`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   updateCustomerCommissions: (id: string, commissions: any[]) => apiRequest(`/customer/customers/${id}/commissions`, {
     method: "POST",
     body: JSON.stringify({ commissions }),
