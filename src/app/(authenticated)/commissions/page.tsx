@@ -182,7 +182,7 @@ export default function PayablesPage() {
                   {currentSalesItems.length === 0 ? (
                     <tr>
                       <td colSpan={tableColSpan} className={styles.emptyCell}>
-                        No sales person payables found. Verified surveys with products will appear here.
+                        No sales person payables found
                       </td>
                     </tr>
                   ) : (
