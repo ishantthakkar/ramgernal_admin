@@ -26,6 +26,7 @@ import {
   mapSurveyQuotationListItem,
   type SurveyQuotationApiRow,
 } from "@/lib/quotation-utils";
+import { formatDate } from "@/lib/dateUtils";
 
 function resolveUserDisplayName(
   user: { fullName?: string; _id?: unknown } | null | undefined
@@ -276,6 +277,7 @@ export default function WorkflowPage() {
             salesManager: c.salesManagerName || "",
             surveyStatus: c.status || "Pending",
             verifyStatus: c.verifyStatus || "pending",
+            surveyVerifiedDate: c.confirmDate || null,
             date: c.convertedDate || c.createdDate,
           };
         }).filter((item: any) => {
@@ -459,7 +461,7 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["ID", "Customer ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Verify", "Actions"];
+      return ["ID", "Customer ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Survey Verify Date", "Actions"];
     }
 
     if (activeTab === "Quotations") {
@@ -701,7 +703,11 @@ export default function WorkflowPage() {
                               </button>
                             </div>
                           ) : item.verifyStatus === "verified" ? (
-                            <span className={workflowStyles.verifiedLabel}>Verified</span>
+                            <span className={workflowStyles.verifiedLabel}>
+                              {item.surveyVerifiedDate
+                                ? formatDate(item.surveyVerifiedDate)
+                                : "Verified"}
+                            </span>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
                           )}

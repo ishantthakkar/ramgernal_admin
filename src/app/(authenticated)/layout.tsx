@@ -19,6 +19,7 @@ import {
   Wallet,
   Package,
   User,
+  Receipt,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { canViewModule, isSuperAdmin } from "@/lib/permissions";
@@ -77,6 +78,7 @@ export default function DashboardLayout({
     },
     { name: "Services", icon: Settings, path: "/services", module: "Services" },
     { name: "Payables", icon: Wallet, path: "/commissions", module: "Payables" },
+    { name: "Invoices", icon: Receipt, path: "/invoices", isVisible: true },
     { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", isVisible: isSuperAdmin() },
     { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit" },
   ];

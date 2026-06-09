@@ -1,0 +1,63 @@
+.invoicesPage {
+  display: flex;
+  flex-direction: column;
+}
+
+.pageHeader {
+  margin-bottom: 2.5rem;
+}
+
+.directoryTitle {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  font-family: var(--font-outfit), sans-serif;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-left: auto;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.customerLink {
+  color: var(--admin-primary, #004d4d);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.monoCell {
+  font-weight: 600;
+  color: #64748b;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 4rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.pageEllipsis {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #94a3b8;
+  user-select: none;
+}

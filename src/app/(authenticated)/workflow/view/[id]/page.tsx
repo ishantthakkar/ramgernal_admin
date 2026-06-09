@@ -539,6 +539,9 @@ export default function WorkflowViewPage() {
                   }}
                 >
                   Verified
+                  {customer.confirmDate
+                    ? ` · ${formatDate(customer.confirmDate)}`
+                    : ""}
                 </span>
               ) : null}
             </div>
