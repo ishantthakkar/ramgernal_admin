@@ -26,7 +26,6 @@ import {
   mapSurveyQuotationListItem,
   type SurveyQuotationApiRow,
 } from "@/lib/quotation-utils";
-import { formatDate } from "@/lib/dateUtils";
 
 function resolveUserDisplayName(
   user: { fullName?: string; _id?: unknown } | null | undefined
@@ -277,12 +276,18 @@ export default function WorkflowPage() {
             salesManager: c.salesManagerName || "",
             surveyStatus: c.status || "Pending",
             verifyStatus: c.verifyStatus || "pending",
-            surveyVerifiedDate: c.confirmDate || null,
             date: c.convertedDate || c.createdDate,
           };
         }).filter((item: any) => {
           const status = item.surveyStatus?.toLowerCase();
-          return status === "submitted" || status === "reopened" || status === "reopen" || status === "pending_edit_approval";
+          if (item.verifyStatus === "verified") return true;
+          return (
+            status === "submitted" ||
+            status === "completed" ||
+            status === "reopened" ||
+            status === "reopen" ||
+            status === "pending_edit_approval"
+          );
         });
         console.log(normalizedData);
         setData(normalizedData);
@@ -461,7 +466,7 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["ID", "Customer ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Survey Verify Date", "Actions"];
+      return ["ID", "Customer ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey Status", "Verify", "Actions"];
     }
 
     if (activeTab === "Quotations") {
@@ -557,6 +562,7 @@ export default function WorkflowPage() {
   function formatSurveyStatus(status: string): string {
     if (status === "pending_edit_approval") return "Pending Approval";
     if (status === "reopen" || status === "reopened") return "Reopened";
+    if (status?.toLowerCase() === "completed") return "Completed";
     if (!status) return "N/A";
     return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
   }
@@ -703,11 +709,7 @@ export default function WorkflowPage() {
                               </button>
                             </div>
                           ) : item.verifyStatus === "verified" ? (
-                            <span className={workflowStyles.verifiedLabel}>
-                              {item.surveyVerifiedDate
-                                ? formatDate(item.surveyVerifiedDate)
-                                : "Verified"}
-                            </span>
+                            <span className={workflowStyles.verifiedLabel}>Verified</span>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
                           )}
