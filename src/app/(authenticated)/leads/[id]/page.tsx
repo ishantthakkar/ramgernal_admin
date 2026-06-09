@@ -23,6 +23,7 @@ import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import modalStyles from "@/components/modals/ConfirmationModal.module.css";
 import { formatDateTime } from "@/lib/dateUtils";
 import { formatNoteAuthorLabel } from "@/lib/leadNotes";
+import { getActivityDisplayText } from "@/lib/leadPersistence";
 
 function resolveUploadsUrl(filename: string): string {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -542,31 +543,36 @@ export default function LeadDetailsPage() {
                       activityType?: string;
                       date?: string;
                       createdAt?: string;
+                      note?: string;
                       outcome?: string;
                       notes?: string;
                     },
                     idx: number
-                  ) => (
-                    <div key={log._id || idx} className={addStyles.itemCard}>
-                      <div className={addStyles.itemHeader}>
-                        <span className={addStyles.itemTitle}>
-                          {log.activityType || "Activity"}
-                        </span>
-                      </div>
-                      <div className={addStyles.itemContent}>
-                        <div>
-                          Date:{" "}
-                          {log.date
-                            ? formatDateTime(log.date)
-                            : log.createdAt
-                              ? formatDateTime(log.createdAt)
-                              : "—"}
+                  ) => {
+                    const activityText = getActivityDisplayText(log);
+                    return (
+                      <div key={log._id || idx} className={addStyles.itemCard}>
+                        <div className={addStyles.itemHeader}>
+                          <span className={addStyles.itemTitle}>
+                            {log.activityType || "Activity"}
+                          </span>
                         </div>
-                        {log.outcome && <div>Outcome: {log.outcome}</div>}
-                        {log.notes && <div>{log.notes}</div>}
+                        <div className={addStyles.itemContent}>
+                          <div>
+                            Date:{" "}
+                            {log.date
+                              ? formatDateTime(log.date)
+                              : log.createdAt
+                                ? formatDateTime(log.createdAt)
+                                : "—"}
+                          </div>
+                          {activityText && (
+                            <div style={{ whiteSpace: "pre-line" }}>{activityText}</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )
+                    );
+                  }
                 )}
               </div>
             )}

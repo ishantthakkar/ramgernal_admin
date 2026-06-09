@@ -3,7 +3,8 @@
 export interface SiteDetailRow {
   _id: string;
   area: string;
-  heightInInches: string;
+  heightFt: string;
+  heightIn: string;
   existingFixtureType: string;
   existingBulbs: string;
   existingQuantity: string;
@@ -69,13 +70,9 @@ function toImageUrls(images: string[] | undefined): string[] {
   );
 }
 
-function formatHeight(area: SurveyArea): string {
-  const ft = (area.heightFt || "").trim();
-  const inch = (area.heightIn || "").trim();
-  const parts: string[] = [];
-  if (ft) parts.push(`${ft}'`);
-  if (inch) parts.push(`${inch}"`);
-  return parts.length ? parts.join(" ") : "";
+function formatHeightValue(value: string | undefined): string {
+  const text = (value || "").trim();
+  return text || "N/A";
 }
 
 function resolveAreaName(survey: SurveyRecord, area: SurveyArea, index: number): string {
@@ -138,7 +135,8 @@ function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
       {
         _id: `${survey._id}-0`,
         area: survey.areaName || "General",
-        heightInInches: "N/A",
+        heightFt: "N/A",
+        heightIn: "N/A",
         existingFixtureType: "N/A",
         existingBulbs: "N/A",
         existingQuantity: "—",
@@ -164,7 +162,8 @@ function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
     return {
       _id: `${survey._id}-${index}`,
       area: resolveAreaName(survey, area, index),
-      heightInInches: formatHeight(area) || "N/A",
+      heightFt: formatHeightValue(area.heightFt),
+      heightIn: formatHeightValue(area.heightIn),
       existingFixtureType: area.existingFixtureType || "N/A",
       existingBulbs: area.existingBulbs || "N/A",
       existingQuantity: area.existingQty ?? "0",

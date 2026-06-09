@@ -84,6 +84,34 @@ export const adminApi = {
   getLeadById: (id: string) => apiRequest(`/leads/${id}`, {
     method: "GET",
   }),
+  getLeadNotes: (id: string) =>
+    apiRequest(`/leads/${id}/notes`, {
+      method: "GET",
+    }),
+  addLeadNote: (id: string, payload: { title?: string; note: string }) =>
+    apiRequest(`/leads/${id}/notes`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getLeadActivities: (id: string) =>
+    apiRequest(`/leads/${id}/activities`, {
+      method: "GET",
+    }),
+  addLeadActivity: (
+    id: string,
+    payload: {
+      activityType: string;
+      date?: string;
+      location?: string;
+      time?: string;
+      note?: string;
+      notes?: string;
+    }
+  ) =>
+    apiRequest(`/leads/${id}/activities`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   updateLead: (leadData: Record<string, unknown> | FormData) =>
     apiRequest("/leads-create", {
       method: "POST",

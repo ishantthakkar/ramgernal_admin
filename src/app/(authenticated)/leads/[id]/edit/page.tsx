@@ -42,6 +42,11 @@ function toIsoOrEmpty(value: string): string {
 }
 import { adminApi } from "@/lib/api";
 import { formatNoteAuthorLabel, withNoteAuthor } from "@/lib/leadNotes";
+import {
+  getActivityDisplayText,
+  persistLeadActivities,
+  persistLeadNotes,
+} from "@/lib/leadPersistence";
 import { toast } from "react-toastify";
 import { UsaAddressFields } from "@/components/address/usa-address-fields";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
@@ -86,6 +91,7 @@ interface LeadContactInput {
 interface ExistingActivity {
   activityType?: string;
   date?: string;
+  note?: string;
   outcome?: string;
   notes?: string;
   createdAt?: string;
@@ -406,7 +412,7 @@ export default function EditLeadPage() {
                 department: c.department || "",
                 name: c.name || "",
                 phone: c.phone || "",
-                mobile: c.mobile || "",
+                mobile: c.mobile ? formatUsPhone(c.mobile) : "",
                 email: c.email || "",
               }))
             : []
@@ -494,14 +500,8 @@ export default function EditLeadPage() {
         .map((n) => ({
           title: n.title.trim(),
           note: n.note.trim(),
-          writtenByName: n.writtenByName?.trim() || "",
-          writtenByEmail: n.writtenByEmail?.trim() || "",
-          writtenByRole: n.writtenByRole?.trim() || "",
         }))
-        .filter((n) => n.title || n.note);
-      if (cleanedNotes.length > 0) {
-        data.append("notes", JSON.stringify(cleanedNotes));
-      }
+        .filter((n) => n.note);
 
       const cleanedActivities = activities
         .map((a) => ({
@@ -509,19 +509,16 @@ export default function EditLeadPage() {
           date: toIsoOrEmpty(a.date) || new Date().toISOString(),
           outcome: a.outcome.trim(),
           notes: a.notes.trim(),
-          followUpDate: toIsoOrEmpty(a.followUpDate) || undefined,
-          nextFollowUpDate: toIsoOrEmpty(a.nextFollowUpDate) || undefined,
         }))
         .filter((a) => a.activityType);
-      if (cleanedActivities.length > 0) {
-        data.append("activityLog", JSON.stringify(cleanedActivities));
-      }
 
       for (const file of billFiles) {
         data.append("upload_electricity_bill", file);
       }
 
       await adminApi.updateLead(data);
+      await persistLeadNotes(id, cleanedNotes);
+      await persistLeadActivities(id, cleanedActivities);
 
       if (
         formData.salesPersonId &&
@@ -1379,14 +1376,16 @@ export default function EditLeadPage() {
                             {formatDateTime(log.date)}
                           </div>
                         )}
-                        {log.outcome && (
-                          <div style={{ color: "#475569", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                            {log.outcome}
-                          </div>
-                        )}
-                        {log.notes && (
-                          <div style={{ color: "#64748b", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                            {log.notes}
+                        {getActivityDisplayText(log) && (
+                          <div
+                            style={{
+                              color: "#475569",
+                              fontSize: "0.85rem",
+                              marginTop: "0.25rem",
+                              whiteSpace: "pre-line",
+                            }}
+                          >
+                            {getActivityDisplayText(log)}
                           </div>
                         )}
                       </div>
@@ -1662,11 +1661,18 @@ export default function EditLeadPage() {
                 <div className={styles.formGroup}>
                   <label>Mobile</label>
                   <input
-                    type="text"
-                    placeholder="Mobile"
+                    type="tel"
+                    placeholder="(555) 555-1234"
                     className={styles.formInput}
                     value={tempContact.mobile}
-                    onChange={(e) => setTempContact({ ...tempContact, mobile: e.target.value })}
+                    onChange={(e) =>
+                      setTempContact({
+                        ...tempContact,
+                        mobile: formatUsPhone(e.target.value),
+                      })
+                    }
+                    inputMode="numeric"
+                    maxLength={14}
                   />
                 </div>
               </div>

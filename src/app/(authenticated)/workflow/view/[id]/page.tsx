@@ -76,6 +76,45 @@ function formatPriceDisplay(value: string): string {
   return `${value} $`;
 }
 
+function formatHeightPart(value: string): string {
+  const text = value?.trim();
+  if (!text || text === "N/A") return "—";
+  return text;
+}
+
+function HeightReadOnlyField({
+  heightFt,
+  heightIn,
+}: {
+  heightFt: string;
+  heightIn: string;
+}) {
+  const ftDisplay = formatHeightPart(heightFt);
+  const inDisplay = formatHeightPart(heightIn);
+
+  return (
+    <div className={styles.formGroup}>
+      <label>Height</label>
+      <div className={modalStyles.heightFieldRow}>
+        <div
+          className={modalStyles.heightFieldValue}
+          style={{ color: ftDisplay === "—" ? "#94a3b8" : "#1e293b" }}
+        >
+          <span>{ftDisplay}</span>
+          <span className={modalStyles.heightFieldUnit}>FT</span>
+        </div>
+        <div
+          className={modalStyles.heightFieldValue}
+          style={{ color: inDisplay === "—" ? "#94a3b8" : "#1e293b" }}
+        >
+          <span>{inDisplay}</span>
+          <span className={modalStyles.heightFieldUnit}>IN</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SiteRoomCard({
   row,
   roomIndex,
@@ -95,7 +134,7 @@ function SiteRoomCard({
       <h4 className={modalStyles.siteRoomTitle}>{roomLabel}</h4>
       <div className={styles.formGrid}>
         <ReadOnlyField label="Existing Fixture Type" value={row.existingFixtureType} />
-        <ReadOnlyField label="Height" value={row.heightInInches} />
+        <HeightReadOnlyField heightFt={row.heightFt} heightIn={row.heightIn} />
         <ReadOnlyField label="Existing Bulb" value={row.existingBulbs} />
         <ReadOnlyField label="Existing Quantity" value={row.existingQuantity} />
       </div>

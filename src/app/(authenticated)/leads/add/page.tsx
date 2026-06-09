@@ -39,6 +39,7 @@ function toIsoOrEmpty(value: string): string {
 }
 import { adminApi } from "@/lib/api";
 import { formatNoteAuthorLabel, withNoteAuthor } from "@/lib/leadNotes";
+import { persistLeadActivities, persistLeadNotes } from "@/lib/leadPersistence";
 import { toast } from "react-toastify";
 import { UsaAddressFields } from "@/components/address/usa-address-fields";
 
@@ -392,14 +393,8 @@ export default function AddLeadPage() {
         .map((n) => ({
           title: n.title.trim(),
           note: n.note.trim(),
-          writtenByName: n.writtenByName?.trim() || "",
-          writtenByEmail: n.writtenByEmail?.trim() || "",
-          writtenByRole: n.writtenByRole?.trim() || "",
         }))
-        .filter((n) => n.title || n.note);
-      if (cleanedNotes.length > 0) {
-        data.append("notes", JSON.stringify(cleanedNotes));
-      }
+        .filter((n) => n.note);
 
       const cleanedActivities = activities
         .map((a) => ({
@@ -407,19 +402,20 @@ export default function AddLeadPage() {
           date: toIsoOrEmpty(a.date) || new Date().toISOString(),
           outcome: a.outcome.trim(),
           notes: a.notes.trim(),
-          followUpDate: toIsoOrEmpty(a.followUpDate) || undefined,
-          nextFollowUpDate: toIsoOrEmpty(a.nextFollowUpDate) || undefined,
         }))
         .filter((a) => a.activityType);
-      if (cleanedActivities.length > 0) {
-        data.append("activityLog", JSON.stringify(cleanedActivities));
-      }
 
       for (const file of billFiles) {
         data.append("upload_electricity_bill", file);
       }
 
-      await adminApi.createLead(data);
+      const result = await adminApi.createLead(data);
+      const createdLead = result.lead || result.data || result;
+      const leadId = createdLead?._id || createdLead?.id;
+      if (leadId) {
+        await persistLeadNotes(String(leadId), cleanedNotes);
+        await persistLeadActivities(String(leadId), cleanedActivities);
+      }
       toast.success("Lead created successfully!");
       router.push("/leads");
     } catch (err: unknown) {

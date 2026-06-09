@@ -425,6 +425,36 @@
   font-family: var(--font-outfit), sans-serif;
 }
 
+.heightFieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.heightFieldValue {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.85rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.heightFieldUnit {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
 .siteMediaBlock {
   margin: 1.5rem 0;
 }

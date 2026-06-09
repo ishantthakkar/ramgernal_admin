@@ -168,10 +168,16 @@ function SiteRoomEditCard({
           onChange={change("existingFixtureType")}
         />
         <EditableField
-          label="Height"
-          value={row.heightInInches || ""}
-          onChange={change("heightInInches")}
-          placeholder={'e.g. 2\'5"'}
+          label="Height Ft"
+          value={row.heightFt === "N/A" ? "" : row.heightFt || ""}
+          onChange={change("heightFt")}
+          placeholder="e.g. 10"
+        />
+        <EditableField
+          label="Height In"
+          value={row.heightIn === "N/A" ? "" : row.heightIn || ""}
+          onChange={change("heightIn")}
+          placeholder="e.g. 6"
         />
         <EditableField
           label="Existing Bulb"
