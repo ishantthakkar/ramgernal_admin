@@ -437,8 +437,8 @@ export default function WorkflowViewPage() {
   }, [data, surveyRecords]);
 
   const siteDetailGroups = useMemo(
-    () => mapSiteDetailGroups(surveyRecords),
-    [surveyRecords]
+    () => mapSiteDetailGroups(surveyRecords, data?.customer),
+    [surveyRecords, data?.customer]
   );
 
   const noteEntries = useMemo(() => {

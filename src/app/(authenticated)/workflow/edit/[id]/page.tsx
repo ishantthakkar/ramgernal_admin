@@ -355,13 +355,13 @@ export default function WorkflowEditPage() {
   }, [customer, rawSurveyRecords]);
 
   const siteDetailGroups = useMemo(() => {
-    const groups = mapSiteDetailGroups(rawSurveyRecords);
+    const groups = mapSiteDetailGroups(rawSurveyRecords, customer);
     const byId = new Map(siteRows.map((r) => [r._id, r]));
     return groups.map((g) => ({
       ...g,
       areas: g.areas.map((a) => byId.get(a._id) ?? a),
     }));
-  }, [rawSurveyRecords, siteRows]);
+  }, [rawSurveyRecords, siteRows, customer]);
 
   const handleSiteRowChange = (idx: number, field: keyof SiteDetailRow, value: string) => {
     const updated = [...siteRows];
