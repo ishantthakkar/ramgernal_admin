@@ -104,6 +104,7 @@ export default function AddLeadPage() {
     legalName: "",
     accountNumber: "",
     electricCompany: "",
+    billDate: "",
     leadSource: "",
     salesPersonId: "",
   });
@@ -409,6 +410,13 @@ export default function AddLeadPage() {
         data.append("upload_electricity_bill", file);
       }
 
+      if (formData.billDate.trim()) {
+        const billDateIso = toIsoOrEmpty(formData.billDate);
+        if (billDateIso) {
+          data.append("billDate", billDateIso);
+        }
+      }
+
       const result = await adminApi.createLead(data);
       const createdLead = result.lead || result.data || result;
       const leadId = createdLead?._id || createdLead?.id;
@@ -666,6 +674,16 @@ export default function AddLeadPage() {
                   </div>
                 </div>
               )}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Bill Date</label>
+              <input
+                name="billDate"
+                type="date"
+                className={styles.formInput}
+                value={formData.billDate}
+                onChange={handleChange}
+              />
             </div>
             <div className={styles.formGroup}>
               <label>Account Number</label>

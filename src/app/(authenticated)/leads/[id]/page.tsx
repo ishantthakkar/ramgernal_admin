@@ -21,7 +21,7 @@ import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import modalStyles from "@/components/modals/ConfirmationModal.module.css";
-import { formatDateTime } from "@/lib/dateUtils";
+import { formatDate, formatDateTime } from "@/lib/dateUtils";
 import { formatNoteAuthorLabel } from "@/lib/leadNotes";
 import { getActivityDisplayText } from "@/lib/leadPersistence";
 
@@ -375,6 +375,10 @@ export default function LeadDetailsPage() {
               </div>
             )}
           </div>
+          <ReadOnlyField
+            label="Bill Date"
+            value={lead.billDate ? formatDate(lead.billDate) : "—"}
+          />
           <ReadOnlyField label="Account Number" value={lead.accountNumber || "—"} />
           <ReadOnlyField label="Legal Name" value={lead.legalName || "—"} />
           <ReadOnlyField label="Mobile" value={lead.mobileNumber || "—"} />
