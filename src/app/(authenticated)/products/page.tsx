@@ -715,7 +715,7 @@ export default function ProductsPage() {
                     colSpan={tableColSpan}
                     style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}
                   >
-                    No products found matching your criteria.
+                    No products found.
                   </td>
                 </tr>
               ) : (

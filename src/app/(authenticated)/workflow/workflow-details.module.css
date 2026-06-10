@@ -303,6 +303,22 @@
   flex: 1;
 }
 
+.siteSurveyListMainBtn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
 .siteSurveyListName {
   margin: 0;
   font-size: 0.95rem;
@@ -371,6 +387,84 @@
   background: #f1f5f9;
   color: #475569;
   border: 1px solid #e2e8f0;
+}
+
+.siteSurveyListActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.siteSurveyVerifyBtn {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.siteSurveyVerifyBtn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.siteSurveyVerifyBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.siteSurveyVerifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.siteSurveyVerifiedLabel {
+  color: #10b981;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.siteSurveyVerifyDash {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.siteSurveyBoxHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.siteSurveyBoxHeaderTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .siteSurveyDetailModalBody {

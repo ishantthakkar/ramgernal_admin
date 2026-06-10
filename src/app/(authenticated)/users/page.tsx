@@ -346,7 +346,7 @@ export default function UsersPage() {
               ) : currentItems.length === 0 ? (
                 <tr>
                   <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
-                    No users found matching your criteria.
+                    No users found.
                   </td>
                 </tr>
               ) : (

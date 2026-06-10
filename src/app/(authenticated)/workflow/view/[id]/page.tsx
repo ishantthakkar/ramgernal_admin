@@ -14,13 +14,13 @@ import {
   Hammer,
   Edit2,
   Info,
-  CheckCircle2,
 } from "lucide-react";
 import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
 import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
+import { SiteSurveyVerifyControl } from "@/components/workflow/site-survey-verify-control";
 import {
   mapNotes,
   mapSiteDetailGroups,
@@ -236,10 +236,16 @@ function NotesList({ entries }: { entries: NoteEntry[] }) {
 
 function SiteSurveyList({
   groups,
+  canVerify,
+  verifyingSurveyId,
   onSelectSurvey,
+  onVerifySurvey,
 }: {
   groups: SiteDetailSurveyGroup[];
+  canVerify: boolean;
+  verifyingSurveyId: string | null;
   onSelectSurvey: (group: SiteDetailSurveyGroup) => void;
+  onVerifySurvey: (surveyId: string, surveyName: string) => void;
 }) {
   if (!groups.length) {
     return <div className={addStyles.emptyState}>No site survey details found.</div>;
@@ -248,13 +254,12 @@ function SiteSurveyList({
   return (
     <div className={modalStyles.siteSurveyList}>
       {groups.map((group) => (
-        <button
-          key={group.surveyId}
-          type="button"
-          className={modalStyles.siteSurveyListItem}
-          onClick={() => onSelectSurvey(group)}
-        >
-          <div className={modalStyles.siteSurveyListMain}>
+        <div key={group.surveyId} className={modalStyles.siteSurveyListItem}>
+          <button
+            type="button"
+            className={modalStyles.siteSurveyListMainBtn}
+            onClick={() => onSelectSurvey(group)}
+          >
             <h4 className={modalStyles.siteSurveyListName}>{group.surveyName}</h4>
             <p className={modalStyles.siteSurveyListDate}>
               {group.surveyDate ? formatDate(group.surveyDate) : "—"}
@@ -262,8 +267,18 @@ function SiteSurveyList({
             {group.areasSummary ? (
               <p className={modalStyles.siteSurveyListAreas}>Areas: {group.areasSummary}</p>
             ) : null}
+          </button>
+          <div className={modalStyles.siteSurveyListActions}>
+            <SiteSurveyVerifyControl
+              surveyId={group.surveyId}
+              surveyName={group.surveyName}
+              isVerified={group.isVerified}
+              canVerify={canVerify}
+              verifying={verifyingSurveyId === group.surveyId}
+              onVerify={onVerifySurvey}
+            />
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );
@@ -326,6 +341,9 @@ function SurveyViewSections({
   surveyDate,
   siteDetailGroups,
   noteEntries,
+  canVerify,
+  verifyingSurveyId,
+  onVerifySurvey,
   onViewImages,
 }: {
   surveyName: string;
@@ -333,6 +351,9 @@ function SurveyViewSections({
   surveyDate: string | null;
   siteDetailGroups: SiteDetailSurveyGroup[];
   noteEntries: NoteEntry[];
+  canVerify: boolean;
+  verifyingSurveyId: string | null;
+  onVerifySurvey: (surveyId: string, surveyName: string) => void;
   onViewImages: (images: string[], area: string) => void;
 }) {
   const [selectedSurveyGroup, setSelectedSurveyGroup] =
@@ -363,7 +384,10 @@ function SurveyViewSections({
         </p>
         <SiteSurveyList
           groups={siteDetailGroups}
+          canVerify={canVerify}
+          verifyingSurveyId={verifyingSurveyId}
           onSelectSurvey={setSelectedSurveyGroup}
+          onVerifySurvey={onVerifySurvey}
         />
         <SiteSurveyDetailModal
           group={selectedSurveyGroup}
@@ -394,7 +418,7 @@ export default function WorkflowViewPage() {
   const fromTab = searchParams.get("from");
 
   const [loading, setLoading] = useState(true);
-  const [verifying, setVerifying] = useState(false);
+  const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
   const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
   const [activeArea, setActiveArea] = useState<string>("");
@@ -451,15 +475,14 @@ export default function WorkflowViewPage() {
     setActiveArea(area);
   };
 
-  const handleVerify = async () => {
-    const name = surveyDetails.surveyName !== "N/A" ? surveyDetails.surveyName : "this survey";
-    if (!window.confirm(`Are you sure you want to verify the survey for ${name}?`)) {
+  const handleVerifySurvey = async (surveyId: string, surveyName: string) => {
+    if (!window.confirm(`Are you sure you want to verify "${surveyName}"?`)) {
       return;
     }
 
     try {
-      setVerifying(true);
-      const response = await adminApi.verifyCustomerSurvey(id);
+      setVerifyingSurveyId(surveyId);
+      const response = await adminApi.verifySurveyConfirm(surveyId);
       toast.success(response.message || "Survey verified successfully!");
       const result = await adminApi.getCustomerWorkflowDetails(id);
       setData(result);
@@ -467,7 +490,7 @@ export default function WorkflowViewPage() {
       const message = err instanceof Error ? err.message : "Failed to verify survey.";
       toast.error(message);
     } finally {
-      setVerifying(false);
+      setVerifyingSurveyId(null);
     }
   };
 
@@ -549,24 +572,6 @@ export default function WorkflowViewPage() {
         </div>
 
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-          {isSurveyView &&
-            customer.verifyStatus !== "verified" &&
-            canVerifySurveys && (
-              <button
-                type="button"
-                className={styles.createBtn}
-                onClick={handleVerify}
-                disabled={verifying}
-                style={{ background: "#10b981" }}
-              >
-                {verifying ? (
-                  <Loader2 size={18} className={styles.spinner} />
-                ) : (
-                  <CheckCircle2 size={18} />
-                )}
-                {verifying ? "Verifying..." : "Verify Survey"}
-              </button>
-            )}
           {isSurveyView && canEditSurveys && (
             <button
               type="button"
@@ -624,6 +629,9 @@ export default function WorkflowViewPage() {
           surveyDate={surveyDetails.surveyDate}
           siteDetailGroups={siteDetailGroups}
           noteEntries={noteEntries}
+          canVerify={isSurveyView && canVerifySurveys}
+          verifyingSurveyId={verifyingSurveyId}
+          onVerifySurvey={handleVerifySurvey}
           onViewImages={handleViewImages}
         />
       ) : (

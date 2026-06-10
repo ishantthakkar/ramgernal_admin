@@ -170,6 +170,10 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify({ status: "verified" }),
   }),
+  verifySurveyConfirm: (surveyId: string) =>
+    apiRequest(`/surveys/${surveyId}/confirm-verify`, {
+      method: "POST",
+    }),
   adminApproval: (id: string, status: "Approved" | "Rejected") => apiRequest(`/customer/${id}/admin-approval`, {
     method: "POST",
     body: JSON.stringify({ status }),

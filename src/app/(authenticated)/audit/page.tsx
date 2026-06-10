@@ -126,7 +126,7 @@ export default function AuditLogsPage() {
             </div>
           ) : paginatedLogs.length === 0 ? (
             <div style={{ padding: "4rem", textAlign: "center", color: "#94a3b8" }}>
-              No logs found matching your criteria.
+              No logs found
             </div>
           ) : (
             <table className={styles.userTable}>

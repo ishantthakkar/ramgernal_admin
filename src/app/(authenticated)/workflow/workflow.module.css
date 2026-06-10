@@ -127,6 +127,98 @@
   text-decoration: underline;
 }
 
+.surveyModalContent {
+  max-width: 640px;
+}
+
+.surveyModalSubtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.surveyModalBody {
+  max-height: 520px;
+}
+
+.surveyApprovalBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.surveyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.surveyListItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.125rem;
+  background: #ffffff;
+}
+
+.surveyListMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.surveyListName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.surveyListMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.surveyListField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.surveyListLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.surveyListValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.surveyLinkBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--admin-primary, #004d4d);
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 @media (max-width: 1100px) {
   .workflowStatsGrid {
     grid-template-columns: repeat(2, 1fr);

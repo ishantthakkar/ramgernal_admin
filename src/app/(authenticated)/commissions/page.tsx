@@ -182,7 +182,7 @@ export default function PayablesPage() {
                   {currentSalesItems.length === 0 ? (
                     <tr>
                       <td colSpan={tableColSpan} className={styles.emptyCell}>
-                        No sales person payables found
+                        No sales person payables found. Each verified survey appears here after survey verify.
                       </td>
                     </tr>
                   ) : (
@@ -220,7 +220,7 @@ export default function PayablesPage() {
                   {currentContractorItems.length === 0 ? (
                     <tr>
                       <td colSpan={tableColSpan} className={styles.emptyCell}>
-                        No contractor payables found. Verified surveys with products will appear here.
+                        No contractor payables found. Verified surveys with products will appear here after survey verify.
                       </td>
                     </tr>
                   ) : (

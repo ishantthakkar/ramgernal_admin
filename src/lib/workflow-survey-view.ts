@@ -67,7 +67,15 @@ export interface NoteEntry {
   authorName?: string;
 }
 
-interface SurveyRecord {
+interface SurveyNoteRecord {
+  _id?: string;
+  note?: string;
+  title?: string;
+  createdAt?: unknown;
+  writtenByName?: string;
+}
+
+export interface SurveyRecord {
   _id?: string;
   id?: string;
   surveyName?: string;
@@ -78,8 +86,8 @@ interface SurveyRecord {
   updatedAt?: unknown;
   areaName?: string;
   status?: string;
-  note?: string;
-  notes?: string;
+  note?: unknown;
+  notes?: unknown;
   areas?: SurveyArea[];
 }
 
@@ -112,7 +120,7 @@ function parseApiDate(value: unknown): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function resolveSurveyId(survey: SurveyRecord): string {
+export function resolveSurveyId(survey: SurveyRecord): string {
   const raw = survey._id ?? survey.id;
   if (!raw) return "";
   if (typeof raw === "object" && raw !== null && "$oid" in raw) {
@@ -297,7 +305,7 @@ function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
         proposedQuantity: "—",
         pricePerUnit: "—",
         totalPrice: "—",
-        note: survey.note || survey.notes || "",
+        note: resolveSurveyLevelNote(survey),
         images: [],
       },
     ];
@@ -340,12 +348,19 @@ function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
   return rows;
 }
 
+export function isSurveyVerified(survey: SurveyRecord): boolean {
+  if (!survey.confirmDate) return false;
+  const date = new Date(survey.confirmDate as string | number | Date);
+  return !Number.isNaN(date.getTime());
+}
+
 export interface SiteDetailSurveyGroup {
   surveyId: string;
   surveyIndex: number;
   surveyName: string;
   surveyDate: string | null;
   status: string;
+  isVerified: boolean;
   areasSummary: string;
   areas: SiteDetailRow[];
 }
@@ -362,6 +377,7 @@ export function mapSiteDetailGroups(
       surveyName: resolveSurveyName(survey, surveyIndex),
       surveyDate: resolveSurveyDate(survey, customer),
       status: survey.status || "Draft",
+      isVerified: isSurveyVerified(survey),
       areasSummary: buildAreasSummary(areas),
       areas,
     };
@@ -387,6 +403,108 @@ function resolveDefaultAuthor(customer: {
     customer.user_id?.name?.trim() ||
     ""
   );
+}
+
+function normalizeNoteText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value == null) return "";
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+  return "";
+}
+
+function resolveSurveyLevelNote(survey: SurveyRecord): string {
+  const single = normalizeNoteText(survey.note);
+  if (single) return single;
+
+  const notesValue = survey.notes;
+  if (Array.isArray(notesValue)) {
+    for (const item of notesValue) {
+      if (!item || typeof item !== "object") continue;
+      const text = normalizeNoteText((item as SurveyNoteRecord).note);
+      if (text) return text;
+    }
+    return "";
+  }
+
+  return normalizeNoteText(notesValue);
+}
+
+function addSurveyNotes(
+  survey: SurveyRecord,
+  customer: CustomerDateContext,
+  defaultAuthor: string,
+  add: (entry: NoteEntry) => void
+) {
+  const surveyId = resolveSurveyId(survey);
+  const fallbackTs = surveyNoteTimestamp(survey, customer);
+  const notesValue = survey.notes;
+
+  if (Array.isArray(notesValue)) {
+    notesValue.forEach((item, index) => {
+      if (!item || typeof item !== "object") return;
+      const record = item as SurveyNoteRecord;
+      const noteText = normalizeNoteText(record.note);
+      if (!noteText) return;
+
+      add({
+        id: record._id || `${surveyId}-notes-${index}`,
+        text: noteText,
+        timestamp: parseApiDate(record.createdAt) || fallbackTs,
+        source: "survey",
+        title: normalizeNoteText(record.title) || "Survey Notes",
+        authorName: normalizeNoteText(record.writtenByName) || defaultAuthor || undefined,
+      });
+    });
+    return;
+  }
+
+  const notesText = normalizeNoteText(notesValue);
+  if (!notesText) return;
+
+  add({
+    id: `${surveyId}-notes`,
+    text: notesText,
+    timestamp: fallbackTs,
+    source: "survey",
+    title: "Survey Notes",
+    authorName: defaultAuthor || undefined,
+  });
+}
+
+function addSurveySingleNote(
+  survey: SurveyRecord,
+  customer: CustomerDateContext,
+  defaultAuthor: string,
+  add: (entry: NoteEntry) => void
+) {
+  const surveyId = resolveSurveyId(survey);
+  const singleNote = normalizeNoteText(survey.note);
+  if (!singleNote) return;
+
+  const notesValue = survey.notes;
+  if (Array.isArray(notesValue)) {
+    const duplicate = notesValue.some(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        normalizeNoteText((item as SurveyNoteRecord).note) === singleNote
+    );
+    if (duplicate) return;
+  } else {
+    const notesText = normalizeNoteText(notesValue);
+    if (singleNote === notesText) return;
+  }
+
+  add({
+    id: `${surveyId}-note`,
+    text: singleNote,
+    timestamp: surveyNoteTimestamp(survey, customer),
+    source: "survey",
+    title: "Survey Note",
+    authorName: defaultAuthor || undefined,
+  });
 }
 
 /** Survey-level + customer notes with timestamps for display. */
@@ -416,28 +534,8 @@ export function mapNotes(
   };
 
   for (const survey of surveys) {
-    const surveyId = resolveSurveyId(survey);
-    const ts = surveyNoteTimestamp(survey, customer);
-    if (survey.notes?.trim()) {
-      add({
-        id: `${surveyId}-notes`,
-        text: survey.notes.trim(),
-        timestamp: ts,
-        source: "survey",
-        title: "Survey Notes",
-        authorName: defaultAuthor || undefined,
-      });
-    }
-    if (survey.note?.trim() && survey.note.trim() !== survey.notes?.trim()) {
-      add({
-        id: `${surveyId}-note`,
-        text: survey.note.trim(),
-        timestamp: ts,
-        source: "survey",
-        title: "Survey Note",
-        authorName: defaultAuthor || undefined,
-      });
-    }
+    addSurveyNotes(survey, customer, defaultAuthor, add);
+    addSurveySingleNote(survey, customer, defaultAuthor, add);
   }
 
   for (const entry of customer.notes || []) {

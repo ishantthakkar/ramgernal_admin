@@ -11,14 +11,15 @@ import {
   Image as ImageIcon,
   Hammer,
   Plus,
-  CheckCircle2,
   FileText,
   Info,
+  CheckCircle2,
 } from "lucide-react";
 import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
+import { SiteSurveyVerifyControl } from "@/components/workflow/site-survey-verify-control";
 import {
   mapNotes,
   mapSiteDetailGroups,
@@ -252,9 +253,15 @@ function SiteRoomEditCard({
 function SiteDetailsEditCards({
   groups,
   onFieldChange,
+  canVerify,
+  verifyingSurveyId,
+  onVerifySurvey,
 }: {
   groups: SiteDetailSurveyGroup[];
   onFieldChange: (rowId: string, field: keyof SiteDetailRow, value: string) => void;
+  canVerify: boolean;
+  verifyingSurveyId: string | null;
+  onVerifySurvey: (surveyId: string, surveyName: string) => void;
 }) {
   const hasAreas = groups.some((g) => g.areas.length > 0);
 
@@ -262,18 +269,26 @@ function SiteDetailsEditCards({
     return <div className={addStyles.emptyState}>No survey records found.</div>;
   }
 
-  const showSurveyHeaders = groups.length > 1;
-
   return (
     <div className={detailStyles.siteDetailsStack}>
       {groups.map((group) => (
         <div key={group.surveyId} className={detailStyles.siteSurveyBox}>
-          {showSurveyHeaders && (
-            <div className={detailStyles.siteSurveyBoxHeader}>
-              Survey {group.surveyIndex + 1}
+          <div className={detailStyles.siteSurveyBoxHeaderRow}>
+            <div className={detailStyles.siteSurveyBoxHeaderTitle}>
+              {groups.length > 1 ? `Survey ${group.surveyIndex + 1} · ` : ""}
+              {group.surveyName}
               {group.surveyDate ? ` · ${formatDate(group.surveyDate)}` : ""}
             </div>
-          )}
+            <SiteSurveyVerifyControl
+              surveyId={group.surveyId}
+              surveyName={group.surveyName}
+              isVerified={group.isVerified}
+              canVerify={canVerify}
+              verifying={verifyingSurveyId === group.surveyId}
+              onVerify={onVerifySurvey}
+              compact
+            />
+          </div>
           {group.areas.map((row, roomIndex) => (
             <SiteRoomEditCard
               key={row._id}
@@ -300,6 +315,7 @@ export default function WorkflowEditPage() {
 
   const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);
+  const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [customerCode, setCustomerCode] = useState("");
   const [rawSurveyRecords, setRawSurveyRecords] = useState<any[]>([]);
@@ -497,22 +513,29 @@ export default function WorkflowEditPage() {
     }
   };
 
-  const handleVerify = async () => {
-    const name = surveyInfo?.surveyName || customer.name || "this survey";
-    if (!window.confirm(`Are you sure you want to verify the survey for ${name}?`)) {
+  const handleVerifySurvey = async (surveyId: string, surveyName: string) => {
+    if (!window.confirm(`Are you sure you want to verify "${surveyName}"?`)) {
       return;
     }
 
-    setSaving(true);
+    setVerifyingSurveyId(surveyId);
     try {
-      const response = await adminApi.verifyCustomerSurvey(id);
+      const response = await adminApi.verifySurveyConfirm(surveyId);
       toast.success(response.message || "Survey verified successfully!");
-      router.push(`/workflow?tab=${fromTab || "Surveys"}`);
-    } catch (err: any) {
-      console.error("Verification error:", err);
-      toast.error(err.message || "Failed to verify survey.");
+      const result = await adminApi.getCustomerWorkflowDetails(id);
+      const raw = (result.surveys || []).slice().sort(
+        (a: { createdAt?: string; surveyDate?: string }, b: { createdAt?: string; surveyDate?: string }) =>
+          new Date(b.createdAt || b.surveyDate || 0).getTime() -
+          new Date(a.createdAt || a.surveyDate || 0).getTime()
+      );
+      setCustomer(result.customer);
+      setRawSurveyRecords(raw);
+      setSiteRows(mapSiteDetails(raw));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to verify survey.";
+      toast.error(message);
     } finally {
-      setSaving(false);
+      setVerifyingSurveyId(null);
     }
   };
 
@@ -647,18 +670,6 @@ export default function WorkflowEditPage() {
           )}
         </div>
 
-        {activeTab === "survey" && customer.verifyStatus !== "verified" && hasPermission("Surveys", "create") && (
-          <button
-            type="button"
-            className={styles.createBtn}
-            onClick={handleVerify}
-            disabled={saving}
-            style={{ background: "#10b981" }}
-          >
-            {saving ? <Loader2 size={18} className={styles.spinner} /> : <CheckCircle2 size={18} />}
-            {saving ? "Verifying..." : "Verify Survey"}
-          </button>
-        )}
       </div>
 
       {activeTab === "survey" && surveyInfo && (
@@ -695,6 +706,9 @@ export default function WorkflowEditPage() {
             <SiteDetailsEditCards
               groups={siteDetailGroups}
               onFieldChange={handleSiteRowChangeById}
+              canVerify={isSurveyEdit && hasPermission("Surveys", "create")}
+              verifyingSurveyId={verifyingSurveyId}
+              onVerifySurvey={handleVerifySurvey}
             />
           </section>
 
