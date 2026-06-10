@@ -299,6 +299,10 @@ export default function WorkflowPage() {
           );
         });
         setData(normalizedData);
+        setCounts((prev) => ({
+          ...prev,
+          totalSurveys: normalizedData.length,
+        }));
 
       } else if (activeTab === "Quotations") {
         const [quotationsRes, customersListRes] = await Promise.all([
