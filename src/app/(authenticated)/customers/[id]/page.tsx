@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
 import addStyles from "../../leads/add/leads-add.module.css";
-import { Info, Loader2, MapPin, X, XCircle, FileText, Edit2, Calendar } from "lucide-react";
+import { Info, Loader2, MapPin, X, XCircle, FileText, Edit2, Calendar, Users } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/dateUtils";
 
@@ -135,6 +135,13 @@ export default function CustomerDetailsPage() {
     }
     return [];
   }, [customer?.addresses, customer?.address]);
+
+  const contacts = useMemo(() => {
+    if (!customer) return [];
+    return Array.isArray(customer.contactInfo)
+      ? (customer.contactInfo as Record<string, unknown>[])
+      : [];
+  }, [customer]);
 
   const notes = Array.isArray(customer?.notes) ? (customer.notes as Record<string, unknown>[]) : [];
 
@@ -273,6 +280,40 @@ export default function CustomerDetailsPage() {
                             .join(", ")}
                         </div>
                       )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.formSection}>
+        <div className={styles.sectionTitle}>
+          <Users size={22} color={SECTION_ICON_COLOR} /> Contact Information
+        </div>
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
+            {contacts.length === 0 ? (
+              <div className={addStyles.emptyState}>No contacts on file.</div>
+            ) : (
+              <div className={addStyles.itemGrid}>
+                {contacts.map((contact, idx) => (
+                  <div key={(contact._id as string) || idx} className={addStyles.itemCard}>
+                    <div className={addStyles.itemHeader}>
+                      <span className={addStyles.itemTitle}>
+                        {displayValue(contact.name) !== "—" ? String(contact.name) : "Contact"}
+                        {contact.position ? ` (${String(contact.position)})` : ""}
+                      </span>
+                    </div>
+                    <div className={addStyles.itemContent}>
+                      {contact.department ? (
+                        <div>Department: {displayValue(contact.department)}</div>
+                      ) : null}
+                      {contact.email ? <div>Email: {displayValue(contact.email)}</div> : null}
+                      {contact.phone ? <div>Phone: {displayValue(contact.phone)}</div> : null}
+                      {contact.mobile ? <div>Mobile: {displayValue(contact.mobile)}</div> : null}
                     </div>
                   </div>
                 ))}
