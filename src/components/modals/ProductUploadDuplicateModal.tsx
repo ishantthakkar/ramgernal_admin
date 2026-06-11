@@ -20,6 +20,7 @@ interface ProductUploadDuplicateModalProps {
   duplicate: DuplicateUploadItem | null;
   currentIndex: number;
   totalCount: number;
+  matchByName?: boolean;
   onNotAdd: () => void;
   onAddAlso: () => void;
   onOverwrite: () => void;
@@ -35,8 +36,11 @@ export function ProductUploadDuplicateModal({
   onAddAlso,
   onOverwrite,
   onCancel,
+  matchByName = false,
 }: ProductUploadDuplicateModalProps) {
   if (!isOpen || !duplicate) return null;
+
+  const duplicateLabel = matchByName ? duplicate.uploadedName : duplicate.sku;
 
   return (
     <div className={modalStyles.modalOverlay} onClick={onCancel}>
@@ -61,7 +65,7 @@ export function ProductUploadDuplicateModal({
             >
               <FileSpreadsheet size={22} />
             </div>
-            <h3>SKU Already Exists</h3>
+            <h3>{matchByName ? "Name Already Exists" : "SKU Already Exists"}</h3>
           </div>
           <button
             type="button"
@@ -81,12 +85,12 @@ export function ProductUploadDuplicateModal({
           )}
 
           <p className={styles.message}>
-            SKU <strong>{duplicate.sku}</strong> already exists in your products.
-            Choose how to handle the row from your sheet.
+            {matchByName ? "Name" : "SKU"} <strong>{duplicateLabel}</strong> already exists in
+            your products. Choose how to handle the row from your sheet.
           </p>
 
           <div className={styles.productCard}>
-            <strong className={styles.sku}>{duplicate.sku}</strong>
+            <strong className={styles.sku}>{duplicateLabel}</strong>
             <div className={styles.nameRow}>
               <div className={styles.nameBlock}>
                 <span className={styles.nameLabel}>Existing Product</span>

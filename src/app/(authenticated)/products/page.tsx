@@ -19,7 +19,8 @@ import {
 import { toast } from "react-toastify";
 import {
   ProductFormModal,
-  type ProductFormData,
+  type ExistingProductFormData,
+  type ProposedProductFormData,
 } from "@/components/modals/AddProductModal";
 import {
   ProductUploadDuplicateModal,
@@ -30,12 +31,14 @@ import {
   downloadProductTemplate,
   exportProductsToExcel,
   parseProductExcelFile,
-  type ProductExcelRow,
+  isProposedExcelRow,
+  type ParsedProductExcelRow,
   type ProductExcelParseError,
 } from "@/lib/product-excel";
 import {
   PRODUCT_FIXTURE_TABS,
   fixtureTypeSlug,
+  isExistingFixtureType,
   parseProductTabFromParam,
   type ProductFixtureType,
 } from "@/lib/product-fixture-types";
@@ -52,15 +55,15 @@ interface Product {
 }
 
 interface PendingUpload {
-  rows: ProductExcelRow[];
+  rows: ParsedProductExcelRow[];
   errors: ProductExcelParseError[];
   duplicates: DuplicateUploadItem[];
-  newRows: ProductExcelRow[];
+  newRows: ParsedProductExcelRow[];
 }
 
 type DataSource = "api" | "upload";
 
-const TABLE_COLUMNS = [
+const PROPOSED_TABLE_COLUMNS = [
   "SKU",
   "Name",
   "Sales Price",
@@ -68,6 +71,14 @@ const TABLE_COLUMNS = [
   "Installation Cost",
   "Actions",
 ] as const;
+
+const EXISTING_TABLE_COLUMNS = ["Name", "Actions"] as const;
+
+function getTableColumns(fixtureType: ProductFixtureType) {
+  return isExistingFixtureType(fixtureType)
+    ? EXISTING_TABLE_COLUMNS
+    : PROPOSED_TABLE_COLUMNS;
+}
 
 function formatMoney(value: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -95,17 +106,30 @@ function mapProduct(
 }
 
 function mapUploadRow(
-  row: ProductFormData & { rowNumber: number },
+  row: ParsedProductExcelRow,
   index: number,
   productType: ProductFixtureType
 ): Product {
+  if (isProposedExcelRow(row)) {
+    return {
+      id: `upload-${row.rowNumber}-${index}`,
+      sku: row.sku,
+      name: row.name,
+      salesPrice: row.salesPrice,
+      commission: row.commission,
+      installationCost: row.installationCost,
+      productType,
+      pendingUpload: "create",
+    };
+  }
+
   return {
     id: `upload-${row.rowNumber}-${index}`,
-    sku: row.sku,
+    sku: "",
     name: row.name,
-    salesPrice: row.salesPrice,
-    commission: row.commission,
-    installationCost: row.installationCost,
+    salesPrice: 0,
+    commission: 0,
+    installationCost: 0,
     productType,
     pendingUpload: "create",
   };
@@ -146,7 +170,16 @@ function mapDuplicateOverwriteRow(
 
 type DuplicateResolution = "skip" | "add-also" | "overwrite";
 
-function buildSkuLookup(products: Product[]): Map<string, Product> {
+function buildProductLookup(
+  products: Product[],
+  fixtureType: ProductFixtureType
+): Map<string, Product> {
+  if (isExistingFixtureType(fixtureType)) {
+    return new Map(
+      products.map((product) => [product.name.trim().toLowerCase(), product])
+    );
+  }
+
   return new Map(products.map((product) => [product.sku.trim().toLowerCase(), product]));
 }
 
@@ -227,9 +260,15 @@ export default function ProductsPage() {
     router.replace(`/products?${params.toString()}`, { scroll: false });
   }
 
+  const tableColumns = useMemo(() => getTableColumns(activeTab), [activeTab]);
+
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase();
     return products.filter((product) => {
+      if (isExistingFixtureType(activeTab)) {
+        return product.name.toLowerCase().includes(query);
+      }
+
       return (
         product.sku.toLowerCase().includes(query) ||
         product.name.toLowerCase().includes(query) ||
@@ -238,13 +277,13 @@ export default function ProductsPage() {
         formatMoney(product.installationCost).toLowerCase().includes(query)
       );
     });
-  }, [searchQuery, products]);
+  }, [activeTab, searchQuery, products]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
-  const tableColSpan = TABLE_COLUMNS.length;
+  const tableColSpan = tableColumns.length;
 
   const hasUnsavedUpload = dataSource === "upload";
   const unsavedCount = products.filter((p) => p.pendingUpload).length;
@@ -276,7 +315,7 @@ export default function ProductsPage() {
 
   function handleDownloadTemplate() {
     const slug = fixtureTypeSlug(activeTab);
-    downloadProductTemplate(`${slug}-template.xlsx`);
+    downloadProductTemplate(`${slug}-template.xlsx`, activeTab);
     toast.success("Template downloaded.");
   }
 
@@ -285,25 +324,28 @@ export default function ProductsPage() {
       toast.warn("No products to export.");
       return;
     }
-    const payload: ProductFormData[] = products.map(
-      ({ sku, name, salesPrice, commission, installationCost }) => ({
-        sku,
-        name,
-        salesPrice,
-        commission,
-        installationCost,
-      })
-    );
+
+    const payload = isExistingFixtureType(activeTab)
+      ? products.map(({ name }) => ({ name }))
+      : products.map(({ sku, name, salesPrice, commission, installationCost }) => ({
+          sku,
+          name,
+          salesPrice,
+          commission,
+          installationCost,
+        }));
+
     const suffix = new Date().toISOString().slice(0, 10);
     exportProductsToExcel(
       payload,
-      `${fixtureTypeSlug(activeTab)}-export-${suffix}.xlsx`
+      `${fixtureTypeSlug(activeTab)}-export-${suffix}.xlsx`,
+      activeTab
     );
     toast.success("Products exported to Excel.");
   }
 
   function applyUploadedProducts(
-    newRows: ProductExcelRow[],
+    newRows: ParsedProductExcelRow[],
     addAlsoDuplicates: DuplicateUploadItem[],
     overwriteDuplicates: DuplicateUploadItem[],
     skippedDuplicates: DuplicateUploadItem[],
@@ -331,7 +373,9 @@ export default function ProductsPage() {
 
     const skippedErrors = skippedDuplicates.map((item) => ({
       rowNumber: item.rowNumber,
-      message: `SKU "${item.sku}" was not added (not-add).`,
+      message: isExistingFixtureType(activeTab)
+        ? `Name "${item.uploadedName}" was not added (not-add).`
+        : `SKU "${item.sku}" was not added (not-add).`,
     }));
 
     setProducts(uploadedProducts);
@@ -379,7 +423,10 @@ export default function ProductsPage() {
     const skippedDuplicates: DuplicateUploadItem[] = [];
 
     for (const duplicate of pendingUpload.duplicates) {
-      const action = resolutions.get(duplicate.sku.trim().toLowerCase()) ?? "skip";
+      const duplicateKey = isExistingFixtureType(activeTab)
+        ? duplicate.uploadedName.trim().toLowerCase()
+        : duplicate.sku.trim().toLowerCase();
+      const action = resolutions.get(duplicateKey) ?? "skip";
       if (action === "add-also") {
         addAlsoDuplicates.push(duplicate);
       } else if (action === "overwrite") {
@@ -404,8 +451,11 @@ export default function ProductsPage() {
     const current = pendingUpload.duplicates[duplicateQueueIndex];
     if (!current) return;
 
+    const duplicateKey = isExistingFixtureType(activeTab)
+      ? current.uploadedName.trim().toLowerCase()
+      : current.sku.trim().toLowerCase();
     const nextResolutions = new Map(duplicateResolutions);
-    nextResolutions.set(current.sku.trim().toLowerCase(), action);
+    nextResolutions.set(duplicateKey, action);
     setDuplicateResolutions(nextResolutions);
 
     const nextIndex = duplicateQueueIndex + 1;
@@ -449,7 +499,7 @@ export default function ProductsPage() {
 
     setIsUploading(true);
     try {
-      const { rows, errors } = await parseProductExcelFile(file);
+      const { rows, errors } = await parseProductExcelFile(file, activeTab);
 
       if (rows.length === 0) {
         setUploadErrors(errors);
@@ -459,21 +509,28 @@ export default function ProductsPage() {
         return;
       }
 
-      const serverBySku = buildSkuLookup(serverProducts);
+      const serverLookup = buildProductLookup(serverProducts, activeTab);
       const duplicates: DuplicateUploadItem[] = [];
-      const newRows: ProductExcelRow[] = [];
+      const newRows: ParsedProductExcelRow[] = [];
 
       for (const row of rows) {
-        const existing = serverBySku.get(row.sku.trim().toLowerCase());
+        const rowName = isProposedExcelRow(row) ? row.name : row.name;
+        const rowKey = isExistingFixtureType(activeTab)
+          ? rowName.trim().toLowerCase()
+          : isProposedExcelRow(row)
+            ? row.sku.trim().toLowerCase()
+            : rowName.trim().toLowerCase();
+        const existing = serverLookup.get(rowKey);
+
         if (existing) {
           duplicates.push({
             rowNumber: row.rowNumber,
-            sku: row.sku,
-            uploadedName: row.name,
+            sku: isProposedExcelRow(row) ? row.sku : rowName,
+            uploadedName: rowName,
             existingName: existing.name,
-            salesPrice: row.salesPrice,
-            commission: row.commission,
-            installationCost: row.installationCost,
+            salesPrice: isProposedExcelRow(row) ? row.salesPrice : 0,
+            commission: isProposedExcelRow(row) ? row.commission : 0,
+            installationCost: isProposedExcelRow(row) ? row.installationCost : 0,
             existingId: existing.id,
           });
         } else {
@@ -516,27 +573,39 @@ export default function ProductsPage() {
       const product = toSave[i];
       setBulkSaveProgress(`${i + 1} / ${toSave.length}`);
 
-      const payload = {
-        sku: product.sku,
-        name: product.name,
-        salesPrice: product.salesPrice,
-        commission: product.commission,
-        installationCost: product.installationCost,
-        productType: activeTab,
-      };
-
       try {
-        if (product.pendingUpload === "overwrite") {
-          await adminApi.updateProduct(product.id, payload);
-          updated += 1;
+        if (isExistingFixtureType(activeTab)) {
+          const existingPayload = { name: product.name, productType: activeTab };
+          if (product.pendingUpload === "overwrite") {
+            await adminApi.updateProduct(product.id, existingPayload);
+            updated += 1;
+          } else {
+            await adminApi.createProduct(existingPayload);
+            created += 1;
+          }
         } else {
-          await adminApi.createProduct(payload);
-          created += 1;
+          const proposedPayload = {
+            sku: product.sku,
+            name: product.name,
+            salesPrice: product.salesPrice,
+            commission: product.commission,
+            installationCost: product.installationCost,
+            productType: activeTab,
+          };
+          if (product.pendingUpload === "overwrite") {
+            await adminApi.updateProduct(product.id, proposedPayload);
+            updated += 1;
+          } else {
+            await adminApi.createProduct(proposedPayload);
+            created += 1;
+          }
         }
       } catch (err: unknown) {
         failed += 1;
         const message = err instanceof Error ? err.message : "Failed to save";
-        failDetails.push(`${product.sku}: ${message}`);
+        failDetails.push(
+          `${isExistingFixtureType(activeTab) ? product.name : product.sku}: ${message}`
+        );
       }
     }
 
@@ -558,21 +627,41 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleAddProduct(data: ProductFormData) {
+  async function handleAddProduct(data: ProposedProductFormData | ExistingProductFormData) {
     setIsSubmitting(true);
     try {
-      const existing = buildSkuLookup(serverProducts).get(
-        data.sku.trim().toLowerCase()
-      );
-
-      if (existing) {
-        toast.error(
-          `SKU "${data.sku}" already exists. Edit the product or upload a sheet to overwrite.`
+      if (isExistingFixtureType(activeTab)) {
+        const existingData = data as ExistingProductFormData;
+        const existing = buildProductLookup(serverProducts, activeTab).get(
+          existingData.name.trim().toLowerCase()
         );
-        return;
-      }
 
-      await adminApi.createProduct({ ...data, productType: activeTab });
+        if (existing) {
+          toast.error(
+            `Name "${existingData.name}" already exists. Edit the product or upload a sheet to overwrite.`
+          );
+          return;
+        }
+
+        await adminApi.createProduct({
+          name: existingData.name,
+          productType: activeTab,
+        });
+      } else {
+        const proposedData = data as ProposedProductFormData;
+        const existing = buildProductLookup(serverProducts, activeTab).get(
+          proposedData.sku.trim().toLowerCase()
+        );
+
+        if (existing) {
+          toast.error(
+            `SKU "${proposedData.sku}" already exists. Edit the product or upload a sheet to overwrite.`
+          );
+          return;
+        }
+
+        await adminApi.createProduct({ ...proposedData, productType: activeTab });
+      }
       closeModal();
       setCurrentPage(1);
       toast.success("Product added successfully.");
@@ -586,15 +675,22 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleEditProduct(data: ProductFormData) {
+  async function handleEditProduct(data: ProposedProductFormData | ExistingProductFormData) {
     if (!editingProduct) return;
 
     setIsSubmitting(true);
     try {
-      await adminApi.updateProduct(editingProduct.id, {
-        ...data,
-        productType: editingProduct.productType,
-      });
+      if (isExistingFixtureType(editingProduct.productType)) {
+        await adminApi.updateProduct(editingProduct.id, {
+          name: (data as ExistingProductFormData).name,
+          productType: editingProduct.productType,
+        });
+      } else {
+        await adminApi.updateProduct(editingProduct.id, {
+          ...(data as ProposedProductFormData),
+          productType: editingProduct.productType,
+        });
+      }
       closeModal();
       toast.success("Product updated successfully.");
       await fetchProducts(activeTab);
@@ -756,7 +852,7 @@ export default function ProductsPage() {
           <table className={styles.userTable}>
             <thead>
               <tr>
-                {TABLE_COLUMNS.map((header) => (
+                {tableColumns.map((header) => (
                   <th key={header}>{header}</th>
                 ))}
               </tr>
@@ -785,24 +881,45 @@ export default function ProductsPage() {
                   const isPendingCreate = product.pendingUpload === "create";
                   const isPendingAddAlso = product.pendingUpload === "add-also";
                   const isPendingOverwrite = product.pendingUpload === "overwrite";
+                  const statusBadges = (
+                    <>
+                      {isPendingCreate && (
+                        <span className={productStyles.unsavedBadge}>New</span>
+                      )}
+                      {isPendingAddAlso && (
+                        <span className={productStyles.unsavedBadge}>Add Also</span>
+                      )}
+                      {isPendingOverwrite && (
+                        <span className={productStyles.updateBadge}>Overwrite</span>
+                      )}
+                    </>
+                  );
+
                   return (
                     <tr key={product.id}>
-                      <td className={productStyles.skuCell}>
-                        {product.sku}
-                        {isPendingCreate && (
-                          <span className={productStyles.unsavedBadge}>New</span>
-                        )}
-                        {isPendingAddAlso && (
-                          <span className={productStyles.unsavedBadge}>Add Also</span>
-                        )}
-                        {isPendingOverwrite && (
-                          <span className={productStyles.updateBadge}>Overwrite</span>
-                        )}
-                      </td>
-                      <td className={productStyles.nameCell}>{product.name}</td>
-                      <td className={productStyles.priceCell}>{formatMoney(product.salesPrice)}</td>
-                      <td className={productStyles.moneyCell}>{formatMoney(product.commission)}</td>
-                      <td className={productStyles.moneyCell}>{formatMoney(product.installationCost)}</td>
+                      {isExistingFixtureType(activeTab) ? (
+                        <td className={productStyles.nameCell}>
+                          {product.name}
+                          {statusBadges}
+                        </td>
+                      ) : (
+                        <>
+                          <td className={productStyles.skuCell}>
+                            {product.sku}
+                            {statusBadges}
+                          </td>
+                          <td className={productStyles.nameCell}>{product.name}</td>
+                          <td className={productStyles.priceCell}>
+                            {formatMoney(product.salesPrice)}
+                          </td>
+                          <td className={productStyles.moneyCell}>
+                            {formatMoney(product.commission)}
+                          </td>
+                          <td className={productStyles.moneyCell}>
+                            {formatMoney(product.installationCost)}
+                          </td>
+                        </>
+                      )}
                       <td>
                         <button
                           type="button"
@@ -856,6 +973,7 @@ export default function ProductsPage() {
       <ProductFormModal
         isOpen={modalMode === "add"}
         mode="add"
+        fixtureType={activeTab}
         onClose={closeModal}
         onSubmit={handleAddProduct}
         isSubmitting={isSubmitting}
@@ -864,6 +982,7 @@ export default function ProductsPage() {
       <ProductFormModal
         isOpen={modalMode === "edit"}
         mode="edit"
+        fixtureType={editingProduct?.productType ?? activeTab}
         initialData={editingProduct}
         onClose={closeModal}
         onSubmit={handleEditProduct}
@@ -875,6 +994,7 @@ export default function ProductsPage() {
         duplicate={pendingUpload?.duplicates[duplicateQueueIndex] ?? null}
         currentIndex={duplicateQueueIndex}
         totalCount={pendingUpload?.duplicates.length ?? 0}
+        matchByName={isExistingFixtureType(activeTab)}
         onNotAdd={handleDuplicateNo}
         onAddAlso={handleDuplicateAddAlso}
         onOverwrite={handleDuplicateOverwrite}

@@ -15,3 +15,7 @@ export function parseProductTabFromParam(tabParam: string | null): ProductFixtur
 export function fixtureTypeSlug(type: ProductFixtureType): string {
   return type === "Proposed Fixture" ? "proposed-fixture" : "existing-fixture";
 }
+
+export function isExistingFixtureType(type: ProductFixtureType): boolean {
+  return type === "Existing Fixture";
+}

@@ -1,7 +1,11 @@
 import * as XLSX from "xlsx";
 import type { ProductFormData } from "@/components/modals/AddProductModal";
+import {
+  isExistingFixtureType,
+  type ProductFixtureType,
+} from "@/lib/product-fixture-types";
 
-export const PRODUCT_EXCEL_HEADERS = [
+export const PROPOSED_PRODUCT_EXCEL_HEADERS = [
   "SKU",
   "Name",
   "Sales Price",
@@ -9,7 +13,12 @@ export const PRODUCT_EXCEL_HEADERS = [
   "Installation Cost",
 ] as const;
 
-const TEMPLATE_EXAMPLE: ProductFormData = {
+export const EXISTING_PRODUCT_EXCEL_HEADERS = ["Name"] as const;
+
+/** @deprecated Use PROPOSED_PRODUCT_EXCEL_HEADERS */
+export const PRODUCT_EXCEL_HEADERS = PROPOSED_PRODUCT_EXCEL_HEADERS;
+
+const PROPOSED_TEMPLATE_EXAMPLE: ProductFormData = {
   sku: "RAM-EXAMPLE-001",
   name: "Example Product Name",
   salesPrice: 99.99,
@@ -21,13 +30,20 @@ export interface ProductExcelRow extends ProductFormData {
   rowNumber: number;
 }
 
+export interface ExistingProductExcelRow {
+  rowNumber: number;
+  name: string;
+}
+
+export type ParsedProductExcelRow = ProductExcelRow | ExistingProductExcelRow;
+
 export interface ProductExcelParseError {
   rowNumber: number;
   message: string;
 }
 
 export interface ProductExcelParseResult {
-  rows: ProductExcelRow[];
+  rows: ParsedProductExcelRow[];
   errors: ProductExcelParseError[];
 }
 
@@ -35,7 +51,7 @@ function normalizeHeaderKey(key: string): string {
   return key.trim().toLowerCase().replace(/[_\s]+/g, "");
 }
 
-const HEADER_FIELD_MAP: Record<string, keyof ProductFormData> = {
+const PROPOSED_HEADER_FIELD_MAP: Record<string, keyof ProductFormData> = {
   sku: "sku",
   name: "name",
   salesprice: "salesPrice",
@@ -66,17 +82,30 @@ function isEmptyRow(values: Record<string, unknown>): boolean {
   );
 }
 
-export function downloadProductTemplate(filename = "products-template.xlsx"): void {
-  const sheetData = [
-    [...PRODUCT_EXCEL_HEADERS],
-    [
-      TEMPLATE_EXAMPLE.sku,
-      TEMPLATE_EXAMPLE.name,
-      TEMPLATE_EXAMPLE.salesPrice,
-      TEMPLATE_EXAMPLE.commission,
-      TEMPLATE_EXAMPLE.installationCost,
-    ],
-  ];
+function getHeaders(fixtureType: ProductFixtureType) {
+  return isExistingFixtureType(fixtureType)
+    ? EXISTING_PRODUCT_EXCEL_HEADERS
+    : PROPOSED_PRODUCT_EXCEL_HEADERS;
+}
+
+export function downloadProductTemplate(
+  filename = "products-template.xlsx",
+  fixtureType: ProductFixtureType = "Proposed Fixture"
+): void {
+  const headers = getHeaders(fixtureType);
+
+  const sheetData = isExistingFixtureType(fixtureType)
+    ? [[...headers], ["Example Existing Fixture Name"]]
+    : [
+        [...headers],
+        [
+          PROPOSED_TEMPLATE_EXAMPLE.sku,
+          PROPOSED_TEMPLATE_EXAMPLE.name,
+          PROPOSED_TEMPLATE_EXAMPLE.salesPrice,
+          PROPOSED_TEMPLATE_EXAMPLE.commission,
+          PROPOSED_TEMPLATE_EXAMPLE.installationCost,
+        ],
+      ];
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
   const workbook = XLSX.utils.book_new();
@@ -85,19 +114,30 @@ export function downloadProductTemplate(filename = "products-template.xlsx"): vo
 }
 
 export function exportProductsToExcel(
-  products: ProductFormData[],
-  filename = "products-export.xlsx"
+  products: Array<ProductFormData | { name: string }>,
+  filename = "products-export.xlsx",
+  fixtureType: ProductFixtureType = "Proposed Fixture"
 ): void {
-  const sheetData = [
-    [...PRODUCT_EXCEL_HEADERS],
-    ...products.map((p) => [
-      p.sku,
-      p.name,
-      p.salesPrice,
-      p.commission,
-      p.installationCost,
-    ]),
-  ];
+  const headers = getHeaders(fixtureType);
+
+  const sheetData = isExistingFixtureType(fixtureType)
+    ? [
+        [...headers],
+        ...products.map((product) => [product.name]),
+      ]
+    : [
+        [...headers],
+        ...products.map((product) => {
+          const proposed = product as ProductFormData;
+          return [
+            proposed.sku,
+            proposed.name,
+            proposed.salesPrice,
+            proposed.commission,
+            proposed.installationCost,
+          ];
+        }),
+      ];
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
   const workbook = XLSX.utils.book_new();
@@ -105,26 +145,9 @@ export function exportProductsToExcel(
   XLSX.writeFile(workbook, filename);
 }
 
-export async function parseProductExcelFile(
-  file: File
-): Promise<ProductExcelParseResult> {
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const sheetName = workbook.SheetNames[0];
-
-  if (!sheetName) {
-    return {
-      rows: [],
-      errors: [{ rowNumber: 0, message: "The file has no worksheets." }],
-    };
-  }
-
-  const worksheet = workbook.Sheets[sheetName];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
-    defval: "",
-    raw: false,
-  });
-
+function parseProposedRows(
+  rawRows: Record<string, unknown>[]
+): ProductExcelParseResult {
   const rows: ProductExcelRow[] = [];
   const errors: ProductExcelParseError[] = [];
 
@@ -138,7 +161,7 @@ export async function parseProductExcelFile(
     const mapped: Partial<Record<keyof ProductFormData, unknown>> = {};
 
     for (const [header, value] of Object.entries(rawRow)) {
-      const field = HEADER_FIELD_MAP[normalizeHeaderKey(header)];
+      const field = PROPOSED_HEADER_FIELD_MAP[normalizeHeaderKey(header)];
       if (field) {
         mapped[field] = value;
       }
@@ -187,16 +210,82 @@ export async function parseProductExcelFile(
     });
   });
 
-  if (rows.length === 0 && errors.length === 0) {
-    errors.push({
+  return { rows, errors };
+}
+
+function parseExistingRows(
+  rawRows: Record<string, unknown>[]
+): ProductExcelParseResult {
+  const rows: ExistingProductExcelRow[] = [];
+  const errors: ProductExcelParseError[] = [];
+
+  rawRows.forEach((rawRow, index) => {
+    const rowNumber = index + 2;
+
+    if (isEmptyRow(rawRow)) {
+      return;
+    }
+
+    let name = "";
+
+    for (const [header, value] of Object.entries(rawRow)) {
+      if (normalizeHeaderKey(header) === "name") {
+        name = String(value ?? "").trim();
+      }
+    }
+
+    if (!name) {
+      errors.push({ rowNumber, message: "Name is required." });
+      return;
+    }
+
+    rows.push({ rowNumber, name });
+  });
+
+  return { rows, errors };
+}
+
+export async function parseProductExcelFile(
+  file: File,
+  fixtureType: ProductFixtureType = "Proposed Fixture"
+): Promise<ProductExcelParseResult> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const sheetName = workbook.SheetNames[0];
+
+  if (!sheetName) {
+    return {
+      rows: [],
+      errors: [{ rowNumber: 0, message: "The file has no worksheets." }],
+    };
+  }
+
+  const worksheet = workbook.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
+    defval: "",
+    raw: false,
+  });
+
+  const result = isExistingFixtureType(fixtureType)
+    ? parseExistingRows(rawRows)
+    : parseProposedRows(rawRows);
+
+  if (result.rows.length === 0 && result.errors.length === 0) {
+    result.errors.push({
       rowNumber: 0,
       message: "No product rows found. Check headers and data.",
     });
   }
 
-  return { rows, errors };
+  return result;
 }
 
 export function isMongoObjectId(id: string): boolean {
   return /^[a-f\d]{24}$/i.test(id);
+}
+
+export function isProposedExcelRow(
+  row: ParsedProductExcelRow
+): row is ProductExcelRow {
+  return "sku" in row;
 }

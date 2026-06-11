@@ -284,28 +284,40 @@ export const adminApi = {
     apiRequest(`/products/${id}`, {
       method: "GET",
     }),
-  createProduct: (productData: {
-    sku: string;
-    name: string;
-    salesPrice: number;
-    commission: number;
-    installationCost: number;
-    productType: string;
-  }) =>
+  createProduct: (
+    productData:
+      | {
+          sku: string;
+          name: string;
+          salesPrice: number;
+          commission: number;
+          installationCost: number;
+          productType: string;
+        }
+      | {
+          name: string;
+          productType: string;
+        }
+  ) =>
     apiRequest("/products", {
       method: "POST",
       body: JSON.stringify(productData),
     }),
   updateProduct: (
     id: string,
-    productData: {
-      sku: string;
-      name: string;
-      salesPrice: number;
-      commission: number;
-      installationCost: number;
-      productType?: string;
-    }
+    productData:
+      | {
+          sku: string;
+          name: string;
+          salesPrice: number;
+          commission: number;
+          installationCost: number;
+          productType?: string;
+        }
+      | {
+          name: string;
+          productType?: string;
+        }
   ) =>
     apiRequest(`/products/${id}`, {
       method: "PUT",
