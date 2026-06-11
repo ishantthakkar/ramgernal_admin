@@ -6,10 +6,20 @@
 .pageHeader {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 2.5rem;
   flex-wrap: wrap;
+}
+
+.productsTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  max-width: 100%;
 }
 
 .headerActions {

@@ -272,10 +272,14 @@ export const adminApi = {
   getActivityLogs: () => apiRequest("/activities", {
     method: "GET",
   }),
-  getProducts: () =>
-    apiRequest("/products", {
+  getProducts: (productType?: string) => {
+    const query = productType
+      ? `?productType=${encodeURIComponent(productType)}`
+      : "";
+    return apiRequest(`/products${query}`, {
       method: "GET",
-    }),
+    });
+  },
   getProductById: (id: string) =>
     apiRequest(`/products/${id}`, {
       method: "GET",
@@ -286,6 +290,7 @@ export const adminApi = {
     salesPrice: number;
     commission: number;
     installationCost: number;
+    productType: string;
   }) =>
     apiRequest("/products", {
       method: "POST",
@@ -299,6 +304,7 @@ export const adminApi = {
       salesPrice: number;
       commission: number;
       installationCost: number;
+      productType?: string;
     }
   ) =>
     apiRequest(`/products/${id}`, {

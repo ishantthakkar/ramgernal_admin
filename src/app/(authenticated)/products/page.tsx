@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import styles from "./products.module.css";
-import dashboardStyles from "../dashboard.module.css";
+import { useRouter, useSearchParams } from "next/navigation";
+import productStyles from "./products.module.css";
+import styles from "../dashboard.module.css";
 import {
   Search,
   ChevronLeft,
@@ -32,6 +33,12 @@ import {
   type ProductExcelRow,
   type ProductExcelParseError,
 } from "@/lib/product-excel";
+import {
+  PRODUCT_FIXTURE_TABS,
+  fixtureTypeSlug,
+  parseProductTabFromParam,
+  type ProductFixtureType,
+} from "@/lib/product-fixture-types";
 
 interface Product {
   id: string;
@@ -40,6 +47,7 @@ interface Product {
   salesPrice: number;
   commission: number;
   installationCost: number;
+  productType: ProductFixtureType;
   pendingUpload?: "create" | "add-also" | "overwrite";
 }
 
@@ -68,7 +76,11 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
-function mapProduct(raw: Record<string, unknown>): Product {
+function mapProduct(
+  raw: Record<string, unknown>,
+  fallbackType: ProductFixtureType
+): Product {
+  const productType = String(raw.productType || fallbackType) as ProductFixtureType;
   return {
     id: String(raw._id ?? raw.id),
     sku: String(raw.sku),
@@ -76,12 +88,16 @@ function mapProduct(raw: Record<string, unknown>): Product {
     salesPrice: Number(raw.salesPrice ?? 0),
     commission: Number(raw.commission ?? 0),
     installationCost: Number(raw.installationCost ?? 0),
+    productType: PRODUCT_FIXTURE_TABS.includes(productType)
+      ? productType
+      : fallbackType,
   };
 }
 
 function mapUploadRow(
   row: ProductFormData & { rowNumber: number },
-  index: number
+  index: number,
+  productType: ProductFixtureType
 ): Product {
   return {
     id: `upload-${row.rowNumber}-${index}`,
@@ -90,13 +106,15 @@ function mapUploadRow(
     salesPrice: row.salesPrice,
     commission: row.commission,
     installationCost: row.installationCost,
+    productType,
     pendingUpload: "create",
   };
 }
 
 function mapDuplicateAddAlsoRow(
   item: DuplicateUploadItem,
-  index: number
+  index: number,
+  productType: ProductFixtureType
 ): Product {
   return {
     id: `upload-add-also-${item.rowNumber}-${index}`,
@@ -105,11 +123,15 @@ function mapDuplicateAddAlsoRow(
     salesPrice: item.salesPrice,
     commission: item.commission,
     installationCost: item.installationCost,
+    productType,
     pendingUpload: "add-also",
   };
 }
 
-function mapDuplicateOverwriteRow(item: DuplicateUploadItem): Product {
+function mapDuplicateOverwriteRow(
+  item: DuplicateUploadItem,
+  productType: ProductFixtureType
+): Product {
   return {
     id: item.existingId,
     sku: item.sku,
@@ -117,6 +139,7 @@ function mapDuplicateOverwriteRow(item: DuplicateUploadItem): Product {
     salesPrice: item.salesPrice,
     commission: item.commission,
     installationCost: item.installationCost,
+    productType,
     pendingUpload: "overwrite",
   };
 }
@@ -128,6 +151,11 @@ function buildSkuLookup(products: Product[]): Map<string, Product> {
 }
 
 export default function ProductsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<ProductFixtureType>(() =>
+    parseProductTabFromParam(searchParams.get("tab"))
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
@@ -152,12 +180,12 @@ export default function ProductsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (fixtureType: ProductFixtureType) => {
     setLoading(true);
     try {
-      const response = await adminApi.getProducts();
+      const response = await adminApi.getProducts(fixtureType);
       const list = (response.products || []).map((p: Record<string, unknown>) =>
-        mapProduct(p)
+        mapProduct(p, fixtureType)
       );
       setProducts(list);
       setServerProducts(list);
@@ -177,8 +205,27 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    setActiveTab(parseProductTabFromParam(searchParams.get("tab")));
+  }, [searchParams]);
+
+  useEffect(() => {
+    fetchProducts(activeTab);
+  }, [activeTab, fetchProducts]);
+
+  function handleTabChange(tab: ProductFixtureType) {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    setSearchQuery("");
+    setCurrentPage(1);
+    setUploadErrors([]);
+    setPendingUpload(null);
+    setDuplicateModalOpen(false);
+    setDuplicateQueueIndex(0);
+    setDuplicateResolutions(new Map());
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`/products?${params.toString()}`, { scroll: false });
+  }
 
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -228,7 +275,8 @@ export default function ProductsPage() {
   }
 
   function handleDownloadTemplate() {
-    downloadProductTemplate();
+    const slug = fixtureTypeSlug(activeTab);
+    downloadProductTemplate(`${slug}-template.xlsx`);
     toast.success("Template downloaded.");
   }
 
@@ -247,7 +295,10 @@ export default function ProductsPage() {
       })
     );
     const suffix = new Date().toISOString().slice(0, 10);
-    exportProductsToExcel(payload, `products-export-${suffix}.xlsx`);
+    exportProductsToExcel(
+      payload,
+      `${fixtureTypeSlug(activeTab)}-export-${suffix}.xlsx`
+    );
     toast.success("Products exported to Excel.");
   }
 
@@ -262,7 +313,7 @@ export default function ProductsPage() {
     const includedExistingIds = new Set<string>();
 
     newRows.forEach((row, index) => {
-      uploadedProducts.push(mapUploadRow(row, index));
+      uploadedProducts.push(mapUploadRow(row, index, activeTab));
     });
 
     addAlsoDuplicates.forEach((item, index) => {
@@ -271,11 +322,11 @@ export default function ProductsPage() {
         uploadedProducts.push({ ...existing });
         includedExistingIds.add(existing.id);
       }
-      uploadedProducts.push(mapDuplicateAddAlsoRow(item, index));
+      uploadedProducts.push(mapDuplicateAddAlsoRow(item, index, activeTab));
     });
 
     overwriteDuplicates.forEach((item) => {
-      uploadedProducts.push(mapDuplicateOverwriteRow(item));
+      uploadedProducts.push(mapDuplicateOverwriteRow(item, activeTab));
     });
 
     const skippedErrors = skippedDuplicates.map((item) => ({
@@ -471,6 +522,7 @@ export default function ProductsPage() {
         salesPrice: product.salesPrice,
         commission: product.commission,
         installationCost: product.installationCost,
+        productType: activeTab,
       };
 
       try {
@@ -496,7 +548,7 @@ export default function ProductsPage() {
       if (created > 0) parts.push(`${created} created`);
       if (updated > 0) parts.push(`${updated} updated`);
       toast.success(`Saved ${parts.join(" and ")} on the server.`);
-      await fetchProducts();
+      await fetchProducts(activeTab);
     }
 
     if (failed > 0) {
@@ -520,11 +572,11 @@ export default function ProductsPage() {
         return;
       }
 
-      await adminApi.createProduct(data);
+      await adminApi.createProduct({ ...data, productType: activeTab });
       closeModal();
       setCurrentPage(1);
       toast.success("Product added successfully.");
-      await fetchProducts();
+      await fetchProducts(activeTab);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to add product";
       toast.error(message);
@@ -539,10 +591,13 @@ export default function ProductsPage() {
 
     setIsSubmitting(true);
     try {
-      await adminApi.updateProduct(editingProduct.id, data);
+      await adminApi.updateProduct(editingProduct.id, {
+        ...data,
+        productType: editingProduct.productType,
+      });
       closeModal();
       toast.success("Product updated successfully.");
-      await fetchProducts();
+      await fetchProducts(activeTab);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update product";
       toast.error(message);
@@ -553,25 +608,25 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className={styles.productsPage}>
-      <div className={dashboardStyles.breadcrumb}>
+    <div className={productStyles.productsPage}>
+      <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span className={dashboardStyles.breadcrumbCurrent}>PRODUCTS</span>
+        <span className={styles.breadcrumbCurrent}>PRODUCTS</span>
       </div>
 
-      <div className={styles.pageHeader}>
-        <h1 className={styles.directoryTitle}>Products</h1>
-        <div className={styles.headerActions}>
+      <div className={productStyles.pageHeader}>
+        <h1 className={styles.welcomeText}>Products</h1>
+        <div className={productStyles.headerActions}>
           <button
             type="button"
-            className={styles.secondaryBtn}
+            className={productStyles.secondaryBtn}
             onClick={handleDownloadTemplate}
           >
             <Download size={18} /> Template
           </button>
           <button
             type="button"
-            className={styles.secondaryBtn}
+            className={productStyles.secondaryBtn}
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
           >
@@ -586,13 +641,13 @@ export default function ProductsPage() {
             ref={fileInputRef}
             type="file"
             accept=".xlsx,.xls,.csv"
-            className={styles.hiddenFileInput}
+            className={productStyles.hiddenFileInput}
             onChange={handleFileUpload}
           />
           <button
             type="button"
-            className={styles.secondaryBtn}
-            onClick={fetchProducts}
+            className={productStyles.secondaryBtn}
+            onClick={() => fetchProducts(activeTab)}
             disabled={loading || isSavingBulk || isUploading}
             title="Reload products from server"
           >
@@ -605,7 +660,7 @@ export default function ProductsPage() {
           </button>
           <button
             type="button"
-            className={styles.secondaryBtn}
+            className={productStyles.secondaryBtn}
             onClick={handleExport}
             disabled={products.length === 0}
           >
@@ -614,7 +669,7 @@ export default function ProductsPage() {
           {hasUnsavedUpload && unsavedCount > 0 && (
             <button
               type="button"
-              className={dashboardStyles.addBtn}
+              className={styles.addBtn}
               onClick={handleSaveBulkToServer}
               disabled={isSavingBulk}
             >
@@ -628,18 +683,14 @@ export default function ProductsPage() {
                 : `Save ${unsavedCount} to Server`}
             </button>
           )}
-          <button
-            type="button"
-            className={dashboardStyles.addBtn}
-            onClick={openAddModal}
-          >
+          <button type="button" className={styles.addBtn} onClick={openAddModal}>
             <Plus size={20} /> Add Product
           </button>
         </div>
       </div>
 
       {dataSource === "upload" && (
-        <div className={styles.uploadBanner}>
+        <div className={productStyles.uploadBanner}>
           <span>
             Showing <strong>{products.length}</strong> product(s) from your uploaded
             sheet
@@ -655,8 +706,8 @@ export default function ProductsPage() {
       )}
 
       {uploadErrors.length > 0 && (
-        <div className={styles.uploadErrors}>
-          <p className={styles.uploadErrorsTitle}>
+        <div className={productStyles.uploadErrors}>
+          <p className={productStyles.uploadErrorsTitle}>
             Rows skipped during upload ({uploadErrors.length})
           </p>
           <ul>
@@ -673,14 +724,25 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <div className={dashboardStyles.tableCard}>
-        <div className={dashboardStyles.tableHeader}>
-          <div className={dashboardStyles.searchUsers}>
+      <div className={styles.tableCard}>
+        <div className={styles.tableHeader}>
+          <div className={productStyles.productsTabs}>
+            {PRODUCT_FIXTURE_TABS.map((tab) => (
+              <div
+                key={tab}
+                className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
+                onClick={() => handleTabChange(tab)}
+              >
+                {tab}
+              </div>
+            ))}
+          </div>
+          <div className={styles.searchUsers}>
             <Search size={16} color="#94a3b8" />
             <input
               type="text"
-              placeholder="Search by SKU, name, sales price, commission..."
-              className={dashboardStyles.searchInputSmall}
+              placeholder="Search products..."
+              className={styles.searchInputSmall}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -690,8 +752,8 @@ export default function ProductsPage() {
           </div>
         </div>
 
-        <div className={dashboardStyles.userTableContainer}>
-          <table className={dashboardStyles.userTable}>
+        <div className={styles.userTableContainer}>
+          <table className={styles.userTable}>
             <thead>
               <tr>
                 {TABLE_COLUMNS.map((header) => (
@@ -703,9 +765,9 @@ export default function ProductsPage() {
               {loading && dataSource === "api" ? (
                 <tr>
                   <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
-                    <div className={styles.loadingWrap}>
-                      <Loader2 size={32} className="animate-spin" />
-                      <span>Loading products...</span>
+                    <div className={productStyles.loadingWrap}>
+                      <Loader2 size={32} className={styles.spinner} />
+                      <span style={{ fontWeight: 600 }}>Loading products...</span>
                     </div>
                   </td>
                 </tr>
@@ -725,26 +787,26 @@ export default function ProductsPage() {
                   const isPendingOverwrite = product.pendingUpload === "overwrite";
                   return (
                     <tr key={product.id}>
-                      <td className={styles.skuCell}>
+                      <td className={productStyles.skuCell}>
                         {product.sku}
                         {isPendingCreate && (
-                          <span className={styles.unsavedBadge}>New</span>
+                          <span className={productStyles.unsavedBadge}>New</span>
                         )}
                         {isPendingAddAlso && (
-                          <span className={styles.unsavedBadge}>Add Also</span>
+                          <span className={productStyles.unsavedBadge}>Add Also</span>
                         )}
                         {isPendingOverwrite && (
-                          <span className={styles.updateBadge}>Overwrite</span>
+                          <span className={productStyles.updateBadge}>Overwrite</span>
                         )}
                       </td>
-                      <td className={styles.nameCell}>{product.name}</td>
-                      <td className={styles.priceCell}>{formatMoney(product.salesPrice)}</td>
-                      <td className={styles.moneyCell}>{formatMoney(product.commission)}</td>
-                      <td className={styles.moneyCell}>{formatMoney(product.installationCost)}</td>
+                      <td className={productStyles.nameCell}>{product.name}</td>
+                      <td className={productStyles.priceCell}>{formatMoney(product.salesPrice)}</td>
+                      <td className={productStyles.moneyCell}>{formatMoney(product.commission)}</td>
+                      <td className={productStyles.moneyCell}>{formatMoney(product.installationCost)}</td>
                       <td>
                         <button
                           type="button"
-                          className={dashboardStyles.assignBtn}
+                          className={styles.assignBtn}
                           onClick={() => openEditModal(product)}
                           disabled={Boolean(product.pendingUpload)}
                         >
@@ -759,15 +821,15 @@ export default function ProductsPage() {
           </table>
         </div>
 
-        <div className={dashboardStyles.tableFooter}>
+        <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
             Showing {filteredProducts.length === 0 ? 0 : indexOfFirstItem + 1} to{" "}
             {Math.min(indexOfLastItem, filteredProducts.length)} of {filteredProducts.length} results
             {dataSource === "upload" ? " (from upload)" : ""}
           </div>
-          <div className={dashboardStyles.pagination}>
+          <div className={styles.pagination}>
             <div
-              className={`${dashboardStyles.pageBtn} ${currentPage === 1 ? dashboardStyles.disabled : ""}`}
+              className={`${styles.pageBtn} ${currentPage === 1 ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage - 1)}
             >
               <ChevronLeft size={18} />
@@ -775,14 +837,14 @@ export default function ProductsPage() {
             {[...Array(totalPages)].map((_, i) => (
               <div
                 key={i}
-                className={`${dashboardStyles.pageBtn} ${currentPage === i + 1 ? dashboardStyles.pageActive : ""}`}
+                className={`${styles.pageBtn} ${currentPage === i + 1 ? styles.pageActive : ""}`}
                 onClick={() => handlePageChange(i + 1)}
               >
                 {i + 1}
               </div>
             ))}
             <div
-              className={`${dashboardStyles.pageBtn} ${currentPage === totalPages ? dashboardStyles.disabled : ""}`}
+              className={`${styles.pageBtn} ${currentPage === totalPages ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage + 1)}
             >
               <ChevronRight size={18} />

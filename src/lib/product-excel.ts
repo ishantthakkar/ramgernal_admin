@@ -66,7 +66,7 @@ function isEmptyRow(values: Record<string, unknown>): boolean {
   );
 }
 
-export function downloadProductTemplate(): void {
+export function downloadProductTemplate(filename = "products-template.xlsx"): void {
   const sheetData = [
     [...PRODUCT_EXCEL_HEADERS],
     [
@@ -81,7 +81,7 @@ export function downloadProductTemplate(): void {
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
-  XLSX.writeFile(workbook, "products-template.xlsx");
+  XLSX.writeFile(workbook, filename);
 }
 
 export function exportProductsToExcel(
