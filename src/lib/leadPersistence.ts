@@ -10,12 +10,30 @@ export interface LeadActivityPayload {
   date: string;
   outcome: string;
   notes: string;
+  followUpDate?: string;
+  nextFollowUpDate?: string;
+}
+
+function formatActivityDateLabel(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function buildActivityNote(activity: LeadActivityPayload): string {
   const parts: string[] = [];
   if (activity.outcome.trim()) parts.push(`Outcome: ${activity.outcome.trim()}`);
   if (activity.notes.trim()) parts.push(activity.notes.trim());
+  if (activity.followUpDate?.trim()) {
+    parts.push(`Follow Up Date: ${formatActivityDateLabel(activity.followUpDate)}`);
+  }
+  if (activity.nextFollowUpDate?.trim()) {
+    parts.push(`Next Follow Up Date: ${formatActivityDateLabel(activity.nextFollowUpDate)}`);
+  }
   return parts.join("\n");
 }
 
@@ -42,6 +60,8 @@ export async function persistLeadActivities(
       date: a.date,
       outcome: a.outcome.trim(),
       notes: a.notes.trim(),
+      followUpDate: a.followUpDate?.trim() || "",
+      nextFollowUpDate: a.nextFollowUpDate?.trim() || "",
     }))
     .filter((a) => a.activityType);
 

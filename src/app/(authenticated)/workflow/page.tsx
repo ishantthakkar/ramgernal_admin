@@ -487,7 +487,7 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Installations") {
-      return ["S.No", "Customer", "AC Number", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
+      return ["Customer", "AC Number", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
     }
 
     if (activeTab === "Inspections") {
@@ -775,7 +775,6 @@ export default function WorkflowPage() {
                       </>
                     ) : activeTab === "Installations" ? (
                       <>
-                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
                         <td>
                           <span
                             className={workflowStyles.linkName}

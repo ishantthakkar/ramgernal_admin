@@ -30,6 +30,13 @@ function resolveUploadsUrl(filename: string): string {
   return `${base}/uploads/leads/bills/${filename}`;
 }
 
+function resolveBusinessCardImageUrl(value: string): string {
+  if (!value) return "";
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  return `${base}/uploads/leads/business-cards/${value.replace(/^\//, "")}`;
+}
+
 function ReadOnlyField({
   label,
   value,
@@ -264,25 +271,29 @@ export default function LeadDetailsPage() {
             <Edit2 size={20} /> Edit
           </button>
 
-          <button
-            className={styles.createBtn}
-            onClick={handleConvertClick}
-            disabled={converting || markingLost || lead.status === "Converted To Customer" || lead.status === "Lost Leads"}
-            style={{ background: "#10b981" }}
-          >
-            {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />}
-            {converting ? "Converting..." : lead.status === "Converted To Customer" ? "Converted" : "Convert to Customer"}
-          </button>
+          {lead.status !== "Lost Leads" && (
+            <>
+              <button
+                className={styles.createBtn}
+                onClick={handleConvertClick}
+                disabled={converting || markingLost || lead.status === "Converted To Customer"}
+                style={{ background: "#10b981" }}
+              >
+                {converting ? <Loader2 size={18} className={styles.spinner} /> : <RefreshCw size={18} />}
+                {converting ? "Converting..." : lead.status === "Converted To Customer" ? "Converted" : "Convert to Customer"}
+              </button>
 
-          <button
-            className={styles.createBtn}
-            onClick={handleLostClick}
-            disabled={converting || markingLost || lead.status === "Converted To Customer" || lead.status === "Lost Leads"}
-            style={{ background: "#ef4444" }}
-          >
-            {markingLost ? <Loader2 size={18} className={styles.spinner} /> : <XCircle size={18} />}
-            {markingLost ? "Updating..." : lead.status === "Lost Leads" ? "Lead Lost" : "Mark as Lost"}
-          </button>
+              <button
+                className={styles.createBtn}
+                onClick={handleLostClick}
+                disabled={converting || markingLost || lead.status === "Converted To Customer"}
+                style={{ background: "#ef4444" }}
+              >
+                {markingLost ? <Loader2 size={18} className={styles.spinner} /> : <XCircle size={18} />}
+                {markingLost ? "Updating..." : "Mark as Lost"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -464,6 +475,7 @@ export default function LeadDetailsPage() {
                       email?: string;
                       phone?: string;
                       mobile?: string;
+                      businessCard?: string[];
                     },
                     idx: number
                   ) => (
@@ -479,6 +491,41 @@ export default function LeadDetailsPage() {
                         {c.email && <div>Email: {c.email}</div>}
                         {c.phone && <div>Phone: {c.phone}</div>}
                         {c.mobile && <div>Mobile: {c.mobile}</div>}
+                        {Array.isArray(c.businessCard) && c.businessCard.length > 0 && (
+                          <div style={{ marginTop: "0.75rem" }}>
+                            <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
+                              Contact Card
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                              {c.businessCard.map((cardUrl) => {
+                                const imageUrl = resolveBusinessCardImageUrl(cardUrl);
+                                return (
+                                <a
+                                  key={imageUrl}
+                                  href={imageUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: "block",
+                                    width: 96,
+                                    height: 64,
+                                    borderRadius: 8,
+                                    overflow: "hidden",
+                                    border: "1px solid #e2e8f0",
+                                  }}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={imageUrl}
+                                    alt={`${c.name || "Contact"} card`}
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                  />
+                                </a>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )

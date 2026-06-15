@@ -40,6 +40,24 @@ function toIsoOrEmpty(value: string): string {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
 }
+
+function formatActivityDate(value: string): string {
+  if (!value.trim()) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function toDateInputValue(value: string): string {
+  if (!value.trim()) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+}
 import { adminApi } from "@/lib/api";
 import { formatNoteAuthorLabel, withNoteAuthor } from "@/lib/leadNotes";
 import {
@@ -69,6 +87,21 @@ function resolveUploadsUrl(filename: string): string {
   return `${base}/uploads/leads/bills/${filename}`;
 }
 
+function resolveBusinessCardImageUrl(value: string): string {
+  if (!value) return "";
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+  return `${base}/uploads/leads/business-cards/${value.replace(/^\//, "")}`;
+}
+
+function normalizeBusinessCardUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((entry) => resolveBusinessCardImageUrl(entry));
+}
+
 interface LeadAddressInput {
   id?: string;
   title: string;
@@ -86,6 +119,8 @@ interface LeadContactInput {
   phone: string;
   mobile: string;
   email: string;
+  businessCardUrls: string[];
+  businessCardFiles: File[];
 }
 
 interface ExistingActivity {
@@ -150,6 +185,7 @@ export default function EditLeadPage() {
   const [leadSources, setLeadSources] = useState<LeadSourceOption[]>([]);
   const [salesPersons, setSalesPersons] = useState<SalesPersonOption[]>([]);
   const billInputRef = useRef<HTMLInputElement>(null);
+  const contactCardInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -198,7 +234,14 @@ export default function EditLeadPage() {
     title: "", street: "", city: "", state: "", zip: ""
   });
   const [tempContact, setTempContact] = useState<LeadContactInput>({
-    position: "", department: "", name: "", phone: "", mobile: "", email: ""
+    position: "",
+    department: "",
+    name: "",
+    phone: "",
+    mobile: "",
+    email: "",
+    businessCardUrls: [],
+    businessCardFiles: [],
   });
   const [tempNote, setTempNote] = useState<LeadNoteInput>({
     title: "", note: ""
@@ -250,12 +293,38 @@ export default function EditLeadPage() {
     setAddresses(prev => prev.filter((_, i) => i !== index));
   };
 
+  const contactCardPreviews = useMemo(() => {
+    return tempContact.businessCardFiles.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+    }));
+  }, [tempContact.businessCardFiles]);
+
+  useEffect(() => {
+    return () => {
+      contactCardPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+    };
+  }, [contactCardPreviews]);
+
   const openContactModal = (index?: number) => {
     if (index !== undefined) {
-      setTempContact(contactInfo[index]);
+      setTempContact({
+        ...contactInfo[index],
+        businessCardUrls: contactInfo[index].businessCardUrls || [],
+        businessCardFiles: contactInfo[index].businessCardFiles || [],
+      });
       setEditingIndex(index);
     } else {
-      setTempContact({ position: "Manager", department: "Ops", name: "", phone: "", mobile: "", email: "" });
+      setTempContact({
+        position: "Manager",
+        department: "Ops",
+        name: "",
+        phone: "",
+        mobile: "",
+        email: "",
+        businessCardUrls: [],
+        businessCardFiles: [],
+      });
       setEditingIndex(null);
     }
     setActiveModal("contact");
@@ -406,15 +475,19 @@ export default function EditLeadPage() {
         );
         setContactInfo(
           Array.isArray(lead.contactInfo) && lead.contactInfo.length > 0
-            ? lead.contactInfo.map((c: LeadContactInput & { _id?: string }) => ({
-                id: c._id || c.id,
-                position: c.position || "",
-                department: c.department || "",
-                name: c.name || "",
-                phone: c.phone || "",
-                mobile: c.mobile ? formatUsPhone(c.mobile) : "",
-                email: c.email || "",
-              }))
+            ? lead.contactInfo.map(
+                (c: LeadContactInput & { _id?: string; businessCard?: string[] }) => ({
+                  id: c._id || c.id,
+                  position: c.position || "",
+                  department: c.department || "",
+                  name: c.name || "",
+                  phone: c.phone || "",
+                  mobile: c.mobile ? formatUsPhone(c.mobile) : "",
+                  email: c.email || "",
+                  businessCardUrls: normalizeBusinessCardUrls(c.businessCard),
+                  businessCardFiles: [],
+                })
+              )
             : []
         );
       } catch (err: unknown) {
@@ -483,18 +556,41 @@ export default function EditLeadPage() {
         .filter((a) => a.title || a.street || a.city || a.state || a.zip);
       data.append("addresses", JSON.stringify(cleanedAddresses));
 
-      const cleanedContacts = contactInfo
+      const contactsForSubmit = contactInfo
         .map((c) => ({
-          ...(c.id ? { id: c.id } : {}),
-          position: c.position.trim(),
-          department: c.department.trim(),
-          name: c.name.trim(),
-          phone: c.phone.trim(),
-          mobile: c.mobile.trim(),
-          email: c.email.trim(),
+          contact: {
+            ...(c.id ? { id: c.id } : {}),
+            position: c.position.trim(),
+            department: c.department.trim(),
+            name: c.name.trim(),
+            phone: c.phone.trim(),
+            mobile: c.mobile.trim(),
+            email: c.email.trim(),
+            ...(c.businessCardUrls.length > 0 ? { businessCard: c.businessCardUrls } : {}),
+          },
+          businessCardFiles: c.businessCardFiles || [],
         }))
-        .filter((c) => c.position || c.department || c.name || c.phone || c.mobile || c.email);
-      data.append("contactInfo", JSON.stringify(cleanedContacts));
+        .filter(
+          ({ contact, businessCardFiles }) =>
+            contact.position ||
+            contact.department ||
+            contact.name ||
+            contact.phone ||
+            contact.mobile ||
+            contact.email ||
+            (contact.businessCard && contact.businessCard.length > 0) ||
+            businessCardFiles.length > 0
+        );
+
+      data.append(
+        "contactInfo",
+        JSON.stringify(contactsForSubmit.map(({ contact }) => contact))
+      );
+      contactsForSubmit.forEach(({ businessCardFiles }, idx) => {
+        for (const file of businessCardFiles) {
+          data.append(`contact_business_card_${idx}`, file);
+        }
+      });
 
       const cleanedNotes = notes
         .map((n) => ({
@@ -509,6 +605,8 @@ export default function EditLeadPage() {
           date: toIsoOrEmpty(a.date) || new Date().toISOString(),
           outcome: a.outcome.trim(),
           notes: a.notes.trim(),
+          followUpDate: toIsoOrEmpty(a.followUpDate),
+          nextFollowUpDate: toIsoOrEmpty(a.nextFollowUpDate),
         }))
         .filter((a) => a.activityType);
 
@@ -669,48 +767,50 @@ export default function EditLeadPage() {
           </div>
         </div>
         <div style={{ display: "flex", gap: "1rem" }}>
-          <button
-            type="button"
-            className={styles.createBtn}
-            onClick={handleConvertClick}
-            disabled={
-              converting ||
-              markingLost ||
-              status === "Converted To Customer" ||
-              status === "Lost Leads"
-            }
-            style={{ background: "#10b981" }}
-          >
-            {converting ? (
-              <Loader2 size={18} className={styles.spinner} />
-            ) : (
-              <RefreshCw size={18} />
-            )}
-            {converting
-              ? "Converting..."
-              : status === "Converted To Customer"
-                ? "Converted"
-                : "Convert to Customer"}
-          </button>
-          <button
-            type="button"
-            className={styles.createBtn}
-            onClick={handleLostClick}
-            disabled={
-              converting ||
-              markingLost ||
-              status === "Converted To Customer" ||
-              status === "Lost Leads"
-            }
-            style={{ background: "#ef4444" }}
-          >
-            {markingLost ? (
-              <Loader2 size={18} className={styles.spinner} />
-            ) : (
-              <XCircle size={18} />
-            )}
-            {markingLost ? "Updating..." : status === "Lost Leads" ? "Lead Lost" : "Mark as Lost"}
-          </button>
+          {status !== "Lost Leads" && (
+            <>
+              <button
+                type="button"
+                className={styles.createBtn}
+                onClick={handleConvertClick}
+                disabled={
+                  converting ||
+                  markingLost ||
+                  status === "Converted To Customer"
+                }
+                style={{ background: "#10b981" }}
+              >
+                {converting ? (
+                  <Loader2 size={18} className={styles.spinner} />
+                ) : (
+                  <RefreshCw size={18} />
+                )}
+                {converting
+                  ? "Converting..."
+                  : status === "Converted To Customer"
+                    ? "Converted"
+                    : "Convert to Customer"}
+              </button>
+              <button
+                type="button"
+                className={styles.createBtn}
+                onClick={handleLostClick}
+                disabled={
+                  converting ||
+                  markingLost ||
+                  status === "Converted To Customer"
+                }
+                style={{ background: "#ef4444" }}
+              >
+                {markingLost ? (
+                  <Loader2 size={18} className={styles.spinner} />
+                ) : (
+                  <XCircle size={18} />
+                )}
+                {markingLost ? "Updating..." : "Mark as Lost"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1176,6 +1276,57 @@ export default function EditLeadPage() {
                           {contact.email && <div>Email: {contact.email}</div>}
                           {contact.phone && <div>Phone: {contact.phone}</div>}
                           {contact.mobile && <div>Mobile: {contact.mobile}</div>}
+                          {(contact.businessCardUrls.length > 0 ||
+                            contact.businessCardFiles.length > 0) && (
+                            <div style={{ marginTop: "0.75rem" }}>
+                              <div
+                                style={{
+                                  fontSize: "0.75rem",
+                                  color: "#64748b",
+                                  marginBottom: "0.35rem",
+                                }}
+                              >
+                                Contact Card
+                              </div>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                                {contact.businessCardUrls.map((cardUrl) => (
+                                  <a
+                                    key={cardUrl}
+                                    href={cardUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      display: "block",
+                                      width: 72,
+                                      height: 48,
+                                      borderRadius: 8,
+                                      overflow: "hidden",
+                                      border: "1px solid #e2e8f0",
+                                    }}
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={cardUrl}
+                                      alt={`${contact.name || "Contact"} card`}
+                                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                    />
+                                  </a>
+                                ))}
+                              </div>
+                              {contact.businessCardFiles.length > 0 && (
+                                <div
+                                  style={{
+                                    marginTop: "0.35rem",
+                                    fontSize: "0.8rem",
+                                    color: "#64748b",
+                                  }}
+                                >
+                                  +{contact.businessCardFiles.length} new card
+                                  {contact.businessCardFiles.length === 1 ? "" : "s"} to upload
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className={addStyles.itemActions}>
@@ -1426,6 +1577,14 @@ export default function EditLeadPage() {
                           )}
                           {activityItem.outcome && <div>Outcome: {activityItem.outcome}</div>}
                           {activityItem.notes && <div>{activityItem.notes}</div>}
+                          {activityItem.followUpDate && (
+                            <div>Follow Up Date: {formatActivityDate(activityItem.followUpDate)}</div>
+                          )}
+                          {activityItem.nextFollowUpDate && (
+                            <div>
+                              Next Follow Up Date: {formatActivityDate(activityItem.nextFollowUpDate)}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className={addStyles.itemActions}>
@@ -1539,6 +1698,7 @@ export default function EditLeadPage() {
                 />
               </div>
               <UsaAddressFields
+                flow="zipFirst"
                 city={tempAddress.city}
                 state={tempAddress.state}
                 zip={tempAddress.zip}
@@ -1676,6 +1836,155 @@ export default function EditLeadPage() {
                   />
                 </div>
               </div>
+              <div className={styles.formGroup} style={{ gridColumn: "1 / -1" }}>
+                <label>Contact Card</label>
+                {tempContact.businessCardUrls.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "0.75rem",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    {tempContact.businessCardUrls.map((cardUrl) => (
+                      <div
+                        key={cardUrl}
+                        style={{
+                          width: 120,
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 10,
+                          overflow: "hidden",
+                          background: "#ffffff",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={cardUrl}
+                          alt="Existing contact card"
+                          style={{ width: "100%", height: 80, objectFit: "cover" }}
+                        />
+                        <div style={{ padding: "0.4rem 0.5rem" }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTempContact((prev) => ({
+                                ...prev,
+                                businessCardUrls: prev.businessCardUrls.filter(
+                                  (url) => url !== cardUrl
+                                ),
+                              }))
+                            }
+                            style={{
+                              fontSize: 11,
+                              color: "#ef4444",
+                              fontWeight: 600,
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <input
+                  ref={contactCardInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className={styles.formInput}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setTempContact((prev) => {
+                      const nextFiles = [...prev.businessCardFiles];
+                      for (const file of files) {
+                        const key = `${file.name}:${file.size}:${file.lastModified}`;
+                        const exists = nextFiles.some(
+                          (f) => `${f.name}:${f.size}:${f.lastModified}` === key
+                        );
+                        if (!exists) nextFiles.push(file);
+                      }
+                      return { ...prev, businessCardFiles: nextFiles };
+                    });
+                    if (contactCardInputRef.current) contactCardInputRef.current.value = "";
+                  }}
+                />
+                {contactCardPreviews.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "0.75rem",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    {contactCardPreviews.map((preview) => (
+                      <div
+                        key={`${preview.file.name}:${preview.file.size}:${preview.file.lastModified}`}
+                        style={{
+                          width: 120,
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 10,
+                          overflow: "hidden",
+                          background: "#ffffff",
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={preview.url}
+                          alt={preview.file.name}
+                          style={{ width: "100%", height: 80, objectFit: "cover" }}
+                        />
+                        <div style={{ padding: "0.4rem 0.5rem" }}>
+                          <div
+                            title={preview.file.name}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              color: "#334155",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {preview.file.name}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTempContact((prev) => ({
+                                ...prev,
+                                businessCardFiles: prev.businessCardFiles.filter(
+                                  (file) =>
+                                    `${file.name}:${file.size}:${file.lastModified}` !==
+                                    `${preview.file.name}:${preview.file.size}:${preview.file.lastModified}`
+                                ),
+                              }))
+                            }
+                            style={{
+                              marginTop: "0.25rem",
+                              fontSize: 11,
+                              color: "#ef4444",
+                              fontWeight: 600,
+                              background: "none",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: 0,
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className={addStyles.modalFooter}>
               <button
@@ -1777,9 +2086,9 @@ export default function EditLeadPage() {
                 <div className={styles.formGroup}>
                   <label>Follow Up Date</label>
                   <input
-                    type="datetime-local"
+                    type="date"
                     className={styles.formInput}
-                    value={tempActivity.followUpDate}
+                    value={toDateInputValue(tempActivity.followUpDate)}
                     onChange={(e) =>
                       setTempActivity({ ...tempActivity, followUpDate: e.target.value })
                     }
@@ -1788,9 +2097,9 @@ export default function EditLeadPage() {
                 <div className={styles.formGroup}>
                   <label>Next Follow Up Date</label>
                   <input
-                    type="datetime-local"
+                    type="date"
                     className={styles.formInput}
-                    value={tempActivity.nextFollowUpDate}
+                    value={toDateInputValue(tempActivity.nextFollowUpDate)}
                     onChange={(e) =>
                       setTempActivity({
                         ...tempActivity,
