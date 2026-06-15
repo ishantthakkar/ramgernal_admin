@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dashboardStyles from "../dashboard.module.css";
 import styles from "./payables.module.css";
@@ -51,24 +51,24 @@ export default function PayablesPage() {
     }
   }, [router]);
 
-  useEffect(() => {
-    const fetchPayables = async () => {
-      try {
-        setLoading(true);
-        const response = (await adminApi.getCommissionList()) as PayablesListResponse;
-        setSalesRows(response.salesPersons || []);
-        setContractorRows(response.contractors || []);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Failed to load payables.";
-        console.error("Failed to fetch payables:", err);
-        toast.error(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPayables();
+  const fetchPayables = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = (await adminApi.getCommissionList()) as PayablesListResponse;
+      setSalesRows(response.salesPersons || []);
+      setContractorRows(response.contractors || []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load payables.";
+      console.error("Failed to fetch payables:", err);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPayables();
+  }, [fetchPayables]);
 
   const filteredSalesRows = useMemo(() => {
     if (!searchTerm.trim()) return salesRows;
@@ -114,20 +114,24 @@ export default function PayablesPage() {
     setCurrentPage(1);
   }
 
-  if (loading) {
-    return (
-      <div className={styles.payablesPage}>
-        <div className={dashboardStyles.breadcrumb}>
-          ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-          <span className={dashboardStyles.breadcrumbCurrent}>PAYABLES</span>
+  const loadingRow = (
+    <tr>
+      <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1rem",
+            color: "#94a3b8",
+          }}
+        >
+          <Loader2 size={32} className="animate-spin" />
+          <span style={{ fontWeight: 600 }}>Loading payables...</span>
         </div>
-        <div className={styles.loadingWrap} style={{ padding: "4rem" }}>
-          <Loader2 size={40} className="animate-spin" />
-          <span>Loading payables...</span>
-        </div>
-      </div>
-    );
-  }
+      </td>
+    </tr>
+  );
 
   return (
     <div className={styles.payablesPage}>
@@ -187,7 +191,9 @@ export default function PayablesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentSalesItems.length === 0 ? (
+                  {loading ? (
+                    loadingRow
+                  ) : currentSalesItems.length === 0 ? (
                     <tr>
                       <td colSpan={tableColSpan} className={styles.emptyCell}>
                         No sales person payables found. Each verified survey appears here after survey verify.
@@ -225,7 +231,9 @@ export default function PayablesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentContractorItems.length === 0 ? (
+                  {loading ? (
+                    loadingRow
+                  ) : currentContractorItems.length === 0 ? (
                     <tr>
                       <td colSpan={tableColSpan} className={styles.emptyCell}>
                         No contractor payables found. Verified surveys with products will appear here after survey verify.
