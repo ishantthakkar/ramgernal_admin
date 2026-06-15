@@ -27,6 +27,7 @@ import {
   mapSurveyQuotationListItem,
   type SurveyQuotationApiRow,
 } from "@/lib/quotation-utils";
+import { mapInstallationSurveyRow } from "@/lib/workflow-installation";
 
 function resolveUserDisplayName(
   user: { fullName?: string; _id?: unknown } | null | undefined
@@ -338,44 +339,11 @@ export default function WorkflowPage() {
 
       } else if (activeTab === "Installations") {
         const response = await adminApi.getInstallations();
-        const installations = response.installations || response.data || (Array.isArray(response) ? response : []);
+        const surveys = response.surveys || response.installations || response.data || [];
 
-        const normalizedData = installations.map((inst: any) => {
-          const customerId = String(inst.customerId || inst.customer?.id || inst.id || inst._id || "");
-          const surveyId = String(inst.survey_id || inst.surveyId || inst.id || "");
-          const customerInfo = inst.customer || {};
-
-          return {
-            _id: customerId,
-            rowId: surveyId || customerId,
-            surveyId,
-            surveyName: inst.surveyName || "",
-            customerCode: inst.customerCode || customerInfo.customerCode || "",
-            leadId: inst.leadId || customerInfo.leadId || "",
-            accountNumber: inst.accountNumber || customerInfo.accountNumber || "N/A",
-            customerName: inst.customerName || inst.name || customerInfo.name || "Unknown",
-            company: inst.company || customerInfo.company || inst.dba || customerInfo.dba || "-",
-            email: inst.email || customerInfo.email || "",
-            mobileNumber: inst.mobileNumber || customerInfo.mobileNumber || "",
-            phone: inst.phone || customerInfo.phone || "",
-            salesPerson: inst.salesPersonName || customerInfo.salesPersonName || "Unassigned",
-            salesManager: inst.salesManagerName || customerInfo.salesManagerName || "",
-            contractor:
-              inst.contractorName ||
-              inst.assignToContractor?.fullName ||
-              inst.contractor ||
-              "Unassigned",
-            projectManager:
-              inst.projectManagerName ||
-              inst.assignedTo?.fullName ||
-              inst.projectManager?.fullName ||
-              inst.projectManager ||
-              "Unassigned",
-            status: inst.installationStatus || inst.status || customerInfo.installationStatus || "-",
-            quotationStatus: inst.quotationStatus || "approved",
-            customer: customerInfo,
-          };
-        });
+        const normalizedData = (Array.isArray(surveys) ? surveys : []).map((survey: Record<string, unknown>) =>
+          mapInstallationSurveyRow(survey)
+        );
         setData(normalizedData);
         setCounts((prev) => ({
           ...prev,
@@ -459,16 +427,14 @@ export default function WorkflowPage() {
   const handleAssignStaff = async (staff: any) => {
     try {
       setModalLoading(true);
-      let response;
 
-      if (assignType === "Project Manager") {
-        response = await adminApi.assignProjectManager(targetRecord._id, staff._id);
-      } else if (assignType === "Contractor") {
-        response = await adminApi.assignContractor(targetRecord._id, staff._id);
-      } else {
-        toast.error("Invalid assignment type.");
+      const surveyId = targetRecord?.surveyId || targetRecord?.rowId;
+      if (!surveyId) {
+        toast.error("Survey ID is missing for this installation.");
         return;
       }
+
+      const response = await adminApi.assignSurvey(surveyId, staff._id);
 
       toast.success(response.message || `${assignType} assigned successfully.`);
       setShowAssignModal(false);

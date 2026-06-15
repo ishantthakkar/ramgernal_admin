@@ -137,14 +137,21 @@ export const adminApi = {
   getCustomers: () => apiRequest("/customer/customers-list", {
     method: "GET",
   }),
-  assignProjectManager: (surveyId: string, staffId: string) => apiRequest(`/surveys/${surveyId}/assign`, {
-    method: "POST",
-    body: JSON.stringify({ assignedTo: staffId }),
-  }),
-  assignContractor: (surveyId: string, contractorId: string) => apiRequest(`/surveys/${surveyId}/assign-contractor`, {
-    method: "POST",
-    body: JSON.stringify({ contractorId }),
-  }),
+  assignSurvey: (surveyId: string, assignedTo: string) =>
+    apiRequest("/surveys/assign", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId, assignedTo }),
+    }),
+  assignProjectManager: (surveyId: string, staffId: string) =>
+    apiRequest("/surveys/assign", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId, assignedTo: staffId }),
+    }),
+  assignContractor: (surveyId: string, contractorId: string) =>
+    apiRequest("/surveys/assign", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId, assignedTo: contractorId }),
+    }),
   getCustomerWorkflowDetails: (id: string) => apiRequest(`/customer/${id}`, {
     method: "GET",
   }),
