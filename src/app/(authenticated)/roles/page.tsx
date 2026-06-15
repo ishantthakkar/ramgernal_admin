@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../dashboard.module.css";
+import roleStyles from "./roles.module.css";
 import {
   Users,
   Plus,
   Search,
   UserPlus,
-  Ticket,
+  ShieldCheck,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -17,7 +18,7 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { useRequireSuperAdmin } from "@/hooks/use-require-super-admin";
-import { SYSTEM_ROLE_NAMES, isMobileUserRoleName } from "@/lib/role-modules";
+import { isMobileUserRoleName } from "@/lib/role-modules";
 
 interface RoleRow {
   _id: string;
@@ -86,69 +87,71 @@ export default function RolesPermissionsPage() {
   const customRoleCount = roles.filter((role) => !role.isSystemRole).length;
 
   const stats = [
-    { label: "TOTAL ROLES", value: roles.length.toString(), icon: Users, color: "#0076ce", bg: "#eff6ff" },
-    { label: "SYSTEM ROLES", value: systemRoleCount.toString(), icon: Ticket, color: "#6366f1", bg: "#f5f3ff" },
-    { label: "CUSTOM ROLES", value: customRoleCount.toString(), icon: UserPlus, color: "#f59e0b", bg: "#fffbeb" },
+    {
+      label: "Total Roles",
+      value: roles.length.toLocaleString(),
+      icon: Users,
+      color: "#3b6fd9",
+      bg: "#e8f0fe",
+    },
+    {
+      label: "System Roles",
+      value: systemRoleCount.toLocaleString(),
+      icon: ShieldCheck,
+      color: "#7c3aed",
+      bg: "#ede9fe",
+    },
+    {
+      label: "Custom Roles",
+      value: customRoleCount.toLocaleString(),
+      icon: UserPlus,
+      color: "#0d9488",
+      bg: "#ccfbf1",
+    },
   ];
 
   if (!isAuthorized) return null;
 
   return (
     <div className={styles.usersPage}>
-      <div className={styles.breadcrumb} style={{ color: "#94a3b8", fontWeight: 600 }}>
-        Admin <span style={{ margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>ROLES & PERMISSIONS</span>
+      <div className={styles.breadcrumb}>
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span className={styles.breadcrumbCurrent}>ROLES & PERMISSIONS</span>
       </div>
 
-      <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
-        <div>
-          <h1 className={styles.welcomeText} style={{ fontSize: "1.875rem" }}>
-            Manage Roles & Permissions
-          </h1>
-          <p style={{ color: "#64748b", marginTop: "0.5rem", fontSize: "0.9rem" }}>
-            System roles: {SYSTEM_ROLE_NAMES.join(", ")}. Mobile roles (Contractor, Sales Person) are managed separately.
-          </p>
-        </div>
-        <button
-          className={styles.addBtn}
-          style={{ padding: "0.75rem 1.75rem" }}
-          onClick={() => router.push("/roles/create")}
-        >
+      <div className={styles.pageHeader}>
+        <h1 className={styles.welcomeText}>Roles & Permissions</h1>
+        <button className={styles.addBtn} onClick={() => router.push("/roles/create")}>
           <Plus size={20} /> Create Custom Role
         </button>
       </div>
 
-      <div className={styles.userStatsGrid} style={{ marginBottom: "2.5rem" }}>
+      <div className={roleStyles.rolesStatsGrid}>
         {stats.map((stat) => (
-          <div key={stat.label} className={styles.userStatCard} style={{ background: "#ffffff", border: "1px solid #f1f5f9" }}>
+          <div key={stat.label} className={roleStyles.rolesStatCard}>
             <div
-              className={styles.userStatIcon}
-              style={{ backgroundColor: stat.bg, color: stat.color, width: "44px", height: "44px", borderRadius: "10px" }}
+              className={roleStyles.rolesStatIcon}
+              style={{ backgroundColor: stat.bg, color: stat.color }}
             >
               <stat.icon size={22} />
             </div>
-            <div className={styles.userStatValue} style={{ fontSize: "1.75rem" }}>
-              {stat.value}
-            </div>
-            <div className={styles.userStatLabel}>{stat.label}</div>
+            <div className={roleStyles.rolesStatValue}>{stat.value}</div>
+            <div className={roleStyles.rolesStatLabel}>{stat.label}</div>
           </div>
         ))}
       </div>
 
-      <div className={styles.tableCard} style={{ padding: "2rem" }}>
+      <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
-          <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-            <div className={styles.searchUsers}>
-              <Search size={16} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="Search Roles"
-                className={styles.searchInputSmall}
-                style={{ width: "440px" }}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+          <div className={styles.searchUsers}>
+            <Search size={16} color="#94a3b8" />
+            <input
+              type="text"
+              placeholder="Search Roles..."
+              className={styles.searchInputSmall}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
           <div style={{ fontSize: "0.875rem", color: "#64748b", fontWeight: 500 }}>
             Showing {filteredRoles.length} roles
@@ -157,8 +160,19 @@ export default function RolesPermissionsPage() {
 
         <div className={styles.userTableContainer}>
           {loading ? (
-            <div style={{ display: "flex", justifyContent: "center", padding: "3rem" }}>
-              <Loader2 className={styles.spinner} />
+            <div style={{ display: "flex", justifyContent: "center", padding: "4rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: "1rem",
+                  color: "#94a3b8",
+                }}
+              >
+                <Loader2 size={32} className={styles.spinner} />
+                <span style={{ fontWeight: 600 }}>Loading roles...</span>
+              </div>
             </div>
           ) : (
             <table className={styles.userTable}>
@@ -167,50 +181,38 @@ export default function RolesPermissionsPage() {
                   <th>Role</th>
                   <th>Type</th>
                   <th>Note</th>
-                  <th style={{ textAlign: "right" }}>Actions</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRoles.length > 0 ? (
                   filteredRoles.map((role) => (
                     <tr key={role._id}>
-                      <td style={{ fontWeight: 600, color: "#475569" }}>{role.roleName}</td>
                       <td>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "0.2rem 0.65rem",
-                            borderRadius: "999px",
-                            fontSize: "0.7rem",
-                            fontWeight: 700,
-                            background: role.isSystemRole ? "#eff6ff" : "#fffbeb",
-                            color: role.isSystemRole ? "#0076ce" : "#b45309",
-                          }}
-                        >
+                        <span className={roleStyles.roleName}>{role.roleName}</span>
+                      </td>
+                      <td>
+                        <span className={role.isSystemRole ? roleStyles.systemBadge : roleStyles.customBadge}>
                           {role.isSystemRole ? "System" : "Custom"}
                         </span>
                       </td>
-                      <td style={{ color: "#64748b" }}>{role.notes}</td>
-                      <td style={{ textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", gap: "0.5rem" }}>
+                      <td style={{ color: "#64748b" }}>{role.notes || "—"}</td>
+                      <td>
+                        <div className={roleStyles.actionGroup}>
                           <button
+                            type="button"
                             className={styles.assignBtn}
-                            style={{ padding: "0.4rem 1.2rem", fontSize: "0.75rem" }}
                             onClick={() => router.push(`/roles/edit/${role._id}`)}
                           >
                             Edit
                           </button>
                           {!role.isSystemRole && (
                             <button
-                              className={styles.assignBtn}
-                              style={{
-                                padding: "0.4rem 0.9rem",
-                                fontSize: "0.75rem",
-                                color: "#dc2626",
-                                borderColor: "#fecaca",
-                              }}
+                              type="button"
+                              className={roleStyles.deleteBtn}
                               onClick={() => handleDelete(role)}
                               disabled={deletingId === role._id}
+                              aria-label={`Delete ${role.roleName}`}
                             >
                               {deletingId === role._id ? (
                                 <Loader2 size={14} className={styles.spinner} />
@@ -225,7 +227,7 @@ export default function RolesPermissionsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "#94a3b8" }}>
+                    <td colSpan={4} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
                       No roles found matching your search.
                     </td>
                   </tr>
