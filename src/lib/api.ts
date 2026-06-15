@@ -245,6 +245,9 @@ export const adminApi = {
     method: "POST",
     body: JSON.stringify(roleData),
   }),
+  deleteRole: (id: string) => apiRequest(`/roles/${id}`, {
+    method: "DELETE",
+  }),
   getEligibleCustomers: () => apiRequest("/services/customers/eligible", {
     method: "GET",
   }),

@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import dashboardStyles from "../dashboard.module.css";
 import styles from "./invoices.module.css";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { MOCK_INVOICES, type InvoiceRow } from "@/lib/invoices-mock-data";
 import { toast } from "react-toastify";
+import { canViewModule } from "@/lib/permissions";
 
 const ITEMS_PER_PAGE = 4;
 
@@ -33,8 +35,16 @@ function buildPageNumbers(currentPage: number, totalPages: number): (number | "e
 }
 
 export default function InvoicesPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    if (!canViewModule("Invoices")) {
+      toast.error("You do not have permission to view invoices.");
+      router.push("/dashboard");
+    }
+  }, [router]);
 
   const filteredInvoices = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();

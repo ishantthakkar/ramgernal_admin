@@ -3,58 +3,33 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
-import { 
-  X, 
-  ChevronDown, 
-  LayoutGrid, 
-  BarChart2, 
-  User, 
-  ClipboardCheck, 
-  FolderKanban, 
-  Zap, 
-  Search as SearchIcon, 
-  FileEdit, 
-  PieChart, 
-  History,
-  Check,
-  Wallet
-} from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "react-toastify";
 import { adminApi } from "@/lib/api";
-
-const MODULES = [
-  { id: "users", name: "User", icon: User, allowed: ["view", "edit", "create"] },
-  { id: "dashboard", name: "Dashboard", icon: LayoutGrid, allowed: ["view"] },
-  { id: "leads", name: "Leads", icon: BarChart2, allowed: ["view", "edit"] },
-  { id: "customers", name: "Customers", icon: User, allowed: ["view", "edit"] },
-  { id: "surveys", name: "Surveys", icon: ClipboardCheck, allowed: ["view", "edit"] },
-  { id: "installation", name: "Installation", icon: Zap, allowed: ["view", "edit"] },
-  { id: "inspection", name: "Inspection", icon: SearchIcon, allowed: ["view", "edit"] },
-  { id: "commissions", name: "Payables", icon: Wallet, allowed: ["view", "edit"] },
-  { id: "services", name: "Services", icon: ClipboardCheck, allowed: ["view", "create", "edit"] },
-  { id: "audit_logs", name: "Audit", icon: History, allowed: ["view"] },
-];
+import { PermissionMatrix } from "@/components/roles/permission-matrix";
+import { useRequireSuperAdmin } from "@/hooks/use-require-super-admin";
+import {
+  buildEmptyPermissionsState,
+  formatPermissionsForApi,
+  isSystemRoleName,
+  type PermissionAction,
+} from "@/lib/role-modules";
 
 export default function CreateRolePage() {
   const router = useRouter();
+  const isAuthorized = useRequireSuperAdmin();
   const [roleName, setRoleName] = useState("");
-  const [note, setNote] = useState("Sales Person");
-  const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>(
-    MODULES.reduce((acc, m) => ({
-      ...acc,
-      [m.id]: { view: false, create: false, edit: false }
-    }), {})
-  );
-
+  const [note, setNote] = useState("");
+  const [permissions, setPermissions] = useState(buildEmptyPermissionsState);
   const [loading, setLoading] = useState(false);
 
-  const togglePermission = (moduleId: string, action: string) => {
-    setPermissions(prev => ({
+  const togglePermission = (moduleId: string, action: PermissionAction) => {
+    setPermissions((prev) => ({
       ...prev,
       [moduleId]: {
         ...prev[moduleId],
-        [action]: !prev[moduleId][action]
-      }
+        [action]: !prev[moduleId][action],
+      },
     }));
   };
 
@@ -64,26 +39,20 @@ export default function CreateRolePage() {
       return;
     }
 
+    if (isSystemRoleName(roleName)) {
+      toast.error("This role name is reserved for a system role.");
+      return;
+    }
+
     try {
       setLoading(true);
-      
-      // Transform permissions to match API (boolean -> 0/1, capitalized keys)
-      const formattedPermissions: any = {};
-      MODULES.forEach(m => {
-        formattedPermissions[m.name] = {
-          view: permissions[m.id].view ? 1 : 0,
-          create: permissions[m.id].create ? 1 : 0,
-          edit: permissions[m.id].edit ? 1 : 0,
-        };
-      });
 
-      const roleData = {
+      await adminApi.createRole({
         roleName: roleName.trim(),
         notes: note.trim(),
-        permissions: formattedPermissions
-      };
+        permissions: formatPermissionsForApi(permissions),
+      });
 
-      await adminApi.createRole(roleData);
       toast.success("Role created successfully!");
       router.push("/roles");
     } catch (error: any) {
@@ -93,171 +62,87 @@ export default function CreateRolePage() {
     }
   };
 
+  if (!isAuthorized) return null;
+
   return (
     <div className={styles.usersPage}>
-      {/* Breadcrumb */}
       <div className={styles.breadcrumb} style={{ color: "#94a3b8", fontWeight: 600 }}>
-        <span 
-          style={{ cursor: "pointer" }} 
-          onClick={() => router.push("/dashboard")}
-        >
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/dashboard")}>
           DASHBOARD
-        </span> 
+        </span>
         <span style={{ margin: "0 0.5rem" }}>&gt;</span>
-        <span 
-          style={{ cursor: "pointer" }} 
-          onClick={() => router.push("/roles")}
-        >
+        <span style={{ cursor: "pointer" }} onClick={() => router.push("/roles")}>
           ROLES & PERMISSIONS
-        </span> 
+        </span>
         <span style={{ margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ color: "#0076ce" }}>CREATE ROLE</span>
       </div>
 
-      {/* Page Header */}
       <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
         <h1 className={styles.welcomeText} style={{ fontSize: "1.875rem" }}>
-          Create Role
+          Create Custom Role
         </h1>
       </div>
 
-      {/* Main Content Card */}
       <div className={styles.formSection} style={{ padding: "2.5rem", borderRadius: "20px" }}>
         <h2 className={styles.sectionTitle} style={{ fontSize: "1.25rem", marginBottom: "2rem" }}>
           Role Information
         </h2>
 
         <div className={styles.formGroup} style={{ maxWidth: "400px", marginBottom: "2.5rem" }}>
-          <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", marginBottom: "0.5rem", display: "block" }}>ROLE</label>
-          <input 
+          <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", marginBottom: "0.5rem", display: "block" }}>
+            ROLE
+          </label>
+          <input
             type="text"
-            className={styles.formInput} 
+            className={styles.formInput}
             style={{ background: "#f1f5f9", border: "none" }}
             value={roleName}
             onChange={(e) => setRoleName(e.target.value)}
-            placeholder="Enter Role Name"
+            placeholder="Enter custom role name"
           />
         </div>
 
-        {/* Permissions Grid Container */}
-        <div style={{ background: "#f8fafc", padding: "1.5rem", borderRadius: "16px", border: "1px solid #f1f5f9" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "2fr repeat(3, 1fr)", gap: "1rem", marginBottom: "1rem", padding: "0 1rem" }}>
-            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8" }}>MODULE / SCOPE</div>
-            {["VIEW", "CREATE", "EDIT"].map(action => (
-              <div key={action} style={{ fontSize: "0.65rem", fontWeight: 800, color: "#94a3b8", textAlign: "center" }}>{action}</div>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {MODULES.map((module) => (
-              <div 
-                key={module.id} 
-                style={{ 
-                  background: "#ffffff", 
-                  borderRadius: "12px", 
-                  padding: "0.75rem 1rem", 
-                  display: "grid", 
-                  gridTemplateColumns: "2fr repeat(3, 1fr)", 
-                  alignItems: "center",
-                  gap: "1rem",
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.02)"
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                  <div style={{ background: "#f1f5f9", padding: "0.5rem", borderRadius: "8px", color: "#0076ce" }}>
-                    <module.icon size={18} />
-                  </div>
-                  <span style={{ fontWeight: 600, color: "#1e293b", fontSize: "0.9rem" }}>{module.name}</span>
-                </div>
-                {["view", "create", "edit"].map((action) => (
-                  <div key={action} style={{ display: "flex", justifyContent: "center" }}>
-                    {module.allowed.includes(action) ? (
-                      <div 
-                        onClick={() => togglePermission(module.id, action)}
-                        style={{ 
-                          width: "20px", 
-                          height: "20px", 
-                          borderRadius: "4px", 
-                          border: permissions[module.id][action] ? "none" : "2px solid #e2e8f0",
-                          background: permissions[module.id][action] ? "#0076ce" : "transparent",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          transition: "all 0.2s"
-                        }}
-                      >
-                        {permissions[module.id][action] && <Check size={14} color="white" strokeWidth={3} />}
-                      </div>
-                    ) : (
-                      <div style={{ width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", color: "#cbd5e1", fontWeight: 700 }}>-</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
+        <PermissionMatrix permissions={permissions} onToggle={togglePermission} />
       </div>
 
-      {/* Notes Section */}
       <div className={styles.formSection} style={{ padding: "2.5rem", borderRadius: "20px", marginTop: "2rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-          <h2 className={styles.sectionTitle} style={{ fontSize: "1.25rem", marginBottom: 0 }}>
-            Notes
-          </h2>
-          <button 
-            style={{ 
-              background: "none", 
-              border: "1px solid #0076ce", 
-              color: "#0076ce", 
-              padding: "0.6rem 1.25rem", 
-              borderRadius: "8px", 
-              fontWeight: 600, 
-              fontSize: "0.875rem",
-              cursor: "pointer"
-            }}
-          >
-            Add Notes
-          </button>
-        </div>
+        <h2 className={styles.sectionTitle} style={{ fontSize: "1.25rem", marginBottom: "2rem" }}>
+          Notes
+        </h2>
 
         <div className={styles.formGroup}>
-          <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", marginBottom: "0.5rem", display: "block" }}>NOTE 1</label>
-          <input 
-            type="text" 
-            className={styles.formInput} 
+          <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", marginBottom: "0.5rem", display: "block" }}>
+            NOTE
+          </label>
+          <input
+            type="text"
+            className={styles.formInput}
             style={{ background: "#f1f5f9", border: "none" }}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Sales Person"
+            placeholder="Optional description for this role"
           />
         </div>
       </div>
 
-      {/* Footer Actions */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "3rem", padding: "1.5rem 0" }}>
-        <button 
+        <button
           onClick={() => router.push("/roles")}
           className={styles.cancelBtn}
-          style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            gap: "0.5rem", 
-            padding: "0.75rem 2.5rem", 
-            background: "#ffffff", 
-            border: "1px solid #e2e8f0", 
-            color: "#64748b" 
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.75rem 2.5rem",
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            color: "#64748b",
           }}
         >
           <X size={18} /> Cancel
         </button>
-        <button 
-          onClick={handleCreate}
-          className={styles.addBtn}
-          style={{ padding: "0.75rem 3.5rem" }}
-          disabled={loading}
-        >
+        <button onClick={handleCreate} className={styles.addBtn} style={{ padding: "0.75rem 3.5rem" }} disabled={loading}>
           {loading ? "Creating..." : "Create"}
         </button>
       </div>

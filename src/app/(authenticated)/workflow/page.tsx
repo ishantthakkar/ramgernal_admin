@@ -340,17 +340,47 @@ export default function WorkflowPage() {
         const response = await adminApi.getInstallations();
         const installations = response.installations || response.data || (Array.isArray(response) ? response : []);
 
-        const normalizedData = installations.map((inst: any) => ({
-          _id: inst.id || inst._id,
-          accountNumber: inst.accountNumber || "N/A",
-          customerName: inst.name || inst.customerName || (inst.customer?.name) || "Unknown",
-          company: inst.company || (inst.customer?.company) || "N/A",
-          salesPerson: inst.salesPersonName || (inst.customer?.salesPerson) || "Unassigned",
-          contractor: inst.contractorName || inst.contractor?.fullName || inst.contractor || "Unassigned",
-          projectManager: inst.assignedTo?.fullName || inst.projectManager?.fullName || inst.projectManager || "Unassigned",
-          status: inst.installationStatus || "-"
-        }));
+        const normalizedData = installations.map((inst: any) => {
+          const customerId = String(inst.customerId || inst.customer?.id || inst.id || inst._id || "");
+          const surveyId = String(inst.survey_id || inst.surveyId || inst.id || "");
+          const customerInfo = inst.customer || {};
+
+          return {
+            _id: customerId,
+            rowId: surveyId || customerId,
+            surveyId,
+            surveyName: inst.surveyName || "",
+            customerCode: inst.customerCode || customerInfo.customerCode || "",
+            leadId: inst.leadId || customerInfo.leadId || "",
+            accountNumber: inst.accountNumber || customerInfo.accountNumber || "N/A",
+            customerName: inst.customerName || inst.name || customerInfo.name || "Unknown",
+            company: inst.company || customerInfo.company || inst.dba || customerInfo.dba || "-",
+            email: inst.email || customerInfo.email || "",
+            mobileNumber: inst.mobileNumber || customerInfo.mobileNumber || "",
+            phone: inst.phone || customerInfo.phone || "",
+            salesPerson: inst.salesPersonName || customerInfo.salesPersonName || "Unassigned",
+            salesManager: inst.salesManagerName || customerInfo.salesManagerName || "",
+            contractor:
+              inst.contractorName ||
+              inst.assignToContractor?.fullName ||
+              inst.contractor ||
+              "Unassigned",
+            projectManager:
+              inst.projectManagerName ||
+              inst.assignedTo?.fullName ||
+              inst.projectManager?.fullName ||
+              inst.projectManager ||
+              "Unassigned",
+            status: inst.installationStatus || inst.status || customerInfo.installationStatus || "-",
+            quotationStatus: inst.quotationStatus || "approved",
+            customer: customerInfo,
+          };
+        });
         setData(normalizedData);
+        setCounts((prev) => ({
+          ...prev,
+          totalInstallations: response.total ?? normalizedData.length,
+        }));
 
       } else if (activeTab === "Inspections") {
         const response = await adminApi.getInspections();
@@ -487,7 +517,7 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Installations") {
-      return ["Customer", "AC Number", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
+      return ["Customer ID", "Customer", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
     }
 
     if (activeTab === "Inspections") {
@@ -542,11 +572,18 @@ export default function WorkflowPage() {
       }
       return (
         item.customerName?.toLowerCase().includes(q) ||
+        item.surveyName?.toLowerCase().includes(q) ||
+        item.leadId?.toLowerCase().includes(q) ||
+        item.customerCode?.toLowerCase().includes(q) ||
+        item.dba?.toLowerCase().includes(q) ||
+        item.email?.toLowerCase().includes(q) ||
+        item.mobileNumber?.toLowerCase().includes(q) ||
         item.company?.toLowerCase().includes(q) ||
         item.salesPerson?.toLowerCase().includes(q) ||
         item.contractor?.toLowerCase().includes(q) ||
         item.projectManager?.toLowerCase().includes(q) ||
-        item.status?.toLowerCase().includes(q)
+        item.status?.toLowerCase().includes(q) ||
+        item.accountNumber?.toLowerCase().includes(q)
       );
     });
   }, [data, searchTerm, activeTab]);
@@ -659,7 +696,7 @@ export default function WorkflowPage() {
                 </tr>
               ) : (
                 currentItems.map((item, index) => (
-                  <tr key={item._id || `${activeTab}-${index}`}>
+                  <tr key={item.rowId || item.surveyId || item._id || `${activeTab}-${index}`}>
                     {activeTab === "Surveys" ? (
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId || "—"}</td>
@@ -775,6 +812,9 @@ export default function WorkflowPage() {
                       </>
                     ) : activeTab === "Installations" ? (
                       <>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>
+                          {item.leadId || item.customerCode || item.accountNumber || "—"}
+                        </td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
@@ -783,7 +823,6 @@ export default function WorkflowPage() {
                             {item.customerName}
                           </span>
                         </td>
-                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
                         <td>

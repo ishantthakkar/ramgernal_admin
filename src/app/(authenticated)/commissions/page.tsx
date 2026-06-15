@@ -13,6 +13,7 @@ import {
 import { formatDate } from "@/lib/dateUtils";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import { canViewModule } from "@/lib/permissions";
 import type {
   SalesPersonPayableRow,
   ContractorPayableRow,
@@ -42,6 +43,13 @@ export default function PayablesPage() {
   const [loading, setLoading] = useState(true);
   const [salesRows, setSalesRows] = useState<SalesPersonPayableRow[]>([]);
   const [contractorRows, setContractorRows] = useState<ContractorPayableRow[]>([]);
+
+  useEffect(() => {
+    if (!canViewModule("Payables")) {
+      toast.error("You do not have permission to view payables.");
+      router.push("/dashboard");
+    }
+  }, [router]);
 
   useEffect(() => {
     const fetchPayables = async () => {

@@ -67,7 +67,7 @@ export default function DashboardLayout({
 
   const allNavItems = [
     { name: "Users", icon: Users, path: "/users", module: "User" },
-    { name: "Products", icon: Package, path: "/products", isVisible: true },
+    { name: "Products", icon: Package, path: "/products", module: "Products" },
     { name: "Leads", icon: Search, path: "/leads", module: "Leads" },
     { name: "Customers", icon: Handshake, path: "/customers", module: "Customers" },
     { 
@@ -78,7 +78,7 @@ export default function DashboardLayout({
     },
     { name: "Services", icon: Settings, path: "/services", module: "Services" },
     { name: "Payables", icon: Wallet, path: "/commissions", module: "Payables" },
-    { name: "Invoices", icon: Receipt, path: "/invoices", isVisible: true },
+    { name: "Invoices", icon: Receipt, path: "/invoices", module: "Invoices" },
     { name: "Roles & Permissions", icon: ShieldCheck, path: "/roles", isVisible: isSuperAdmin() },
     { name: "Audit Logs", icon: FileSearch, path: "/audit", module: "Audit" },
   ];

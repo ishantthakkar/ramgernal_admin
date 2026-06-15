@@ -25,6 +25,9 @@ function resolveModulePermissions(moduleName: string, permissions: UserPermissio
   if (moduleName === "Payables") {
     return permissions.Payables || permissions.Commission;
   }
+  if (moduleName === "User") {
+    return permissions.User || permissions.Users;
+  }
   return permissions[moduleName];
 }
 

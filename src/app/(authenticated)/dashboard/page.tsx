@@ -18,6 +18,7 @@ import {
   Loader2
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { canViewModule } from "@/lib/permissions";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -25,6 +26,12 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!canViewModule("Dashboard")) {
+      toast.error("You do not have permission to view the dashboard.");
+      router.push("/users");
+      return;
+    }
+
     const fetchStats = async () => {
       try {
         const data = await adminApi.getDashboardStats();
@@ -37,7 +44,7 @@ export default function DashboardPage() {
     };
 
     fetchStats();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (

@@ -17,6 +17,7 @@ import {
   Save,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { canViewModule, hasPermission } from "@/lib/permissions";
 import {
   ProductFormModal,
   type ExistingProductFormData,
@@ -186,6 +187,15 @@ function buildProductLookup(
 export default function ProductsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const canCreateProducts = hasPermission("Products", "create");
+  const canEditProducts = hasPermission("Products", "edit");
+
+  useEffect(() => {
+    if (!canViewModule("Products")) {
+      toast.error("You do not have permission to view products.");
+      router.push("/dashboard");
+    }
+  }, [router]);
   const [activeTab, setActiveTab] = useState<ProductFixtureType>(() =>
     parseProductTabFromParam(searchParams.get("tab"))
   );
@@ -724,7 +734,7 @@ export default function ProductsPage() {
             type="button"
             className={productStyles.secondaryBtn}
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
+            disabled={isUploading || !canCreateProducts}
           >
             {isUploading ? (
               <Loader2 size={18} className="animate-spin" />
@@ -762,7 +772,7 @@ export default function ProductsPage() {
           >
             <FileSpreadsheet size={18} /> Export
           </button>
-          {hasUnsavedUpload && unsavedCount > 0 && (
+          {hasUnsavedUpload && unsavedCount > 0 && canCreateProducts && (
             <button
               type="button"
               className={styles.addBtn}
@@ -779,9 +789,11 @@ export default function ProductsPage() {
                 : `Save ${unsavedCount} to Server`}
             </button>
           )}
+          {canCreateProducts && (
           <button type="button" className={styles.addBtn} onClick={openAddModal}>
             <Plus size={20} /> Add Product
           </button>
+          )}
         </div>
       </div>
 
@@ -921,6 +933,7 @@ export default function ProductsPage() {
                         </>
                       )}
                       <td>
+                        {canEditProducts && (
                         <button
                           type="button"
                           className={styles.assignBtn}
@@ -929,6 +942,7 @@ export default function ProductsPage() {
                         >
                           Edit
                         </button>
+                        )}
                       </td>
                     </tr>
                   );
