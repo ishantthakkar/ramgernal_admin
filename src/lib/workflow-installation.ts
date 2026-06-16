@@ -43,6 +43,7 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
     rowId: String(survey._id || ""),
     surveyId: String(survey._id || ""),
     surveyName: String(survey.surveyName || ""),
+    jobId: String(survey.job_id || ""),
     customerCode: String(customerObj?.customerCode || ""),
     leadId: String(lead?.lead_id || ""),
     accountNumber: String(customerObj?.accountNumber || "N/A"),

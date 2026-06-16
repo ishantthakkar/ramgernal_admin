@@ -483,7 +483,7 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Installations") {
-      return ["Customer ID", "Customer", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
+      return ["Customer ID", "Job ID", "Customer", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
     }
 
     if (activeTab === "Inspections") {
@@ -538,6 +538,7 @@ export default function WorkflowPage() {
       }
       return (
         item.customerName?.toLowerCase().includes(q) ||
+        item.jobId?.toLowerCase().includes(q) ||
         item.surveyName?.toLowerCase().includes(q) ||
         item.leadId?.toLowerCase().includes(q) ||
         item.customerCode?.toLowerCase().includes(q) ||
@@ -780,6 +781,9 @@ export default function WorkflowPage() {
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>
                           {item.leadId || item.customerCode || item.accountNumber || "—"}
+                        </td>
+                        <td style={{ fontWeight: 600, color: "#1e293b" }}>
+                          {item.jobId || "—"}
                         </td>
                         <td>
                           <span

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import dashboardStyles from "../dashboard.module.css";
-import styles from "./payables.module.css";
+import { useRouter, useSearchParams } from "next/navigation";
+import styles from "../dashboard.module.css";
+import payablesStyles from "./payables.module.css";
+import workflowStyles from "../workflow/workflow.module.css";
 import {
   Search,
   ChevronLeft,
@@ -20,10 +21,9 @@ import type {
   PayablesListResponse,
 } from "@/lib/payables-types";
 
-type PayablesTab = "Sales Persons" | "Contractors";
+const PAYABLES_TABS = ["Sales Persons", "Contractors"] as const;
+type PayablesTab = (typeof PAYABLES_TABS)[number];
 
-const SALES_COL_SPAN = 10;
-const CONTRACTOR_COL_SPAN = 10;
 const ITEMS_PER_PAGE = 10;
 
 function formatMoney(value: number) {
@@ -35,9 +35,44 @@ function formatMoney(value: number) {
   }).format(value || 0);
 }
 
+function getHeaders(tab: PayablesTab): string[] {
+  if (tab === "Sales Persons") {
+    return [
+      "Legal Name",
+      "Sales Person",
+      "Survey Name",
+      "Survey Date",
+      "Quotation Number",
+      "Confirmed",
+      "Quotation Amount",
+      "Commission",
+      "Paid",
+      "Pending",
+    ];
+  }
+  return [
+    "Legal Name",
+    "DBA",
+    "Contractor",
+    "Job No",
+    "Survey Name",
+    "Install Date",
+    "Total Charges",
+    "Commission",
+    "Paid",
+    "Pending",
+  ];
+}
+
 export default function PayablesPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<PayablesTab>("Sales Persons");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = PAYABLES_TABS.includes(tabParam as PayablesTab)
+    ? (tabParam as PayablesTab)
+    : PAYABLES_TABS[0];
+
+  const [activeTab, setActiveTab] = useState<PayablesTab>(initialTab);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -70,21 +105,25 @@ export default function PayablesPage() {
     fetchPayables();
   }, [fetchPayables]);
 
-  const filteredSalesRows = useMemo(() => {
-    if (!searchTerm.trim()) return salesRows;
-    const term = searchTerm.toLowerCase();
-    return salesRows.filter(
-      (row) =>
-        row.legalName?.toLowerCase().includes(term) ||
-        row.salesPerson?.toLowerCase().includes(term) ||
-        row.surveyName?.toLowerCase().includes(term) ||
-        row.quotationNumber?.toLowerCase().includes(term)
-    );
-  }, [salesRows, searchTerm]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm]);
 
-  const filteredContractorRows = useMemo(() => {
-    if (!searchTerm.trim()) return contractorRows;
-    const term = searchTerm.toLowerCase();
+  const filteredData = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
+    if (activeTab === "Sales Persons") {
+      if (!term) return salesRows;
+      return salesRows.filter(
+        (row) =>
+          row.legalName?.toLowerCase().includes(term) ||
+          row.salesPerson?.toLowerCase().includes(term) ||
+          row.surveyName?.toLowerCase().includes(term) ||
+          row.quotationNumber?.toLowerCase().includes(term)
+      );
+    }
+
+    if (!term) return contractorRows;
     return contractorRows.filter(
       (row) =>
         row.legalName?.toLowerCase().includes(term) ||
@@ -93,15 +132,13 @@ export default function PayablesPage() {
         row.jobNo?.toLowerCase().includes(term) ||
         row.surveyName?.toLowerCase().includes(term)
     );
-  }, [contractorRows, searchTerm]);
+  }, [activeTab, salesRows, contractorRows, searchTerm]);
 
-  const activeRows = activeTab === "Sales Persons" ? filteredSalesRows : filteredContractorRows;
-  const tableColSpan = activeTab === "Sales Persons" ? SALES_COL_SPAN : CONTRACTOR_COL_SPAN;
-  const totalPages = Math.max(1, Math.ceil(activeRows.length / ITEMS_PER_PAGE));
+  const tableColSpan = getHeaders(activeTab).length;
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
-  const currentSalesItems = filteredSalesRows.slice(indexOfFirstItem, indexOfLastItem);
-  const currentContractorItems = filteredContractorRows.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
 
   function handlePageChange(page: number) {
     if (page < 1 || page > totalPages) return;
@@ -111,43 +148,31 @@ export default function PayablesPage() {
   function handleTabChange(tab: PayablesTab) {
     setActiveTab(tab);
     setSearchTerm("");
-    setCurrentPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.replace(`/commissions?${params.toString()}`, { scroll: false });
   }
 
-  const loadingRow = (
-    <tr>
-      <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "1rem",
-            color: "#94a3b8",
-          }}
-        >
-          <Loader2 size={32} className="animate-spin" />
-          <span style={{ fontWeight: 600 }}>Loading payables...</span>
-        </div>
-      </td>
-    </tr>
-  );
+  const emptyMessage =
+    activeTab === "Sales Persons"
+      ? "No sales person payables found. Each verified survey appears here after survey verify."
+      : "No contractor payables found. Verified surveys with products will appear here after survey verify.";
 
   return (
-    <div className={styles.payablesPage}>
-      <div className={dashboardStyles.breadcrumb}>
+    <div className={styles.usersPage}>
+      <div className={styles.breadcrumb}>
         ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span className={dashboardStyles.breadcrumbCurrent}>PAYABLES</span>
+        <span className={styles.breadcrumbCurrent}>PAYABLES</span>
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.directoryTitle}>Payables</h1>
+        <h1 className={styles.welcomeText}>Payables</h1>
       </div>
 
-      <div className={dashboardStyles.tableCard}>
-        <div className={dashboardStyles.tableHeader}>
-          <div className={styles.payablesTabs}>
-            {(["Sales Persons", "Contractors"] as PayablesTab[]).map((tab) => (
+      <div className={styles.tableCard}>
+        <div className={styles.tableHeader}>
+          <div className={workflowStyles.workflowTabs}>
+            {PAYABLES_TABS.map((tab) => (
               <div
                 key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
@@ -157,115 +182,90 @@ export default function PayablesPage() {
               </div>
             ))}
           </div>
-          <div className={dashboardStyles.searchUsers}>
+          <div className={styles.searchUsers}>
             <Search size={16} color="#94a3b8" />
             <input
               type="text"
-              placeholder={`Search ${activeTab.toLowerCase()}...`}
-              className={dashboardStyles.searchInputSmall}
+              placeholder={`Search ${activeTab}...`}
+              className={styles.searchInputSmall}
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
 
-        <div className={styles.tableScroll}>
-          <div className={dashboardStyles.userTableContainer}>
-            {activeTab === "Sales Persons" ? (
-              <table className={dashboardStyles.userTable}>
-                <thead>
+        <div className={payablesStyles.tableScroll}>
+          <div className={styles.userTableContainer}>
+            <table className={styles.userTable}>
+              <thead>
+                <tr>
+                  {getHeaders(activeTab).map((header) => (
+                    <th key={header}>{header}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
                   <tr>
-                    <th>Legal Name</th>
-                    <th>Sales Person</th>
-                    <th>Survey Name</th>
-                    <th>Survey Date</th>
-                    <th>Quotation Number</th>
-                    <th>Confirmed</th>
-                    <th>Quotation Amount</th>
-                    <th>Commission</th>
-                    <th>Paid</th>
-                    <th>Pending</th>
+                    <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "1rem",
+                          color: "#94a3b8",
+                        }}
+                      >
+                        <Loader2 size={32} className={styles.spinner} />
+                        <span style={{ fontWeight: 600 }}>Loading payables...</span>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    loadingRow
-                  ) : currentSalesItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={tableColSpan} className={styles.emptyCell}>
-                        No sales person payables found. Each verified survey appears here after survey verify.
-                      </td>
-                    </tr>
-                  ) : (
-                    currentSalesItems.map((row) => (
-                      <SalesPersonRow
-                        key={row.id}
-                        row={row}
-                        onView={() =>
-                          router.push(
-                            `/commissions/view/${row.customerId}?surveyId=${row.surveyId}`
-                          )
-                        }
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <table className={dashboardStyles.userTable}>
-                <thead>
+                ) : currentItems.length === 0 ? (
                   <tr>
-                    <th>Legal Name</th>
-                    <th>DBA</th>
-                    <th>Contractor</th>
-                    <th>Job No</th>
-                    <th>Survey Name</th>
-                    <th>Install Date</th>
-                    <th>Total Charges</th>
-                    <th>Commission</th>
-                    <th>Paid</th>
-                    <th>Pending</th>
+                    <td colSpan={tableColSpan} className={payablesStyles.emptyCell}>
+                      {emptyMessage}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    loadingRow
-                  ) : currentContractorItems.length === 0 ? (
-                    <tr>
-                      <td colSpan={tableColSpan} className={styles.emptyCell}>
-                        No contractor payables found. Verified surveys with products will appear here after survey verify.
-                      </td>
-                    </tr>
-                  ) : (
-                    currentContractorItems.map((row) => (
-                      <ContractorRow
-                        key={row.id}
-                        row={row}
-                        onView={() =>
-                          router.push(
-                            `/commissions/view/${row.customerId}?surveyId=${row.surveyId}&for=contractor`
-                          )
-                        }
-                      />
-                    ))
-                  )}
-                </tbody>
-              </table>
-            )}
+                ) : activeTab === "Sales Persons" ? (
+                  (currentItems as SalesPersonPayableRow[]).map((row) => (
+                    <SalesPersonRow
+                      key={row.id}
+                      row={row}
+                      onView={() =>
+                        router.push(
+                          `/commissions/view/${row.customerId}?surveyId=${row.surveyId}`
+                        )
+                      }
+                    />
+                  ))
+                ) : (
+                  (currentItems as ContractorPayableRow[]).map((row) => (
+                    <ContractorRow
+                      key={row.id}
+                      row={row}
+                      onView={() =>
+                        router.push(
+                          `/commissions/view/${row.customerId}?surveyId=${row.surveyId}&for=contractor`
+                        )
+                      }
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <div className={dashboardStyles.tableFooter}>
+        <div className={styles.tableFooter}>
           <div style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-            Showing {activeRows.length === 0 ? 0 : indexOfFirstItem + 1} to{" "}
-            {Math.min(indexOfLastItem, activeRows.length)} of {activeRows.length} results
+            Showing {filteredData.length === 0 ? 0 : indexOfFirstItem + 1} to{" "}
+            {Math.min(indexOfLastItem, filteredData.length)} of {filteredData.length} results
           </div>
-          <div className={dashboardStyles.pagination}>
+          <div className={styles.pagination}>
             <div
-              className={`${dashboardStyles.pageBtn} ${currentPage === 1 ? dashboardStyles.disabled : ""}`}
+              className={`${styles.pageBtn} ${currentPage === 1 ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage - 1)}
             >
               <ChevronLeft size={18} />
@@ -273,14 +273,14 @@ export default function PayablesPage() {
             {[...Array(totalPages)].map((_, i) => (
               <div
                 key={i}
-                className={`${dashboardStyles.pageBtn} ${currentPage === i + 1 ? dashboardStyles.pageActive : ""}`}
+                className={`${styles.pageBtn} ${currentPage === i + 1 ? styles.pageActive : ""}`}
                 onClick={() => handlePageChange(i + 1)}
               >
                 {i + 1}
               </div>
             ))}
             <div
-              className={`${dashboardStyles.pageBtn} ${currentPage === totalPages ? dashboardStyles.disabled : ""}`}
+              className={`${styles.pageBtn} ${currentPage === totalPages ? styles.disabled : ""}`}
               onClick={() => handlePageChange(currentPage + 1)}
             >
               <ChevronRight size={18} />
@@ -301,23 +301,23 @@ function SalesPersonRow({ row, onView }: SalesPersonRowProps) {
   return (
     <tr>
       <td>
-        <span className={styles.nameCell} onClick={onView}>
+        <span className={payablesStyles.nameCell} onClick={onView}>
           {row.legalName || "—"}
         </span>
       </td>
-      <td className={styles.textCell}>{row.salesPerson || "—"}</td>
-      <td className={styles.moneyCell}>{row.surveyName || "—"}</td>
-      <td className={styles.mutedCell}>
+      <td className={payablesStyles.textCell}>{row.salesPerson || "—"}</td>
+      <td className={payablesStyles.moneyCell}>{row.surveyName || "—"}</td>
+      <td className={payablesStyles.mutedCell}>
         {row.surveyDate ? formatDate(row.surveyDate) : "—"}
       </td>
-      <td className={styles.monoCell}>{row.quotationNumber || "—"}</td>
-      <td className={styles.mutedCell}>
+      <td className={payablesStyles.monoCell}>{row.quotationNumber || "—"}</td>
+      <td className={payablesStyles.mutedCell}>
         {row.confirmed ? formatDate(row.confirmed) : "—"}
       </td>
-      <td className={styles.priceCell}>{formatMoney(row.quotationAmount)}</td>
-      <td className={styles.priceCell}>{formatMoney(row.commission)}</td>
-      <td className={styles.moneyCell}>{formatMoney(row.paid)}</td>
-      <td className={styles.moneyCell}>{formatMoney(row.pending)}</td>
+      <td className={payablesStyles.priceCell}>{formatMoney(row.quotationAmount)}</td>
+      <td className={payablesStyles.priceCell}>{formatMoney(row.commission)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.paid)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.pending)}</td>
     </tr>
   );
 }
@@ -331,21 +331,21 @@ function ContractorRow({ row, onView }: ContractorRowProps) {
   return (
     <tr>
       <td>
-        <span className={styles.nameCell} onClick={onView}>
+        <span className={payablesStyles.nameCell} onClick={onView}>
           {row.legalName || "—"}
         </span>
       </td>
-      <td className={styles.textCell}>{row.dba || "—"}</td>
-      <td className={styles.textCell}>{row.contractor || "—"}</td>
-      <td className={styles.monoCell}>{row.jobNo || "—"}</td>
-      <td className={styles.moneyCell}>{row.surveyName || "—"}</td>
-      <td className={styles.mutedCell}>
+      <td className={payablesStyles.textCell}>{row.dba || "—"}</td>
+      <td className={payablesStyles.textCell}>{row.contractor || "—"}</td>
+      <td className={payablesStyles.monoCell}>{row.jobNo || "—"}</td>
+      <td className={payablesStyles.moneyCell}>{row.surveyName || "—"}</td>
+      <td className={payablesStyles.mutedCell}>
         {row.installDate ? formatDate(row.installDate) : "—"}
       </td>
-      <td className={styles.priceCell}>{formatMoney(row.totalCharges)}</td>
-      <td className={styles.priceCell}>{formatMoney(row.commission)}</td>
-      <td className={styles.moneyCell}>{formatMoney(row.paid)}</td>
-      <td className={styles.moneyCell}>{formatMoney(row.pending)}</td>
+      <td className={payablesStyles.priceCell}>{formatMoney(row.totalCharges)}</td>
+      <td className={payablesStyles.priceCell}>{formatMoney(row.commission)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.paid)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.pending)}</td>
     </tr>
   );
 }
