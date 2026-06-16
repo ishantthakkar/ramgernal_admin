@@ -155,8 +155,8 @@ export default function PayablesPage() {
 
   const emptyMessage =
     activeTab === "Sales Persons"
-      ? "No sales person payables found. Each verified survey appears here after survey verify."
-      : "No contractor payables found. Verified surveys with products will appear here after survey verify.";
+      ? "No sales person payables found. Surveys appear here after quotation is approved."
+      : "No contractor payables found. Surveys appear here after quotation is approved.";
 
   return (
     <div className={styles.usersPage}>
