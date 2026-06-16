@@ -227,6 +227,7 @@ export const adminApi = {
       amount: number;
       paymentMethod: string;
       paymentDate?: string;
+      note?: string;
       for?: "contractor";
     }
   ) =>

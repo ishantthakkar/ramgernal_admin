@@ -26,6 +26,7 @@ interface PaymentEntry {
   _id?: string;
   amount: number;
   paymentMethod: string;
+  note?: string;
   paymentDate: string;
   createdAt?: string;
 }
@@ -85,6 +86,7 @@ export default function ViewCommissionPage() {
     amount: "",
     paymentMethod: "",
     paymentDate: new Date().toISOString().split("T")[0],
+    note: "",
   });
 
   const fetchDetails = useCallback(async () => {
@@ -134,6 +136,7 @@ export default function ViewCommissionPage() {
         amount,
         paymentMethod: paymentForm.paymentMethod,
         paymentDate: paymentForm.paymentDate,
+        note: paymentForm.note,
       });
       await fetchDetails();
       setShowAddPayment(false);
@@ -141,6 +144,7 @@ export default function ViewCommissionPage() {
         amount: "",
         paymentMethod: "",
         paymentDate: new Date().toISOString().split("T")[0],
+        note: "",
       });
       toast.success("Payment added successfully.");
     } catch (err: unknown) {
@@ -267,6 +271,7 @@ export default function ViewCommissionPage() {
                   <th>Date</th>
                   <th>Amount</th>
                   <th>Payment Method</th>
+                  <th>Note</th>
                 </tr>
               </thead>
               <tbody>
@@ -278,6 +283,7 @@ export default function ViewCommissionPage() {
                     </td>
                     <td className={viewStyles.amountCell}>{formatMoney(payment.amount)}</td>
                     <td className={viewStyles.methodCell}>{payment.paymentMethod || "—"}</td>
+                    <td className={viewStyles.methodCell}>{payment.note?.trim() ? payment.note : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -374,6 +380,17 @@ export default function ViewCommissionPage() {
                     className={modalStyles.formInput}
                     value={paymentForm.paymentDate}
                     onChange={(e) => setPaymentForm((prev) => ({ ...prev, paymentDate: e.target.value }))}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup} style={{ gridColumn: "1 / -1" }}>
+                  <label>Note</label>
+                  <input
+                    type="text"
+                    className={modalStyles.formInput}
+                    placeholder="Check Number, etc."
+                    value={paymentForm.note}
+                    onChange={(e) => setPaymentForm((prev) => ({ ...prev, note: e.target.value }))}
                   />
                 </div>
               </div>
