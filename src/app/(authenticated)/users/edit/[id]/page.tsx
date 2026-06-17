@@ -19,13 +19,17 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import {
-  WEEK_DAYS,
   normalizeRoleName,
-  parseStoredTime,
   resolveRoleId,
   getSupervisorTargetRole,
   getSupervisorLabel,
+  createDefaultSchedule,
+  scheduleFromUser,
+  scheduleToApiPayload,
+  validateWorkingSchedule,
 } from "../../user-form-utils";
+import type { DayScheduleEntry } from "../../user-form-utils";
+import { WorkingScheduleEditor } from "../../components/WorkingScheduleEditor";
 import {
   getUserTabFromRole,
   getUsersListPath,
@@ -63,10 +67,7 @@ export default function EditUserPage() {
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
-  const [workingDays, setWorkingDays] = useState<string[]>([]);
-  const [daysDropdownOpen, setDaysDropdownOpen] = useState(false);
-  const [workingFrom, setWorkingFrom] = useState({ time: "10:00", period: "AM" as "AM" | "PM" });
-  const [workingTo, setWorkingTo] = useState({ time: "06:00", period: "PM" as "AM" | "PM" });
+  const [workingSchedule, setWorkingSchedule] = useState<DayScheduleEntry[]>(createDefaultSchedule);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -124,9 +125,7 @@ export default function EditUserPage() {
           status: user.status || "active",
         });
 
-        setWorkingDays(Array.isArray(user.workingDays) ? user.workingDays : []);
-        setWorkingFrom(parseStoredTime(user.workingFrom));
-        setWorkingTo(parseStoredTime(user.workingTo));
+        setWorkingSchedule(scheduleFromUser(user));
 
         const existingReportsTo =
           user.reportsTo?._id?.toString?.() || user.reportsTo?.toString?.() || "";
@@ -233,31 +232,6 @@ export default function EditUserPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function toggleWorkingDay(day: string) {
-    setWorkingDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
-    );
-  }
-
-  function removeWorkingDay(day: string, e: React.MouseEvent) {
-    e.stopPropagation();
-    setWorkingDays((prev) => prev.filter((d) => d !== day));
-  }
-
-  function togglePeriod(field: "from" | "to") {
-    if (field === "from") {
-      setWorkingFrom((prev) => ({
-        ...prev,
-        period: prev.period === "AM" ? "PM" : "AM",
-      }));
-    } else {
-      setWorkingTo((prev) => ({
-        ...prev,
-        period: prev.period === "AM" ? "PM" : "AM",
-      }));
-    }
-  }
-
   const returnTab = searchParams.has("tab")
     ? tabFromUrl
     : getUserTabFromRole(selectedRoleName);
@@ -280,13 +254,9 @@ export default function EditUserPage() {
       }
     }
 
-    if (workingDays.length === 0) {
-      toast.error("Please select at least one working day.");
-      return;
-    }
-
-    if (!workingFrom.time || !workingTo.time) {
-      toast.error("Please enter working hours.");
+    const scheduleError = validateWorkingSchedule(workingSchedule);
+    if (scheduleError) {
+      toast.error(scheduleError);
       return;
     }
 
@@ -306,9 +276,7 @@ export default function EditUserPage() {
         mobileNumber: formData.mobileNumber,
         userRole: formData.userRole,
         status: formData.status,
-        workingDays,
-        workingFrom: `${workingFrom.time} ${workingFrom.period}`,
-        workingTo: `${workingTo.time} ${workingTo.period}`,
+        ...scheduleToApiPayload(workingSchedule),
         hasProfilePicture: !!profilePicture,
       };
 
@@ -618,104 +586,11 @@ export default function EditUserPage() {
             </div>
             Working Hours
           </div>
-          <p className={styles.sectionSubtitle}>Set working days and hours for this user.</p>
+          <p className={styles.sectionSubtitle}>
+            Set different working hours for each day. Enable a day and choose its start and end time.
+          </p>
 
-          <div className={addStyles.workingHoursGrid}>
-            <div className={styles.formGroup}>
-              <label>
-                Working Days <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <div className={addStyles.daysSelectWrap}>
-                <div
-                  className={`${addStyles.daysSelectTrigger} ${daysDropdownOpen ? addStyles.daysSelectTriggerOpen : ""}`}
-                  onClick={() => setDaysDropdownOpen(!daysDropdownOpen)}
-                  onBlur={() => setTimeout(() => setDaysDropdownOpen(false), 150)}
-                  tabIndex={0}
-                  role="button"
-                  aria-expanded={daysDropdownOpen}
-                >
-                  {workingDays.length === 0 ? (
-                    <span className={addStyles.daysPlaceholder}>Select days</span>
-                  ) : (
-                    workingDays.map((day) => (
-                      <span key={day} className={addStyles.dayChip}>
-                        {day}
-                        <button
-                          type="button"
-                          className={addStyles.dayChipRemove}
-                          onClick={(e) => removeWorkingDay(day, e)}
-                          aria-label={`Remove ${day}`}
-                        >
-                          <X size={14} />
-                        </button>
-                      </span>
-                    ))
-                  )}
-                  <ChevronDown size={18} className={addStyles.daysChevron} />
-                </div>
-                {daysDropdownOpen && (
-                  <div className={addStyles.daysDropdown}>
-                    {WEEK_DAYS.map((day) => (
-                      <div
-                        key={day}
-                        className={`${addStyles.dayOption} ${workingDays.includes(day) ? addStyles.dayOptionSelected : ""}`}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          toggleWorkingDay(day);
-                        }}
-                      >
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>
-                From <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <div className={addStyles.timeInputWrap}>
-                <input
-                  type="time"
-                  className={addStyles.timeInput}
-                  value={workingFrom.time}
-                  onChange={(e) => setWorkingFrom((prev) => ({ ...prev, time: e.target.value }))}
-                  required
-                />
-                <button
-                  type="button"
-                  className={`${addStyles.periodToggle} ${addStyles.periodToggleActive}`}
-                  onClick={() => togglePeriod("from")}
-                >
-                  {workingFrom.period}
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>
-                To <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <div className={addStyles.timeInputWrap}>
-                <input
-                  type="time"
-                  className={addStyles.timeInput}
-                  value={workingTo.time}
-                  onChange={(e) => setWorkingTo((prev) => ({ ...prev, time: e.target.value }))}
-                  required
-                />
-                <button
-                  type="button"
-                  className={`${addStyles.periodToggle} ${addStyles.periodToggleActive}`}
-                  onClick={() => togglePeriod("to")}
-                >
-                  {workingTo.period}
-                </button>
-              </div>
-            </div>
-          </div>
+          <WorkingScheduleEditor schedule={workingSchedule} onChange={setWorkingSchedule} />
         </section>
 
         <div className={styles.actionFooter}>

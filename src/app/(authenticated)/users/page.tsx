@@ -19,6 +19,7 @@ import {
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { USER_TABS, type UserTab, parseUserTabFromParam, withUserTab } from "./user-tabs";
+import { WorkingHoursCell } from "./components/WorkingHoursCell";
 
 function normalizeRole(role?: string): string {
   return (role || "").toLowerCase().trim();
@@ -50,34 +51,6 @@ function countByRole(users: { userRole?: string }[], role: string): number {
 
 function getSupervisorName(user: { reportsTo?: { fullName?: string } | null }): string {
   return user.reportsTo?.fullName?.trim() || "—";
-}
-
-function formatWorkingHours(user: Record<string, unknown>): string {
-  if (typeof user.workingHours === "string" && user.workingHours.trim()) {
-    return user.workingHours;
-  }
-
-  const days = user.workingDays as string[] | string | undefined;
-  const from = user.workingFrom as string | undefined;
-  const to = user.workingTo as string | undefined;
-
-  const parts: string[] = [];
-
-  if (Array.isArray(days) && days.length > 0) {
-    parts.push(days.join(", "));
-  } else if (typeof days === "string" && days.trim()) {
-    parts.push(days);
-  }
-
-  if (from && to) {
-    parts.push(`${from} – ${to}`);
-  } else if (from) {
-    parts.push(from);
-  } else if (to) {
-    parts.push(to);
-  }
-
-  return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
 export default function UsersPage() {
@@ -254,7 +227,7 @@ export default function UsersPage() {
   const showStandardUserColumns = activeTab === "All Users" || activeTab === "Admin";
 
   const workingHoursCell = (user: Record<string, unknown>) => (
-    <td style={{ color: "#64748b", fontSize: "0.875rem", maxWidth: 220 }}>{formatWorkingHours(user)}</td>
+    <WorkingHoursCell key={`hours-${String(user._id)}`} user={user} />
   );
 
   return (

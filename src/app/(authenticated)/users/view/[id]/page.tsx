@@ -24,6 +24,8 @@ import {
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { getSupervisorFieldLabel } from "../../user-form-utils";
+import { WorkingScheduleView } from "../../components/WorkingScheduleView";
+import { WorkingHoursCell } from "../../components/WorkingHoursCell";
 import {
   getUserTabFromRole,
   getUsersListPath,
@@ -52,6 +54,7 @@ interface DirectReport {
   workingDays?: string[];
   workingFrom?: string;
   workingTo?: string;
+  workingSchedule?: { day: string; from: string; to: string }[];
 }
 
 interface UserProfile {
@@ -66,6 +69,7 @@ interface UserProfile {
   workingDays?: string[];
   workingFrom?: string;
   workingTo?: string;
+  workingSchedule?: { day: string; from: string; to: string }[];
   assignedProjects?: number;
   completedInstallations?: number;
   pendingInstallations?: number;
@@ -78,22 +82,6 @@ interface UserProfile {
 
 function normalizeRole(role?: string): string {
   return (role || "").toLowerCase().trim().replace(/_/g, " ");
-}
-
-function formatWorkingHours(user: UserProfile | DirectReport): string {
-  const days = user.workingDays;
-  const from = user.workingFrom;
-  const to = user.workingTo;
-  const parts: string[] = [];
-
-  if (Array.isArray(days) && days.length > 0) {
-    parts.push(days.join(", "));
-  }
-  if (from && to) {
-    parts.push(`${from} – ${to}`);
-  }
-
-  return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
 export default function ViewUserPage() {
@@ -244,19 +232,20 @@ export default function ViewUserPage() {
               </div>
             </div>
           </div>
-          <div className={styles.formGroup}>
-            <label>Working Hours</label>
-            <div
-              className={styles.formInput}
-              style={{ background: "#f8fafc", color: "#1e293b", fontWeight: 600, border: "1px solid #e2e8f0" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Clock size={16} color="#64748b" />
-                {formatWorkingHours(user)}
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
+
+      <div className={styles.formSection}>
+        <div className={viewStyles.workingHoursSectionTitle}>
+          <div className={viewStyles.workingHoursIconCircle}>
+            <Clock size={20} />
+          </div>
+          Working Hours
+        </div>
+        <p className={styles.sectionSubtitle}>
+          Weekly schedule with different hours for each working day.
+        </p>
+        <WorkingScheduleView user={user} />
       </div>
 
       <div className={styles.formSection}>
@@ -481,7 +470,7 @@ export default function ViewUserPage() {
                       )}
                       <td>{member.mobileNumber || "—"}</td>
                       <td>{member.email || "—"}</td>
-                      <td>{formatWorkingHours(member)}</td>
+                      <WorkingHoursCell user={member as unknown as Record<string, unknown>} />
                       <td style={{ textTransform: "capitalize" }}>{member.status || "—"}</td>
                     </tr>
                   ))}

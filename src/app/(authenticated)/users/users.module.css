@@ -66,3 +66,92 @@
     grid-template-columns: 1fr;
   }
 }
+
+.workingHoursCell {
+  color: #64748b;
+  font-size: 0.875rem;
+  max-width: 220px;
+  overflow: visible;
+}
+
+.workingHoursTrigger {
+  position: relative;
+  display: block;
+  max-width: 100%;
+}
+
+.workingHoursTriggerInteractive {
+  cursor: pointer;
+}
+
+.workingHoursTriggerInteractive:hover .workingHoursText {
+  color: var(--admin-primary, #004d4d);
+}
+
+.workingHoursText {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workingHoursPopup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 100;
+  min-width: 280px;
+  max-width: 360px;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
+.workingHoursPopupTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.workingHoursPopupTable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.workingHoursPopupHeader,
+.workingHoursPopupRow {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr 0.9fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.workingHoursPopupHeader {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.workingHoursPopupRow {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.workingHoursPopupDay {
+  color: #1e293b;
+}
