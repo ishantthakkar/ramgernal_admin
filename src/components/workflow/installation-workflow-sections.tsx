@@ -276,7 +276,7 @@ export function InstallationWorkflowSections({
             <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Delivery Details
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            {materialsVerified ? (
+            {/* {materialsVerified ? (
               <span
                 style={{
                   backgroundColor: "rgba(16, 185, 129, 0.12)",
@@ -290,9 +290,9 @@ export function InstallationWorkflowSections({
                   whiteSpace: "nowrap",
                 }}
               >
-                Materials Verified
+                
               </span>
-            ) : null}
+            ) : null} */}
             {isEdit ? (
               <button
                 type="button"

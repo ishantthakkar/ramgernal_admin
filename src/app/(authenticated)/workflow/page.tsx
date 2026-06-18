@@ -538,7 +538,6 @@ export default function WorkflowPage() {
       return [
         "Customer ID",
         "Customer",
-        "Account Number",
         "Company",
         "Sales Person",
         "Contractor",
@@ -931,7 +930,6 @@ export default function WorkflowPage() {
                             {item.customerName}
                           </span>
                         </td>
-                        <td style={{ color: "#1e293b", fontWeight: 600 }}>{item.accountNumber}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
                         <td>
