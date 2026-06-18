@@ -189,6 +189,25 @@ export const adminApi = {
     method: "POST",
     body: data instanceof FormData ? data : JSON.stringify(data),
   }),
+  addSurveyMaterialDelivery: (payload: Record<string, unknown>) =>
+    apiRequest("/customer/surveys/add-material-delivery", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  addSurveyMaterialDeliveryReturn: (payload: Record<string, unknown>) =>
+    apiRequest("/customer/surveys/add-material-delivery-return", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  markDeliveryAsCompleted: (deliveryId: string, images?: File[]) => {
+    const formData = new FormData();
+    formData.append("delivery_id", deliveryId);
+    images?.forEach((file) => formData.append("images", file));
+    return apiRequest("/customer/surveys/delivery-mark-as-completed", {
+      method: "POST",
+      body: formData,
+    });
+  },
   getInspections: () => apiRequest("/customer/customers/inspections", {
     method: "GET",
   }),

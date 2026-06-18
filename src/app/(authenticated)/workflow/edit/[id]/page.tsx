@@ -13,7 +13,6 @@ import {
   Plus,
   FileText,
   Info,
-  CheckCircle2,
 } from "lucide-react";
 import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
@@ -30,9 +29,10 @@ import {
   type SiteDetailSurveyGroup,
 } from "@/lib/workflow-survey-view";
 import detailStyles from "../../workflow-details.module.css";
-import modalStyles from "../../../commissions/commissions-modal.module.css";
 import { hasPermission } from "@/lib/permissions";
 import { QuotationPdfPreview } from "@/components/workflow/quotation-pdf-preview";
+import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
+import { resolveInstallationSurvey } from "@/lib/workflow-installation-details";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   const display = value?.trim() || "—";
@@ -320,19 +320,11 @@ export default function WorkflowEditPage() {
   const [customerCode, setCustomerCode] = useState("");
   const [rawSurveyRecords, setRawSurveyRecords] = useState<any[]>([]);
   const [siteRows, setSiteRows] = useState<SiteDetailRow[]>([]);
-  const [materials, setMaterials] = useState<any[]>([]);
   const [newNoteText, setNewNoteText] = useState("");
   const [addingNote, setAddingNote] = useState(false);
   const [activeTab, setActiveTab] = useState<"survey" | "installations">(fromTab?.toLowerCase() === "installations" ? "installations" : "survey");
-
-  // Modal State
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newMaterial, setNewMaterial] = useState({
-    item_name: "",
-    issued_qty: "",
-    images: [] as File[],
-    imagePreviews: [] as string[]
-  });
+  const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
+  const [activeImageTitle, setActiveImageTitle] = useState("");
 
   useEffect(() => {
     if (!id || isQuotationEdit) return;
@@ -349,7 +341,6 @@ export default function WorkflowEditPage() {
         setCustomerCode(String(result.customer?.customerCode || ""));
         setRawSurveyRecords(raw);
         setSiteRows(mapSiteDetails(raw));
-        setMaterials(result.materials || []);
       } catch (err: any) {
         toast.error(err.message || "Failed to load workflow details.");
         router.push("/workflow");
@@ -378,6 +369,23 @@ export default function WorkflowEditPage() {
       areas: g.areas.map((a) => byId.get(a._id) ?? a),
     }));
   }, [rawSurveyRecords, siteRows, customer]);
+
+  const installationSurvey = useMemo(
+    () => resolveInstallationSurvey(rawSurveyRecords),
+    [rawSurveyRecords]
+  );
+
+  async function refreshWorkflow() {
+    const result = await adminApi.getCustomerWorkflowDetails(id);
+    const raw = (result.surveys || []).slice().sort(
+      (a: any, b: any) =>
+        new Date(b.createdAt || b.surveyDate || 0).getTime() -
+        new Date(a.createdAt || a.surveyDate || 0).getTime()
+    );
+    setCustomer(result.customer);
+    setRawSurveyRecords(raw);
+    setSiteRows(mapSiteDetails(raw));
+  }
 
   const handleSiteRowChange = (idx: number, field: keyof SiteDetailRow, value: string) => {
     const updated = [...siteRows];
@@ -420,76 +428,6 @@ export default function WorkflowEditPage() {
     }
   };
 
-  const handleAddMaterial = () => {
-    setNewMaterial({
-      item_name: "",
-      issued_qty: "",
-      images: [],
-      imagePreviews: []
-    });
-    setShowAddModal(true);
-  };
-
-  const handleRemoveMaterial = (index: number) => {
-    const updated = [...materials];
-    updated.splice(index, 1);
-    setMaterials(updated);
-  };
-
-  const handleMaterialChange = (index: number, field: string, value: any) => {
-    const updated = [...materials];
-    updated[index] = { ...updated[index], [field]: value };
-    setMaterials(updated);
-  };
-
-  const handleModalImageUpload = (files: FileList) => {
-    const fileArray = Array.from(files);
-    const previews = fileArray.map(file => URL.createObjectURL(file));
-    setNewMaterial(prev => ({
-      ...prev,
-      images: [...prev.images, ...fileArray],
-      imagePreviews: [...prev.imagePreviews, ...previews]
-    }));
-  };
-
-  const removeNewImage = (index: number) => {
-    setNewMaterial(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-      imagePreviews: prev.imagePreviews.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleSaveNewMaterial = async () => {
-    if (!newMaterial.item_name || !newMaterial.issued_qty) {
-      toast.error("Please fill in all required fields.");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const formData = new FormData();
-      formData.append("item_name", newMaterial.item_name);
-      formData.append("issued_qty", newMaterial.issued_qty);
-      newMaterial.images.forEach(image => {
-        formData.append("images", image);
-      });
-
-      await adminApi.updateCustomerMaterials(id, formData);
-      toast.success("Material added successfully!");
-
-      // Refresh materials list
-      const result = await adminApi.getCustomerWorkflowDetails(id);
-      setMaterials(result.materials || []);
-
-      setShowAddModal(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to add material.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -501,10 +439,7 @@ export default function WorkflowEditPage() {
         toast.success("Survey site details saved successfully.");
         router.push(`/workflow/view/${id}?from=${fromTab || "Surveys"}`);
       } else {
-        // For installations, we now save individually via popup, 
-        // but we might still want to save other changes if any.
-        // For now, just redirect back.
-        router.push(`/workflow?tab=${fromTab || "Installations"}`);
+        router.push(`/workflow/view/${id}?from=Installations`);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to save changes.");
@@ -753,107 +688,15 @@ export default function WorkflowEditPage() {
           </section>
         </>
       ) : (
-        <section className={styles.formSection}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <div>
-              <div className={styles.sectionTitle}>
-                <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation Materials
-              </div>
-              <p className={styles.sectionSubtitle}>Manage items and quantities issued for installation.</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleAddMaterial}
-              className={addStyles.modalSaveBtn}
-              style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 1rem", fontSize: "0.85rem" }}
-            >
-              <Plus size={16} /> Add Item
-            </button>
-          </div>
-
-          <div className={styles.userTableContainer} style={{ marginTop: "0.5rem", overflowX: "auto" }}>
-            <table className={styles.userTable}>
-              <thead>
-                <tr>
-                  <th style={{ width: "80px" }}>Sr. No</th>
-                  <th style={{ minWidth: "250px" }}>Item Name</th>
-                  <th style={{ minWidth: "150px" }}>Issued Qty</th>
-                  <th style={{ minWidth: "200px" }}>Image</th>
-                </tr>
-              </thead>
-              <tbody>
-                {materials.map((item, index) => (
-                  <tr key={item._id || index}>
-                    <td style={{ fontWeight: 600, color: "#64748b" }}>{index + 1}</td>
-                    <td style={{ fontWeight: 600, color: "#1e293b" }}>{item.item_name}</td>
-                    <td style={{ fontWeight: 700, color: "var(--admin-primary, #004d4d)" }}>{item.issued_qty}</td>
-                    <td>
-                      <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", maxWidth: "200px" }}>
-                        {(item.images || item.image ? [item.image || item.images].flat().filter(Boolean) : []).map((img: string, i: number) => (
-                          <div key={i} style={{ width: "40px", height: "40px", borderRadius: "4px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                            <img
-                              src={img.startsWith('http') ? img : `${process.env.NEXT_PUBLIC_API_BASE_URL}${img}`}
-                              alt="Material"
-                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            />
-                          </div>
-                        ))}
-                        {(!item.image && (!item.images || item.images.length === 0)) && (
-                          <div style={{ color: "#94a3b8", fontSize: "0.75rem" }}>No image</div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {materials.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: "center", padding: "3rem", color: "#94a3b8" }}>
-                      No materials added yet. Click "Add Item" to begin.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Read-only Survey History for reference during Installation editing */}
-          <section className={styles.formSection}>
-            <div className={styles.sectionTitle}>
-              <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Survey Details
-            </div>
-            <div className={styles.userTableContainer} style={{ marginTop: "0.5rem", overflowX: "auto" }}>
-              <table className={styles.userTable}>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: "150px" }}>Area</th>
-                    <th>Fixture</th>
-                    <th>Qty</th>
-                    <th>Price</th>
-                    <th>Note</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {siteRows.map((row, index) => (
-                    <tr key={row._id || index}>
-                      <td style={{ fontWeight: 600, color: "#1e293b" }}>{row.area}</td>
-                      <td style={{ color: "#64748b" }}>{row.proposedFixture}</td>
-                      <td style={{ color: "#1e293b", fontWeight: 700 }}>{row.proposedQuantity}</td>
-                      <td style={{ color: "#64748b" }}>
-                        {row.totalPrice && row.totalPrice !== "—" ? `$${row.totalPrice}` : "—"}
-                      </td>
-                      <td style={{ fontSize: "0.8rem", color: "#94a3b8" }}>{row.note || "N/A"}</td>
-                    </tr>
-                  ))}
-                  {siteRows.length === 0 && (
-                    <tr>
-                      <td colSpan={5} style={{ textAlign: "center", padding: "2rem" }}>No survey data.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </section>
+        <InstallationWorkflowSections
+          installationSurvey={installationSurvey}
+          mode="edit"
+          onRefresh={refreshWorkflow}
+          onViewImages={(images, title) => {
+            setSelectedImages(images);
+            setActiveImageTitle(title);
+          }}
+        />
       )}
 
       <div className={styles.actionFooter}>
@@ -876,113 +719,29 @@ export default function WorkflowEditPage() {
         </button>
       </div>
 
-      {/* Add Material Modal */}
-      {showAddModal && (
-        <div className={modalStyles.modalOverlay} onClick={() => setShowAddModal(false)}>
-          <div className={`${modalStyles.modalContent} ${modalStyles.modalMedium}`} onClick={(e) => e.stopPropagation()}>
-            <div className={modalStyles.modalHeader}>
+      {selectedImages ? (
+        <div className={detailStyles.imgModalOverlay} onClick={() => setSelectedImages(null)}>
+          <div className={detailStyles.imgModalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={detailStyles.imgModalHeader}>
               <div>
-                <h3>Add Installation Material</h3>
-                <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
-                  Record new items issued for installation.
-                </div>
+                <h3>{activeImageTitle || "Images"}</h3>
               </div>
-              <button className={modalStyles.closeBtn} onClick={() => setShowAddModal(false)}>
-                <X size={24} />
+              <button type="button" className={detailStyles.closeBtn} onClick={() => setSelectedImages(null)}>
+                <X size={20} />
               </button>
             </div>
-
-            <div className={modalStyles.modalBody}>
-              <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr" }}>
-                <div className={modalStyles.formGroup}>
-                  <label>Item Name <span style={{ color: "#ef4444" }}>*</span></label>
-                  <input
-                    type="text"
-                    placeholder="e.g. LED Panel 60x60"
-                    className={modalStyles.formInput}
-                    value={newMaterial.item_name}
-                    onChange={(e) => setNewMaterial(prev => ({ ...prev, item_name: e.target.value }))}
-                  />
-                </div>
-
-                <div className={modalStyles.formGroup}>
-                  <label>Issued Quantity <span style={{ color: "#ef4444" }}>*</span></label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    className={modalStyles.formInput}
-                    value={newMaterial.issued_qty}
-                    onChange={(e) => setNewMaterial(prev => ({ ...prev, issued_qty: e.target.value }))}
-                  />
-                </div>
-
-                <div className={modalStyles.formGroup}>
-                  <label>Material Images</label>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                    {newMaterial.imagePreviews.length > 0 && (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "1rem", maxHeight: "300px", overflowY: "auto", padding: "0.5rem", background: "#f8fafc", borderRadius: "12px", border: "1px solid #f1f5f9" }}>
-                        {newMaterial.imagePreviews.map((preview, idx) => (
-                          <div key={idx} style={{ position: "relative", aspectRatio: "1/1", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
-                            <img src={preview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            <button
-                              onClick={(e) => { e.stopPropagation(); removeNewImage(idx); }}
-                              style={{ position: "absolute", top: "4px", right: "4px", background: "rgba(239, 68, 68, 0.9)", color: "white", border: "none", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div
-                      onClick={() => document.getElementById('materialImages')?.click()}
-                      style={{
-                        border: "2px dashed #e2e8f0",
-                        borderRadius: "12px",
-                        padding: "2rem",
-                        textAlign: "center",
-                        cursor: "pointer",
-                        background: "#f8fafc",
-                        transition: "all 0.2s"
-                      }}
-                      onMouseOver={(e) => e.currentTarget.style.borderColor = "#0076ce"}
-                      onMouseOut={(e) => e.currentTarget.style.borderColor = "#e2e8f0"}
-                    >
-                      <ImageIcon size={32} color="#94a3b8" style={{ margin: "0 auto 1rem" }} />
-                      <div style={{ fontSize: "0.9rem", color: "#64748b" }}>
-                        Click to upload material photos (Multiple allowed)
-                      </div>
-                      <input
-                        id="materialImages"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => e.target.files && handleModalImageUpload(e.target.files)}
-                        style={{ display: "none" }}
-                      />
-                    </div>
+            <div className={detailStyles.imgModalBody}>
+              <div className={detailStyles.modalImageGrid}>
+                {selectedImages.map((img, idx) => (
+                  <div key={`${img}-${idx}`} className={detailStyles.modalImageWrapper}>
+                    <img src={img} alt={`${activeImageTitle} ${idx + 1}`} />
                   </div>
-                </div>
+                ))}
               </div>
-            </div>
-
-            <div className={modalStyles.modalFooter}>
-              <button className={modalStyles.cancelBtn} onClick={() => setShowAddModal(false)}>
-                <X size={18} /> Cancel
-              </button>
-              <button
-                className={modalStyles.saveBtn}
-                onClick={handleSaveNewMaterial}
-                disabled={!newMaterial.item_name || !newMaterial.issued_qty || saving}
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-              >
-                {saving ? <Loader2 size={18} className={styles.spinner} /> : <CheckCircle2 size={18} />}
-                {saving ? "Saving..." : "Save Material"}
-              </button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

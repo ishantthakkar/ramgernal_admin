@@ -30,6 +30,8 @@ import {
   type SiteDetailRow,
   type SiteDetailSurveyGroup,
 } from "@/lib/workflow-survey-view";
+import { resolveInstallationSurvey } from "@/lib/workflow-installation-details";
+import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   const display = value?.trim() || "—";
@@ -75,78 +77,6 @@ function formatSurveyStatusLabel(status: string): string {
 function formatPriceDisplay(value: string): string {
   if (!value || value === "—") return "—";
   return `${value} $`;
-}
-
-function resolveUploadsBaseUrl(): string {
-  const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
-  if (!base) return "";
-  return base.replace(/\/api\/?$/i, "");
-}
-
-function resolveMaterialImageUrl(value: string): string {
-  const filename = String(value || "").replace(/^\//, "");
-  if (!filename) return "";
-  if (filename.startsWith("http")) return filename;
-  const base = resolveUploadsBaseUrl();
-  if (!base) return filename;
-  return `${base}/uploads/materials/${filename}`;
-}
-
-function normalizeDeliveryStatus(value: string): string {
-  return String(value || "").trim().toLowerCase();
-}
-
-function getDeliveryStatusStyle(value: string): { color: string; bg: string } {
-  const status = normalizeDeliveryStatus(value);
-  if (status === "delivered") return { color: "#16a34a", bg: "#dcfce7" };
-  if (status === "scheduled") return { color: "#2563eb", bg: "#dbeafe" };
-  if (status === "approved") return { color: "#0ea5e9", bg: "#e0f2fe" };
-  if (status === "cancelled") return { color: "#ef4444", bg: "#fee2e2" };
-  return { color: "#64748b", bg: "#f1f5f9" };
-}
-
-function formatDeliveryStatusLabel(value: string): string {
-  const status = normalizeDeliveryStatus(value);
-  if (!status) return "Pending";
-  return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
-}
-
-function buildMaterialSummaryFromSurvey(survey: any) {
-  const deliveries = Array.isArray(survey?.materialDelivery) ? survey.materialDelivery : [];
-  const issuedBySku = new Map<string, number>();
-  const usedBySku = new Map<string, number>();
-
-  for (const delivery of deliveries) {
-    for (const item of delivery?.items || []) {
-      const sku = String(item?.sku ?? "").trim();
-      if (!sku) continue;
-      const issuedQty = Number(item?.issued_qty ?? item?.issuedQty ?? 0) || 0;
-      issuedBySku.set(sku, (issuedBySku.get(sku) || 0) + issuedQty);
-    }
-  }
-
-  const areas = Array.isArray(survey?.areas) ? survey.areas : [];
-  for (const area of areas) {
-    for (const fixture of area?.fixtures || []) {
-      const sku = String(
-        fixture?.product?.sku ??
-          fixture?.product?.name ??
-          fixture?.existingFixtureType ??
-          ""
-      ).trim();
-      if (!sku) continue;
-      const installedQty = Number(fixture?.report?.installed_qty ?? 0) || 0;
-      usedBySku.set(sku, (usedBySku.get(sku) || 0) + installedQty);
-    }
-  }
-
-  const allSkus = new Set([...issuedBySku.keys(), ...usedBySku.keys()]);
-  return Array.from(allSkus).map((sku) => {
-    const issued = issuedBySku.get(sku) || 0;
-    const used = usedBySku.get(sku) || 0;
-    const remaining = Math.max(issued - used, 0);
-    return { sku, issued, used, remaining };
-  });
 }
 
 function formatHeightPart(value: string): string {
@@ -543,28 +473,10 @@ export default function WorkflowViewPage() {
     return mapNotes(surveyRecords, data.customer);
   }, [data, surveyRecords]);
 
-  const installationSurvey = useMemo(() => {
-    const sorted = [...surveyRecords].sort((a, b) => {
-      const timeA = new Date(a.quotationApprovedAt || a.createdAt || 0).getTime();
-      const timeB = new Date(b.quotationApprovedAt || b.createdAt || 0).getTime();
-      return timeB - timeA;
-    });
-    return (
-      sorted.find((survey) => String(survey?.quotationStatus || "").toLowerCase() === "approved") ||
-      sorted[0] ||
-      null
-    );
-  }, [surveyRecords]);
-
-  const isMaterialsVerified = useMemo(() => {
-    const deliveries = Array.isArray(installationSurvey?.materialDelivery)
-      ? installationSurvey.materialDelivery
-      : [];
-    if (!deliveries.length) return false;
-    return deliveries.some(
-      (delivery: any) => normalizeDeliveryStatus(delivery?.deliveryStatus) === "delivered"
-    );
-  }, [installationSurvey]);
+  const installationSurvey = useMemo(
+    () => resolveInstallationSurvey(surveyRecords),
+    [surveyRecords]
+  );
 
   const handleViewImages = (images: string[], area: string) => {
     setSelectedImages(images);
@@ -603,6 +515,7 @@ export default function WorkflowViewPage() {
   const { customer } = data;
   const isContractorAssigned = !!(customer.assignToContractor || customer.contractorName || customer.contractor);
   const canEditSurveys = hasPermission("Surveys", "edit");
+  const canEditInstallations = hasPermission("Installation", "edit");
   const canVerifySurveys = hasPermission("Surveys", "create");
   const workflowTab = fromTab || (isSurveyView ? "Surveys" : "Installations");
   const backUrl = `/workflow?tab=${workflowTab}`;
@@ -696,6 +609,15 @@ export default function WorkflowViewPage() {
               <Edit2 size={20} /> Edit
             </button>
           )}
+          {!isSurveyView && fromTab === "Installations" && canEditInstallations && (
+            <button
+              type="button"
+              className={styles.addBtn}
+              onClick={() => router.push(`/workflow/edit/${id}?from=Installations`)}
+            >
+              <Edit2 size={20} /> Edit
+            </button>
+          )}
         </div>
       </div>
 
@@ -776,228 +698,11 @@ export default function WorkflowViewPage() {
           onViewImages={handleViewImages}
         />
       ) : (
-        <>
-          <section className={styles.formSection}>
-            <div className={styles.sectionTitle} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation Details
-              </div>
-              {isMaterialsVerified ? (
-                <span
-                  style={{
-                    backgroundColor: "rgba(16, 185, 129, 0.12)",
-                    color: "#10b981",
-                    padding: "0.35rem 0.75rem",
-                    borderRadius: "999px",
-                    fontSize: "0.75rem",
-                    fontWeight: 800,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Materials Verified
-                </span>
-              ) : null}
-            </div>
-            <p className={styles.sectionSubtitle}>
-              Scheduled / delivered materials for this installation (from survey deliveries).
-            </p>
-
-            {installationSurvey?.materialDelivery?.length > 0 ? (
-              <div className={styles.userTableContainer} style={{ marginTop: "0.5rem" }}>
-                <table className={styles.userTable}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: "80px" }}>Sr. No</th>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Status</th>
-                      <th>Items</th>
-                      <th>Note</th>
-                      <th>Images</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {installationSurvey.materialDelivery.map((delivery: any, index: number) => {
-                      const statusStyle = getDeliveryStatusStyle(delivery?.deliveryStatus);
-                      const items = Array.isArray(delivery?.items) ? delivery.items : [];
-                      const images = Array.isArray(delivery?.images) ? delivery.images : [];
-                      const resolvedImages = images
-                        .map((img: string) => resolveMaterialImageUrl(String(img || "")))
-                        .filter(Boolean);
-
-                      return (
-                        <tr key={delivery?._id || `${delivery?.date}-${index}`}>
-                          <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
-                          <td style={{ fontWeight: 600, color: "#1e293b" }}>
-                            {delivery?.date ? formatDate(delivery.date) : "—"}
-                          </td>
-                          <td style={{ fontWeight: 600, color: "#64748b" }}>
-                            {String(delivery?.time || "").trim() || "—"}
-                          </td>
-                          <td>
-                            <span
-                              style={{
-                                backgroundColor: statusStyle.bg,
-                                color: statusStyle.color,
-                                padding: "0.25rem 0.75rem",
-                                borderRadius: "999px",
-                                fontSize: "0.75rem",
-                                fontWeight: 700,
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              {formatDeliveryStatusLabel(delivery?.deliveryStatus)}
-                            </span>
-                          </td>
-                          <td style={{ color: "#1e293b", fontWeight: 600 }}>
-                            {items.length > 0 ? (
-                              <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                                {items.map((item: any, idx: number) => (
-                                  <div key={`${item?.sku || "item"}-${idx}`}>
-                                    <span style={{ fontFamily: "ui-monospace, monospace" }}>
-                                      {String(item?.sku || "—")}
-                                    </span>{" "}
-                                    · <span style={{ fontWeight: 800 }}>{Number(item?.issued_qty ?? 0) || 0}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span style={{ color: "#94a3b8" }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ color: "#64748b", fontWeight: 500 }}>
-                            {String(delivery?.note || "").trim() || "—"}
-                          </td>
-                          <td>
-                            {resolvedImages.length > 0 ? (
-                              <button
-                                type="button"
-                                className={modalStyles.viewImgBtn}
-                                onClick={() => handleViewImages(resolvedImages, "Material Delivery")}
-                              >
-                                View ({resolvedImages.length})
-                              </button>
-                            ) : (
-                              <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>No image</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className={addStyles.emptyState}>No material delivery records found.</div>
-            )}
-          </section>
-
-          <section className={styles.formSection}>
-            <div className={styles.sectionTitle}>
-              <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Material Return
-            </div>
-            <p className={styles.sectionSubtitle}>Items returned from site.</p>
-
-            {installationSurvey?.materialDeliveryReturn?.length > 0 ? (
-              <div className={styles.userTableContainer} style={{ marginTop: "0.5rem" }}>
-                <table className={styles.userTable}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: "80px" }}>Sr. No</th>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Items</th>
-                      <th>Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {installationSurvey.materialDeliveryReturn.map((entry: any, index: number) => {
-                      const items = Array.isArray(entry?.items) ? entry.items : [];
-                      return (
-                        <tr key={entry?._id || `${entry?.date}-${index}`}>
-                          <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
-                          <td style={{ fontWeight: 600, color: "#1e293b" }}>
-                            {entry?.date ? formatDate(entry.date) : "—"}
-                          </td>
-                          <td style={{ fontWeight: 600, color: "#64748b" }}>
-                            {String(entry?.time || "").trim() || "—"}
-                          </td>
-                          <td style={{ color: "#1e293b", fontWeight: 600 }}>
-                            {items.length > 0 ? (
-                              <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                                {items.map((item: any, idx: number) => (
-                                  <div key={`${item?.item_name || item?.itemName || "item"}-${idx}`}>
-                                    <span style={{ fontFamily: "ui-monospace, monospace" }}>
-                                      {String(item?.item_name ?? item?.itemName ?? "—")}
-                                    </span>{" "}
-                                    · <span style={{ fontWeight: 800 }}>{Number(item?.returned_qty ?? 0) || 0}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span style={{ color: "#94a3b8" }}>—</span>
-                            )}
-                          </td>
-                          <td style={{ color: "#64748b", fontWeight: 500 }}>
-                            {String(entry?.note || "").trim() || "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className={addStyles.emptyState}>No material returns recorded.</div>
-            )}
-          </section>
-
-          <section className={styles.formSection}>
-            <div className={styles.sectionTitle}>
-              <FileText size={22} color="var(--admin-primary, #004d4d)" /> Delivery Summary
-            </div>
-            <p className={styles.sectionSubtitle}>Issued vs installed vs remaining.</p>
-
-            {(() => {
-              const summary = buildMaterialSummaryFromSurvey(installationSurvey);
-              if (!summary.length) {
-                return <div className={addStyles.emptyState}>No summary available yet.</div>;
-              }
-              return (
-                <div className={styles.userTableContainer} style={{ marginTop: "0.5rem" }}>
-                  <table className={styles.userTable}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: "80px" }}>Sr. No</th>
-                        <th>SKU / Item</th>
-                        <th>Issued</th>
-                        <th>Installed</th>
-                        <th>Remaining</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {summary.map((row, index) => (
-                        <tr key={`${row.sku}-${index}`}>
-                          <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
-                          <td style={{ fontWeight: 700, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>
-                            {row.sku}
-                          </td>
-                          <td style={{ fontWeight: 800, color: "#0f172a" }}>{row.issued}</td>
-                          <td style={{ fontWeight: 800, color: "#0f172a" }}>{row.used}</td>
-                          <td style={{ fontWeight: 800, color: row.remaining > 0 ? "#d97706" : "#16a34a" }}>
-                            {row.remaining}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })()}
-          </section>
-        </>
+        <InstallationWorkflowSections
+          installationSurvey={installationSurvey}
+          mode="view"
+          onViewImages={handleViewImages}
+        />
       )}
 
       <div
