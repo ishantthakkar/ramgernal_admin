@@ -32,7 +32,10 @@ import detailStyles from "../../workflow-details.module.css";
 import { hasPermission } from "@/lib/permissions";
 import { QuotationPdfPreview } from "@/components/workflow/quotation-pdf-preview";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
-import { resolveInstallationSurvey } from "@/lib/workflow-installation-details";
+import {
+  resolveInstallationSurvey,
+  resolveSurveyContractorName,
+} from "@/lib/workflow-installation-details";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   const display = value?.trim() || "—";
@@ -312,6 +315,7 @@ export default function WorkflowEditPage() {
   const fromTab = searchParams.get("from");
   const surveyId = searchParams.get("surveyId") || undefined;
   const isQuotationEdit = fromTab === "Quotations";
+  const isInstallationEdit = fromTab === "Installations";
 
   const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);
@@ -331,12 +335,16 @@ export default function WorkflowEditPage() {
 
     const fetchData = async () => {
       try {
-        const result = await adminApi.getCustomerWorkflowDetails(id);
-        const raw = (result.surveys || []).slice().sort(
-          (a: any, b: any) =>
-            new Date(b.createdAt || b.surveyDate || 0).getTime() -
-            new Date(a.createdAt || a.surveyDate || 0).getTime()
-        );
+        const result = isInstallationEdit
+          ? await adminApi.getInstallationWorkflowDetails(id)
+          : await adminApi.getCustomerWorkflowDetails(id);
+        const raw = isInstallationEdit
+          ? [result.survey]
+          : (result.surveys || []).slice().sort(
+              (a: any, b: any) =>
+                new Date(b.createdAt || b.surveyDate || 0).getTime() -
+                new Date(a.createdAt || a.surveyDate || 0).getTime()
+            );
         setCustomer(result.customer);
         setCustomerCode(String(result.customer?.customerCode || ""));
         setRawSurveyRecords(raw);
@@ -349,7 +357,7 @@ export default function WorkflowEditPage() {
       }
     };
     fetchData();
-  }, [id, isQuotationEdit, router]);
+  }, [id, isQuotationEdit, isInstallationEdit, router]);
 
   const surveyInfo = useMemo(() => {
     if (!customer) return null;
@@ -370,18 +378,24 @@ export default function WorkflowEditPage() {
     }));
   }, [rawSurveyRecords, siteRows, customer]);
 
-  const installationSurvey = useMemo(
-    () => resolveInstallationSurvey(rawSurveyRecords),
-    [rawSurveyRecords]
-  );
+  const installationSurvey = useMemo(() => {
+    if (isInstallationEdit && rawSurveyRecords[0]) {
+      return rawSurveyRecords[0];
+    }
+    return resolveInstallationSurvey(rawSurveyRecords);
+  }, [isInstallationEdit, rawSurveyRecords]);
 
   async function refreshWorkflow() {
-    const result = await adminApi.getCustomerWorkflowDetails(id);
-    const raw = (result.surveys || []).slice().sort(
-      (a: any, b: any) =>
-        new Date(b.createdAt || b.surveyDate || 0).getTime() -
-        new Date(a.createdAt || a.surveyDate || 0).getTime()
-    );
+    const result = isInstallationEdit
+      ? await adminApi.getInstallationWorkflowDetails(id)
+      : await adminApi.getCustomerWorkflowDetails(id);
+    const raw = isInstallationEdit
+      ? [result.survey]
+      : (result.surveys || []).slice().sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt || b.surveyDate || 0).getTime() -
+            new Date(a.createdAt || a.surveyDate || 0).getTime()
+        );
     setCustomer(result.customer);
     setRawSurveyRecords(raw);
     setSiteRows(mapSiteDetails(raw));
@@ -438,6 +452,8 @@ export default function WorkflowEditPage() {
         });
         toast.success("Survey site details saved successfully.");
         router.push(`/workflow/view/${id}?from=${fromTab || "Surveys"}`);
+      } else if (isInstallationEdit) {
+        router.push(`/workflow/view/${id}?from=Installations`);
       } else {
         router.push(`/workflow/view/${id}?from=Installations`);
       }
@@ -495,11 +511,15 @@ export default function WorkflowEditPage() {
 
   if (!customer) return null;
 
-  const isContractorAssigned = !!(customer.assignToContractor || customer.contractorName || customer.contractor);
+  const isContractorAssigned = isInstallationEdit
+    ? !!resolveSurveyContractorName(installationSurvey)
+    : !!(customer.assignToContractor || customer.contractorName || customer.contractor);
   const isSurveyEdit = fromTab === "Surveys" || activeTab === "survey";
   const workflowTab = fromTab || (activeTab === "survey" ? "Surveys" : "Installations");
   const backUrl = `/workflow?tab=${workflowTab}`;
-  const viewUrl = `/workflow/view/${id}?from=${fromTab || "Surveys"}`;
+  const viewUrl = isInstallationEdit
+    ? `/workflow/view/${id}?from=Installations`
+    : `/workflow/view/${id}?from=${fromTab || "Surveys"}`;
   const displayName = surveyInfo?.surveyName && surveyInfo.surveyName !== "N/A" ? surveyInfo.surveyName : "Survey";
   const surveyStatus = customer.status || "Pending";
   const statusColor = getSurveyStatusColor(surveyStatus);

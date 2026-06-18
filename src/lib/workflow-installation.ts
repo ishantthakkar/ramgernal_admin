@@ -1,6 +1,8 @@
-function normalizeRole(userRole?: string): string {
-  return (userRole || "").trim().toLowerCase().replace(/_/g, " ");
-}
+import {
+  resolveSurveyContractorName,
+  resolveSurveyProjectManagerName,
+  resolveSurveySalesPersonName,
+} from "@/lib/workflow-installation-details";
 
 export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
   const customer = survey.customer_id as Record<string, unknown> | string | null | undefined;
@@ -15,23 +17,8 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
       ? (customerObj.leadId as Record<string, unknown>)
       : null;
 
-  const salesUser = survey.user_id as Record<string, unknown> | null | undefined;
-  const assignedTo = survey.assignedTo as Record<string, unknown> | null | undefined;
-  const assignedRole = normalizeRole(assignedTo?.userRole as string | undefined);
-  const assignedName = String(assignedTo?.fullName || "");
-
-  let contractor = "Unassigned";
-  let projectManager = "Unassigned";
-
-  if (assignedTo && assignedName) {
-    if (assignedRole === "contractor") {
-      contractor = assignedName;
-    } else if (assignedRole === "project manager") {
-      projectManager = assignedName;
-    } else {
-      projectManager = assignedName;
-    }
-  }
+  const contractorName = resolveSurveyContractorName(survey);
+  const projectManagerName = resolveSurveyProjectManagerName(survey);
 
   const company =
     String(customerObj?.company || "").trim() ||
@@ -49,12 +36,12 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
     accountNumber: String(customerObj?.accountNumber || "N/A"),
     customerName: String(customerObj?.name || "Unknown"),
     company,
-    salesPerson: String(salesUser?.fullName || "Unassigned"),
-    contractor,
-    projectManager,
-    assignedTo,
+    salesPerson: resolveSurveySalesPersonName(survey, customerObj) || "Unassigned",
+    contractor: contractorName || "Unassigned",
+    projectManager: projectManagerName || "Unassigned",
+    assignedTo: survey.assignedTo,
     status: String(
-      customerObj?.installationStatus || survey.status || "not started"
+      survey.installationStatus || survey.status || "not started"
     ),
     quotationStatus: String(survey.quotationStatus || "approved"),
     survey,

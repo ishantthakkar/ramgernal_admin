@@ -15,8 +15,11 @@ import {
   Edit2,
   Info,
   User,
+  Briefcase,
+  UserPlus,
 } from "lucide-react";
 import addStyles from "../../../leads/add/leads-add.module.css";
+import assignModalStyles from "../../assign-modal.module.css";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
@@ -30,7 +33,12 @@ import {
   type SiteDetailRow,
   type SiteDetailSurveyGroup,
 } from "@/lib/workflow-survey-view";
-import { resolveInstallationSurvey } from "@/lib/workflow-installation-details";
+import {
+  resolveInstallationSurvey,
+  resolveSurveyContractorName,
+  resolveSurveyProjectManagerName,
+  resolveSurveySalesPersonName,
+} from "@/lib/workflow-installation-details";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
@@ -52,6 +60,66 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
       >
         {display}
       </div>
+    </div>
+  );
+}
+
+function AssignableField({
+  label,
+  assignedName,
+  canAssign,
+  onAssign,
+}: {
+  label: string;
+  assignedName: string;
+  canAssign: boolean;
+  onAssign: () => void;
+}) {
+  const name = assignedName.trim();
+
+  return (
+    <div className={styles.formGroup}>
+      <label>{label}</label>
+      {name ? (
+        <div
+          className={styles.formInput}
+          style={{
+            background: "#f8fafc",
+            color: "#1e293b",
+            fontWeight: 600,
+            border: "1px solid #e2e8f0",
+            minHeight: "2.75rem",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          {name}
+        </div>
+      ) : canAssign ? (
+        <button
+          type="button"
+          className={styles.assignBtn}
+          onClick={onAssign}
+          style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+        >
+          <UserPlus size={14} /> Assign
+        </button>
+      ) : (
+        <div
+          className={styles.formInput}
+          style={{
+            background: "#f8fafc",
+            color: "#94a3b8",
+            fontWeight: 600,
+            border: "1px solid #e2e8f0",
+            minHeight: "2.75rem",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          Unassigned
+        </div>
+      )}
     </div>
   );
 }
@@ -428,14 +496,26 @@ export default function WorkflowViewPage() {
   const [activeTab, setActiveTab] = useState<"survey" | "installations">(
     fromTab?.toLowerCase() === "installations" ? "installations" : "survey"
   );
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignType, setAssignType] = useState<"Contractor" | "Project Manager">("Contractor");
+  const [availableStaff, setAvailableStaff] = useState<any[]>([]);
+  const [assignModalLoading, setAssignModalLoading] = useState(false);
 
   const isSurveyView = fromTab === "Surveys";
+  const isInstallationView = fromTab === "Installations";
+  const surveyId = isInstallationView ? id : "";
+
+  const refreshData = async () => {
+    const result = isInstallationView
+      ? await adminApi.getInstallationWorkflowDetails(id)
+      : await adminApi.getCustomerWorkflowDetails(id);
+    setData(result);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const result = await adminApi.getCustomerWorkflowDetails(id);
-        setData(result);
+        await refreshData();
       } catch (err: any) {
         toast.error(err.message || "Failed to load workflow details.");
         router.push("/workflow");
@@ -444,9 +524,12 @@ export default function WorkflowViewPage() {
       }
     };
     if (id) fetchData();
-  }, [id, router]);
+  }, [id, router, isInstallationView]);
 
   const surveyRecords = useMemo(() => {
+    if (isInstallationView && data?.survey) {
+      return [data.survey];
+    }
     const list = data?.surveys;
     if (!Array.isArray(list)) return [];
     return [...list].sort((a, b) => {
@@ -454,7 +537,7 @@ export default function WorkflowViewPage() {
       const timeB = new Date(b.createdAt || b.surveyDate || 0).getTime();
       return timeA - timeB;
     });
-  }, [data]);
+  }, [data, isInstallationView]);
 
   const surveyDetails = useMemo(() => {
     if (!data?.customer) {
@@ -473,14 +556,60 @@ export default function WorkflowViewPage() {
     return mapNotes(surveyRecords, data.customer);
   }, [data, surveyRecords]);
 
-  const installationSurvey = useMemo(
-    () => resolveInstallationSurvey(surveyRecords),
-    [surveyRecords]
-  );
+  const installationSurvey = useMemo(() => {
+    if (isInstallationView && data?.survey) {
+      return data.survey as Record<string, unknown>;
+    }
+    return resolveInstallationSurvey(surveyRecords);
+  }, [data, isInstallationView, surveyRecords]);
 
   const handleViewImages = (images: string[], area: string) => {
     setSelectedImages(images);
     setActiveArea(area);
+  };
+
+  const openAssignModal = async (type: "Contractor" | "Project Manager") => {
+    if (!surveyId) {
+      toast.error("Survey not found.");
+      return;
+    }
+
+    setAssignType(type);
+    setShowAssignModal(true);
+    setAssignModalLoading(true);
+    setAvailableStaff([]);
+
+    try {
+      const apiRole = type === "Contractor" ? "Contractor" : "Project Manager";
+      const response = await adminApi.getUserList(apiRole);
+      const staff = response.users || response.data || [];
+      setAvailableStaff(Array.isArray(staff) ? staff : []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : `Failed to load ${type.toLowerCase()}s.`;
+      toast.error(message);
+    } finally {
+      setAssignModalLoading(false);
+    }
+  };
+
+  const handleAssignStaff = async (staff: { _id: string }) => {
+    if (!surveyId) {
+      toast.error("Survey not found.");
+      return;
+    }
+
+    try {
+      setAssignModalLoading(true);
+      const response = await adminApi.assignSurvey(surveyId, staff._id);
+      toast.success(response.message || `${assignType} assigned successfully.`);
+      setShowAssignModal(false);
+      await refreshData();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : `Failed to assign ${assignType}.`;
+      toast.error(message);
+    } finally {
+      setAssignModalLoading(false);
+    }
   };
 
   const handleVerifySurvey = async (surveyId: string, surveyName: string) => {
@@ -492,8 +621,7 @@ export default function WorkflowViewPage() {
       setVerifyingSurveyId(surveyId);
       const response = await adminApi.verifySurveyConfirm(surveyId);
       toast.success(response.message || "Survey verified successfully!");
-      const result = await adminApi.getCustomerWorkflowDetails(id);
-      setData(result);
+      await refreshData();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to verify survey.";
       toast.error(message);
@@ -513,9 +641,9 @@ export default function WorkflowViewPage() {
   if (!data?.customer) return null;
 
   const { customer } = data;
-  const isContractorAssigned = !!(customer.assignToContractor || customer.contractorName || customer.contractor);
   const canEditSurveys = hasPermission("Surveys", "edit");
   const canEditInstallations = hasPermission("Installation", "edit");
+  const canCreateInstallations = hasPermission("Installation", "create");
   const canVerifySurveys = hasPermission("Surveys", "create");
   const workflowTab = fromTab || (isSurveyView ? "Surveys" : "Installations");
   const backUrl = `/workflow?tab=${workflowTab}`;
@@ -527,7 +655,12 @@ export default function WorkflowViewPage() {
 
   const legalName = String(customer.legalName || customer.name || "").trim();
   const companyOrDba = String(customer.company || customer.dba || customer?.leadId?.dba || "").trim();
-  const salesPerson = String(customer?.user_id?.fullName || customer?.user_id?.name || "").trim();
+  const salesPerson = isInstallationView
+    ? resolveSurveySalesPersonName(installationSurvey, customer)
+    : String(customer?.user_id?.fullName || customer?.user_id?.name || "").trim();
+  const contractorName = resolveSurveyContractorName(installationSurvey);
+  const projectManagerName = resolveSurveyProjectManagerName(installationSurvey);
+  const jobId = String(installationSurvey?.job_id || "").trim();
 
   const primaryAddress = (() => {
     const list = Array.isArray(customer?.addresses) ? customer.addresses : [];
@@ -553,14 +686,18 @@ export default function WorkflowViewPage() {
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span className={styles.breadcrumbCurrent}>
-          {isSurveyView ? "VIEW SURVEY" : "VIEW WORKFLOW"}
+          {isSurveyView ? "VIEW SURVEY" : isInstallationView ? "VIEW INSTALLATION" : "VIEW WORKFLOW"}
         </span>
       </div>
 
       <div className={styles.pageHeader} style={{ marginBottom: isSurveyView ? "2rem" : undefined }}>
         <div>
           <h1 className={styles.welcomeText}>
-            {isSurveyView ? `Survey Profile: ${displayName}` : "Workflow Details"}
+            {isSurveyView
+              ? `Survey Profile: ${displayName}`
+              : isInstallationView
+                ? `Installation: ${displayName}`
+                : "Workflow Details"}
           </h1>
           {isSurveyView && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
@@ -621,18 +758,44 @@ export default function WorkflowViewPage() {
         </div>
       </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <User size={22} color="var(--admin-primary, #004d4d)" /> Customer Information
-        </div>
-        <div className={styles.formGrid}>
-          <ReadOnlyField label="Legal Name" value={legalName} />
-          <ReadOnlyField label="Company (DBA)" value={companyOrDba} />
-          <ReadOnlyField label="Sales Person" value={salesPerson} />
-        </div>
-      </section>
+      {isInstallationView ? (
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Project Information
+          </div>
+          <div className={styles.formGrid}>
+            <ReadOnlyField label="Legal Name" value={legalName} />
+            <ReadOnlyField label="Company" value={companyOrDba} />
+            <ReadOnlyField label="Sales Person" value={salesPerson} />
+            <AssignableField
+              label="Contractor"
+              assignedName={contractorName}
+              canAssign={canCreateInstallations}
+              onAssign={() => openAssignModal("Contractor")}
+            />
+            <AssignableField
+              label="Project Manager"
+              assignedName={projectManagerName}
+              canAssign={canCreateInstallations}
+              onAssign={() => openAssignModal("Project Manager")}
+            />
+            <ReadOnlyField label="Job ID" value={jobId} />
+          </div>
+        </section>
+      ) : (
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <User size={22} color="var(--admin-primary, #004d4d)" /> Customer Information
+          </div>
+          <div className={styles.formGrid}>
+            <ReadOnlyField label="Legal Name" value={legalName} />
+            <ReadOnlyField label="Company (DBA)" value={companyOrDba} />
+            <ReadOnlyField label="Sales Person" value={salesPerson} />
+          </div>
+        </section>
+      )}
 
-      {!isSurveyView && (
+      {!isSurveyView && !isInstallationView && (
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
             <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation
@@ -647,45 +810,51 @@ export default function WorkflowViewPage() {
         </section>
       )}
 
-      {!isSurveyView && fromTab !== "Installations" && fromTab !== "Surveys" && (
+      {isInstallationView && (
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation Address
+          </div>
+          <div className={styles.formGrid}>
+            <ReadOnlyField label="Street" value={installStreet} />
+            <ReadOnlyField label="City" value={installCity} />
+            <ReadOnlyField label="State" value={installState} />
+            <ReadOnlyField label="Zip" value={installZip} />
+          </div>
+        </section>
+      )}
+
+      {!isSurveyView && !isInstallationView && (
         <div
           className={styles.tabs}
           style={{ marginBottom: "2rem", width: "fit-content", background: "#f1f5f9", padding: "4px", borderRadius: "10px" }}
         >
-          {fromTab !== "Installations" && (
-            <button
-              type="button"
-              className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
-              onClick={() => setActiveTab("survey")}
-              style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              <ClipboardCheck size={18} /> Survey
-            </button>
-          )}
-          {fromTab !== "Surveys" && (
-            <button
-              type="button"
-              className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
-              onClick={() => {
-                if (isContractorAssigned) setActiveTab("installations");
-                else toast.warning("Materials are only available after contractor assignment.");
-              }}
-              style={{
-                border: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                opacity: isContractorAssigned ? 1 : 0.5,
-                cursor: isContractorAssigned ? "pointer" : "not-allowed",
-              }}
-            >
-              <Hammer size={18} /> Installations
-            </button>
-          )}
+          <button
+            type="button"
+            className={`${styles.tab} ${activeTab === "survey" ? styles.tabActive : ""}`}
+            onClick={() => setActiveTab("survey")}
+            style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
+          >
+            <ClipboardCheck size={18} /> Survey
+          </button>
+          <button
+            type="button"
+            className={`${styles.tab} ${activeTab === "installations" ? styles.tabActive : ""}`}
+            onClick={() => setActiveTab("installations")}
+            style={{ border: "none", display: "flex", alignItems: "center", gap: "0.5rem" }}
+          >
+            <Hammer size={18} /> Installations
+          </button>
         </div>
       )}
 
-      {isSurveyView || activeTab === "survey" ? (
+      {isInstallationView ? (
+        <InstallationWorkflowSections
+          installationSurvey={installationSurvey}
+          mode="view"
+          onViewImages={handleViewImages}
+        />
+      ) : isSurveyView || activeTab === "survey" ? (
         <SurveyViewSections
           surveyName={surveyDetails.surveyName}
           salesPerson={surveyDetails.salesPerson}
@@ -703,6 +872,54 @@ export default function WorkflowViewPage() {
           mode="view"
           onViewImages={handleViewImages}
         />
+      )}
+
+      {showAssignModal && (
+        <div className={assignModalStyles.modalOverlay} onClick={() => setShowAssignModal(false)}>
+          <div className={assignModalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={assignModalStyles.modalHeader}>
+              <h3>Assign {assignType}</h3>
+              <button type="button" className={assignModalStyles.closeBtn} onClick={() => setShowAssignModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className={assignModalStyles.modalBody}>
+              {assignModalLoading ? (
+                <div className={assignModalStyles.modalLoading}>
+                  <Loader2 size={40} className={assignModalStyles.spinner} />
+                  <p>Fetching available {assignType.toLowerCase()}s...</p>
+                </div>
+              ) : availableStaff.length === 0 ? (
+                <div className={assignModalStyles.emptyState}>
+                  <p>No {assignType.toLowerCase()}s found in the system.</p>
+                </div>
+              ) : (
+                <div className={assignModalStyles.staffList}>
+                  {availableStaff.map((staff) => (
+                    <div key={staff._id} className={assignModalStyles.staffItem}>
+                      <div className={assignModalStyles.staffLeft}>
+                        <div className={assignModalStyles.staffAvatar}>
+                          {staff.fullName?.charAt(0) || "U"}
+                        </div>
+                        <div className={assignModalStyles.staffInfo}>
+                          <span className={assignModalStyles.staffName}>{staff.fullName}</span>
+                          <span className={assignModalStyles.staffRole}>{staff.userRole || assignType}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={assignModalStyles.modalAssignBtn}
+                        onClick={() => handleAssignStaff(staff)}
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       <div

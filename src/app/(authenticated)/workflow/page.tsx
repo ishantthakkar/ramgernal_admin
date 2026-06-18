@@ -788,7 +788,7 @@ export default function WorkflowPage() {
                         <td>
                           <span
                             className={workflowStyles.linkName}
-                            onClick={() => router.push(`/workflow/view/${item._id}?from=Installations`)}
+                            onClick={() => router.push(`/workflow/view/${item.surveyId}?from=Installations`)}
                           >
                             {item.customerName}
                           </span>
@@ -931,7 +931,11 @@ export default function WorkflowPage() {
                             <button
                               type="button"
                               className={styles.assignBtn}
-                              onClick={() => router.push(`/workflow/edit/${item._id}?from=${activeTab}`)}
+                              onClick={() =>
+                                router.push(
+                                  `/workflow/edit/${activeTab === "Installations" ? item.surveyId : item._id}?from=${activeTab}`
+                                )
+                              }
                             >
                               Edit
                             </button>

@@ -1,3 +1,43 @@
+export function normalizeAssignRole(userRole?: string): string {
+  return (userRole || "").trim().toLowerCase().replace(/_/g, " ");
+}
+
+function resolvePopulatedUser(user: unknown): Record<string, unknown> | null {
+  if (user && typeof user === "object") return user as Record<string, unknown>;
+  return null;
+}
+
+export function resolveSurveyContractorName(survey: Record<string, unknown> | null): string {
+  if (!survey) return "";
+  const contractorUser = resolvePopulatedUser(survey.assignToContractor);
+  if (contractorUser?.fullName) return String(contractorUser.fullName).trim();
+  const assignedTo = resolvePopulatedUser(survey.assignedTo);
+  if (assignedTo && normalizeAssignRole(assignedTo.userRole as string) === "contractor") {
+    return String(assignedTo.fullName || "").trim();
+  }
+  return "";
+}
+
+export function resolveSurveyProjectManagerName(survey: Record<string, unknown> | null): string {
+  if (!survey) return "";
+  const assignedTo = resolvePopulatedUser(survey.assignedTo);
+  if (assignedTo && normalizeAssignRole(assignedTo.userRole as string) === "project manager") {
+    return String(assignedTo.fullName || "").trim();
+  }
+  return "";
+}
+
+export function resolveSurveySalesPersonName(
+  survey: Record<string, unknown> | null,
+  customer?: Record<string, unknown> | null
+): string {
+  const surveyUser = resolvePopulatedUser(survey?.user_id);
+  const surveyName = String(surveyUser?.fullName || surveyUser?.name || "").trim();
+  if (surveyName) return surveyName;
+  const customerUser = resolvePopulatedUser(customer?.user_id);
+  return String(customerUser?.fullName || customerUser?.name || "").trim();
+}
+
 export function resolveUploadsBaseUrl(): string {
   const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
   if (!base) return "";

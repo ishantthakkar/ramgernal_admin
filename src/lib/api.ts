@@ -155,6 +155,10 @@ export const adminApi = {
   getCustomerWorkflowDetails: (id: string) => apiRequest(`/customer/${id}`, {
     method: "GET",
   }),
+  getInstallationWorkflowDetails: (surveyId: string) =>
+    apiRequest(`/surveys/${surveyId}/installation-workflow`, {
+      method: "GET",
+    }),
   getCustomerActivities: (id: string) =>
     apiRequest(`/customer/customers/${id}/activities`, {
       method: "GET",
