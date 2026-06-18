@@ -40,6 +40,7 @@ import {
   resolveSurveySalesPersonName,
 } from "@/lib/workflow-installation-details";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
+import { resolveCustomerDba } from "@/lib/workflow-installation";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   const display = value?.trim() || "—";
@@ -675,7 +676,8 @@ export default function WorkflowViewPage() {
     (surveyDetails.surveyName !== "N/A" ? surveyDetails.surveyName : "Survey");
 
   const legalName = String(customer.legalName || customer.name || "").trim();
-  const companyOrDba = String(customer.company || customer.dba || customer?.leadId?.dba || "").trim();
+  const dba = resolveCustomerDba(customer);
+  const companyOrDba = dba || String(customer.company || "").trim();
   const salesPerson = isInstallationView
     ? resolveSurveySalesPersonName(installationSurvey, customer)
     : String(customer?.user_id?.fullName || customer?.user_id?.name || "").trim();
@@ -807,7 +809,7 @@ export default function WorkflowViewPage() {
           </div>
           <div className={styles.formGrid}>
             <ReadOnlyField label="Legal Name" value={legalName} />
-            <ReadOnlyField label="Company" value={companyOrDba} />
+            <ReadOnlyField label="Company" value={dba} />
             <ReadOnlyField label="Sales Person" value={salesPerson} />
             <AssignableField
               label="Contractor"

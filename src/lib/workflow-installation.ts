@@ -4,6 +4,21 @@ import {
   resolveSurveySalesPersonName,
 } from "@/lib/workflow-installation-details";
 
+export function resolveCustomerDba(
+  customer: Record<string, unknown> | null | undefined
+): string {
+  if (!customer) return "";
+  const lead =
+    customer.leadId && typeof customer.leadId === "object"
+      ? (customer.leadId as Record<string, unknown>)
+      : null;
+
+  return (
+    String(customer.dba || "").trim() ||
+    String(lead?.dba || "").trim()
+  );
+}
+
 export function formatInspectionStatusLabel(value: string): string {
   const status = String(value || "").trim().toLowerCase();
   if (!status || status === "to-do") return "To Do";
@@ -30,10 +45,7 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
   const contractorName = resolveSurveyContractorName(survey);
   const projectManagerName = resolveSurveyProjectManagerName(survey);
 
-  const company =
-    String(customerObj?.company || "").trim() ||
-    String(lead?.dba || "").trim() ||
-    "-";
+  const dba = resolveCustomerDba(customerObj) || "-";
 
   return {
     _id: customerId,
@@ -45,7 +57,7 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
     leadId: String(lead?.lead_id || ""),
     accountNumber: String(customerObj?.accountNumber || "N/A"),
     customerName: String(customerObj?.name || "Unknown"),
-    company,
+    company: dba,
     salesPerson: resolveSurveySalesPersonName(survey, customerObj) || "Unassigned",
     contractor: contractorName || "Unassigned",
     projectManager: projectManagerName || "Unassigned",
@@ -105,11 +117,7 @@ export function mapInspectionCustomerRow(customer: Record<string, unknown>) {
     leadId: String(lead?.lead_id || ""),
     accountNumber: String(customer.accountNumber || "—"),
     customerName: String(customer.name || "Unknown"),
-    company:
-      String(customer.company || "").trim() ||
-      String(customer.dba || "").trim() ||
-      String(lead?.dba || "").trim() ||
-      "—",
+    company: resolveCustomerDba(customer) || "—",
     salesPerson: String(user?.fullName || "Unassigned"),
     contractor:
       String(customer.contractorName || assignToContractor?.fullName || "").trim() ||

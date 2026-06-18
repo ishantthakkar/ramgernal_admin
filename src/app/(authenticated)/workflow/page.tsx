@@ -531,7 +531,7 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Installations") {
-      return ["Customer ID", "Job No", "Customer", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
+      return ["ID", "Job No", "Customer", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
     }
 
     if (activeTab === "Inspections") {
