@@ -69,11 +69,13 @@ function AssignableField({
   assignedName,
   canAssign,
   onAssign,
+  changeLabel = "Change",
 }: {
   label: string;
   assignedName: string;
   canAssign: boolean;
   onAssign: () => void;
+  changeLabel?: string;
 }) {
   const name = assignedName.trim();
 
@@ -81,19 +83,33 @@ function AssignableField({
     <div className={styles.formGroup}>
       <label>{label}</label>
       {name ? (
-        <div
-          className={styles.formInput}
-          style={{
-            background: "#f8fafc",
-            color: "#1e293b",
-            fontWeight: 600,
-            border: "1px solid #e2e8f0",
-            minHeight: "2.75rem",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          {name}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <div
+            className={styles.formInput}
+            style={{
+              background: "#f8fafc",
+              color: "#1e293b",
+              fontWeight: 600,
+              border: "1px solid #e2e8f0",
+              minHeight: "2.75rem",
+              display: "flex",
+              alignItems: "center",
+              flex: 1,
+              minWidth: "12rem",
+            }}
+          >
+            {name}
+          </div>
+          {canAssign ? (
+            <button
+              type="button"
+              className={styles.assignBtn}
+              onClick={onAssign}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              {changeLabel}
+            </button>
+          ) : null}
         </div>
       ) : canAssign ? (
         <button
@@ -502,7 +518,8 @@ export default function WorkflowViewPage() {
   const [assignModalLoading, setAssignModalLoading] = useState(false);
 
   const isSurveyView = fromTab === "Surveys";
-  const isInstallationView = fromTab === "Installations";
+  const isInstallationView = fromTab === "Installations" || fromTab === "Inspections";
+  const isInspectionView = fromTab === "Inspections";
   const surveyId = isInstallationView ? id : "";
 
   const refreshData = async () => {
@@ -600,8 +617,11 @@ export default function WorkflowViewPage() {
 
     try {
       setAssignModalLoading(true);
-      const response = await adminApi.assignSurvey(surveyId, staff._id);
-      toast.success(response.message || `${assignType} assigned successfully.`);
+      const response =
+        assignType === "Contractor"
+          ? await adminApi.assignContractor(surveyId, staff._id)
+          : await adminApi.assignProjectManager(surveyId, staff._id);
+      toast.success(response.message || `${assignType} updated successfully.`);
       setShowAssignModal(false);
       await refreshData();
     } catch (err: unknown) {
@@ -643,6 +663,7 @@ export default function WorkflowViewPage() {
   const { customer } = data;
   const canEditSurveys = hasPermission("Surveys", "edit");
   const canEditInstallations = hasPermission("Installation", "edit");
+  const canEditInspections = hasPermission("Inspection", "edit");
   const canCreateInstallations = hasPermission("Installation", "create");
   const canVerifySurveys = hasPermission("Surveys", "create");
   const workflowTab = fromTab || (isSurveyView ? "Surveys" : "Installations");
@@ -661,6 +682,10 @@ export default function WorkflowViewPage() {
   const contractorName = resolveSurveyContractorName(installationSurvey);
   const projectManagerName = resolveSurveyProjectManagerName(installationSurvey);
   const jobId = String(installationSurvey?.job_id || "").trim();
+  const isChangingAssignment =
+    assignType === "Contractor"
+      ? !!contractorName.trim()
+      : !!projectManagerName.trim();
 
   const primaryAddress = (() => {
     const list = Array.isArray(customer?.addresses) ? customer.addresses : [];
@@ -686,7 +711,13 @@ export default function WorkflowViewPage() {
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span className={styles.breadcrumbCurrent}>
-          {isSurveyView ? "VIEW SURVEY" : isInstallationView ? "VIEW INSTALLATION" : "VIEW WORKFLOW"}
+          {isSurveyView
+            ? "VIEW SURVEY"
+            : isInspectionView
+              ? "VIEW INSPECTION"
+              : isInstallationView
+                ? "VIEW INSTALLATION"
+                : "VIEW WORKFLOW"}
         </span>
       </div>
 
@@ -695,9 +726,11 @@ export default function WorkflowViewPage() {
           <h1 className={styles.welcomeText}>
             {isSurveyView
               ? `Survey Profile: ${displayName}`
-              : isInstallationView
-                ? `Installation: ${displayName}`
-                : "Workflow Details"}
+              : isInspectionView
+                ? `Inspection: ${displayName}`
+                : isInstallationView
+                  ? `Installation: ${displayName}`
+                  : "Workflow Details"}
           </h1>
           {isSurveyView && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
@@ -751,6 +784,15 @@ export default function WorkflowViewPage() {
               type="button"
               className={styles.addBtn}
               onClick={() => router.push(`/workflow/edit/${id}?from=Installations`)}
+            >
+              <Edit2 size={20} /> Edit
+            </button>
+          )}
+          {isInspectionView && canEditInspections && (
+            <button
+              type="button"
+              className={styles.addBtn}
+              onClick={() => router.push(`/workflow/edit/${id}?from=Inspections`)}
             >
               <Edit2 size={20} /> Edit
             </button>
@@ -878,7 +920,7 @@ export default function WorkflowViewPage() {
         <div className={assignModalStyles.modalOverlay} onClick={() => setShowAssignModal(false)}>
           <div className={assignModalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={assignModalStyles.modalHeader}>
-              <h3>Assign {assignType}</h3>
+              <h3>{isChangingAssignment ? "Change" : "Assign"} {assignType}</h3>
               <button type="button" className={assignModalStyles.closeBtn} onClick={() => setShowAssignModal(false)}>
                 <X size={24} />
               </button>
@@ -911,7 +953,7 @@ export default function WorkflowViewPage() {
                         className={assignModalStyles.modalAssignBtn}
                         onClick={() => handleAssignStaff(staff)}
                       >
-                        Assign
+                        {isChangingAssignment ? "Change" : "Assign"}
                       </button>
                     </div>
                   ))}

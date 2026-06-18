@@ -315,7 +315,7 @@ export default function WorkflowEditPage() {
   const fromTab = searchParams.get("from");
   const surveyId = searchParams.get("surveyId") || undefined;
   const isQuotationEdit = fromTab === "Quotations";
-  const isInstallationEdit = fromTab === "Installations";
+  const isInstallationEdit = fromTab === "Installations" || fromTab === "Inspections";
 
   const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);

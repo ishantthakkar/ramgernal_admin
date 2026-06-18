@@ -27,7 +27,11 @@ import {
   mapSurveyQuotationListItem,
   type SurveyQuotationApiRow,
 } from "@/lib/quotation-utils";
-import { mapInstallationSurveyRow } from "@/lib/workflow-installation";
+import {
+  mapInstallationSurveyRow,
+  mapInspectionSurveyRow,
+  mapInspectionCustomerRow,
+} from "@/lib/workflow-installation";
 
 function resolveUserDisplayName(
   user: { fullName?: string; _id?: unknown } | null | undefined
@@ -351,20 +355,41 @@ export default function WorkflowPage() {
         }));
 
       } else if (activeTab === "Inspections") {
-        const response = await adminApi.getInspections();
-        const customers = response.customers || response.data || [];
+        const [inspectionsRes, installationsRes] = await Promise.all([
+          adminApi.getInspections(),
+          adminApi.getInstallations(),
+        ]);
 
-        const normalizedData = customers.map((c: any) => ({
-          _id: c.id || c._id,
-          accountNumber: c.accountNumber || "N/A",
-          customerName: c.name || "Unknown",
-          company: c.company || "N/A",
-          salesPerson: c.user_id?.fullName || "Unassigned",
-          contractor: c.contractorName || c.assignToContractor?.fullName || "Unassigned",
-          projectManager: c.assignedTo?.fullName || "Unassigned",
-          status: c.status || "-"
-        }));
+        const legacyCustomers = inspectionsRes.customers || inspectionsRes.data || [];
+        const legacyRows = (Array.isArray(legacyCustomers) ? legacyCustomers : []).map(
+          (customer: Record<string, unknown>) => mapInspectionCustomerRow(customer)
+        );
+
+        const installationSurveys =
+          installationsRes.surveys || installationsRes.installations || installationsRes.data || [];
+        const submittedRows = (Array.isArray(installationSurveys) ? installationSurveys : [])
+          .filter((survey: Record<string, unknown>) => {
+            const status = String(survey.installationStatus || "").toLowerCase();
+            return status === "submitted";
+          })
+          .map((survey: Record<string, unknown>) => mapInspectionSurveyRow(survey));
+
+        const mergedBySurvey = new Map<string, ReturnType<typeof mapInspectionSurveyRow>>();
+        for (const row of submittedRows) {
+          if (row.surveyId) mergedBySurvey.set(row.surveyId, row);
+        }
+
+        const legacyOnly = legacyRows.filter((row) => {
+          if (!row.surveyId) return true;
+          return !mergedBySurvey.has(row.surveyId);
+        });
+
+        const normalizedData = [...mergedBySurvey.values(), ...legacyOnly];
         setData(normalizedData);
+        setCounts((prev) => ({
+          ...prev,
+          totalInspections: normalizedData.length,
+        }));
       }
     } catch (err) {
       console.error("Failed to fetch workflow data:", err);
@@ -434,9 +459,23 @@ export default function WorkflowPage() {
         return;
       }
 
-      const response = await adminApi.assignSurvey(surveyId, staff._id);
+      const isChanging =
+        (assignType === "Contractor" &&
+          targetRecord?.contractor &&
+          targetRecord.contractor !== "Unassigned") ||
+        (assignType === "Project Manager" &&
+          targetRecord?.projectManager &&
+          targetRecord.projectManager !== "Unassigned");
 
-      toast.success(response.message || `${assignType} assigned successfully.`);
+      const response =
+        assignType === "Contractor"
+          ? await adminApi.assignContractor(surveyId, staff._id)
+          : await adminApi.assignProjectManager(surveyId, staff._id);
+
+      toast.success(
+        response.message ||
+          `${assignType} ${isChanging ? "changed" : "assigned"} successfully.`
+      );
       setShowAssignModal(false);
       fetchWorkflowData();
     } catch (err: any) {
@@ -446,6 +485,15 @@ export default function WorkflowPage() {
       setModalLoading(false);
     }
   };
+
+  const isChangingAssignment =
+    targetRecord &&
+    ((assignType === "Contractor" &&
+      targetRecord.contractor &&
+      targetRecord.contractor !== "Unassigned") ||
+      (assignType === "Project Manager" &&
+        targetRecord.projectManager &&
+        targetRecord.projectManager !== "Unassigned"));
 
   const summaryStats = [
     { label: "Total Surveys", value: counts.totalSurveys, icon: ClipboardCheck, color: "#3b6fd9", bg: "#e8f0fe" },
@@ -487,7 +535,17 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Inspections") {
-      return ["S.No", "Customer", "AC Number", "Company", "Sales Person", "Contractor", "Project Manager", "Inspection Status", "Actions"];
+      return [
+        "Customer ID",
+        "Customer",
+        "Account Number",
+        "Company",
+        "Sales Person",
+        "Contractor",
+        "Project Manager",
+        "Inspection Status",
+        "Actions",
+      ];
     }
     return [];
   };
@@ -506,6 +564,10 @@ export default function WorkflowPage() {
       case "in process": return { color: "#10b981", bg: "#ecfdf5" };
       case "reopened":
       case "reopen": return { color: "#fbbf24", bg: "#fffbeb" };
+      case "to-do":
+      case "to do": return { color: "#ef4444", bg: "#fef2f2" };
+      case "confirm":
+      case "confirmed": return { color: "#3b82f6", bg: "#eff6ff" };
       case "pending_edit_approval": return { color: "#d97706", bg: "#fef3c7" };
       case "new": return { color: "#8b5cf6", bg: "#f5f3ff" };
       default: return { color: "#64748b", bg: "#f8fafc" };
@@ -852,13 +914,19 @@ export default function WorkflowPage() {
                           </div>
                         </td>
                       </>
-                    ) : (
+                    ) : activeTab === "Inspections" ? (
                       <>
-                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{indexOfFirstItem + index + 1}</td>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>
+                          {item.leadId || item.customerCode || "—"}
+                        </td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
-                            onClick={() => router.push(`/workflow/view/${item._id}?from=Inspections`)}
+                            onClick={() =>
+                              router.push(
+                                `/workflow/view/${item.surveyId || item._id}?from=Inspections`
+                              )
+                            }
                           >
                             {item.customerName}
                           </span>
@@ -872,17 +940,6 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.contractor}
                             </div>
-                          ) : canCreateInspections ? (
-                            <button
-                              className={styles.assignBtn}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAssignModal("Contractor", item);
-                              }}
-                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
-                            >
-                              <UserPlus size={14} /> Assign
-                            </button>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
                           )}
@@ -893,17 +950,6 @@ export default function WorkflowPage() {
                               <User size={14} color="#94a3b8" />
                               {item.projectManager}
                             </div>
-                          ) : canCreateInspections ? (
-                            <button
-                              className={styles.assignBtn}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAssignModal("Project Manager", item);
-                              }}
-                              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
-                            >
-                              <UserPlus size={14} /> Assign
-                            </button>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
                           )}
@@ -917,12 +963,12 @@ export default function WorkflowPage() {
                               ></span>
                             )}
                             <span style={{ color: "#1e293b", fontWeight: 600 }}>
-                              {item.status || "N/A"}
+                              {item.status || "To Do"}
                             </span>
                           </div>
                         </td>
                       </>
-                    )}
+                    ) : null}
 
                     {activeTab !== "Surveys" && activeTab !== "Quotations" && (
                       <td>
@@ -933,7 +979,11 @@ export default function WorkflowPage() {
                               className={styles.assignBtn}
                               onClick={() =>
                                 router.push(
-                                  `/workflow/edit/${activeTab === "Installations" ? item.surveyId : item._id}?from=${activeTab}`
+                                  `/workflow/edit/${
+                                    activeTab === "Installations" || activeTab === "Inspections"
+                                      ? item.surveyId || item._id
+                                      : item._id
+                                  }?from=${activeTab}`
                                 )
                               }
                             >
@@ -1001,7 +1051,7 @@ export default function WorkflowPage() {
         <div className={modalStyles.modalOverlay} onClick={() => setShowAssignModal(false)}>
           <div className={modalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div className={modalStyles.modalHeader}>
-              <h3>Assign {assignType}</h3>
+              <h3>{isChangingAssignment ? "Change" : "Assign"} {assignType}</h3>
               <button className={modalStyles.closeBtn} onClick={() => setShowAssignModal(false)}>
                 <X size={24} />
               </button>
@@ -1037,7 +1087,7 @@ export default function WorkflowPage() {
                         className={modalStyles.modalAssignBtn}
                         onClick={() => handleAssignStaff(staff)}
                       >
-                        Assign
+                        {isChangingAssignment ? "Change" : "Assign"}
                       </button>
                     </div>
                   ))}

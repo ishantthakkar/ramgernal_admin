@@ -148,9 +148,9 @@ export const adminApi = {
       body: JSON.stringify({ survey_id: surveyId, assignedTo: staffId }),
     }),
   assignContractor: (surveyId: string, contractorId: string) =>
-    apiRequest("/surveys/assign", {
+    apiRequest("/surveys/assign-contractor", {
       method: "POST",
-      body: JSON.stringify({ survey_id: surveyId, assignedTo: contractorId }),
+      body: JSON.stringify({ survey_id: surveyId, contractor: contractorId }),
     }),
   getCustomerWorkflowDetails: (id: string) => apiRequest(`/customer/${id}`, {
     method: "GET",

@@ -4,6 +4,16 @@ import {
   resolveSurveySalesPersonName,
 } from "@/lib/workflow-installation-details";
 
+export function formatInspectionStatusLabel(value: string): string {
+  const status = String(value || "").trim().toLowerCase();
+  if (!status || status === "to-do") return "To Do";
+  if (status === "in_progress") return "In Progress";
+  if (status === "confirm") return "Confirmed";
+  if (status === "verified") return "Verified";
+  if (status === "reopen") return "Reopened";
+  return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+}
+
 export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
   const customer = survey.customer_id as Record<string, unknown> | string | null | undefined;
   const customerObj =
@@ -45,5 +55,67 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
     ),
     quotationStatus: String(survey.quotationStatus || "approved"),
     survey,
+  };
+}
+
+export function mapInspectionSurveyRow(survey: Record<string, unknown>) {
+  const base = mapInstallationSurveyRow(survey);
+  const customer = survey.customer_id;
+  const customerObj =
+    customer && typeof customer === "object"
+      ? (customer as Record<string, unknown>)
+      : null;
+
+  const inspectionStatusRaw = String(
+    survey.inspectionStatus || customerObj?.inspectionStatus || "to-do"
+  );
+
+  return {
+    ...base,
+    inspectionStatusRaw,
+    status: formatInspectionStatusLabel(inspectionStatusRaw),
+  };
+}
+
+export function mapInspectionCustomerRow(customer: Record<string, unknown>) {
+  const lead =
+    customer.leadId && typeof customer.leadId === "object"
+      ? (customer.leadId as Record<string, unknown>)
+      : null;
+  const assignToContractor =
+    customer.assignToContractor && typeof customer.assignToContractor === "object"
+      ? (customer.assignToContractor as Record<string, unknown>)
+      : null;
+  const assignedTo =
+    customer.assignedTo && typeof customer.assignedTo === "object"
+      ? (customer.assignedTo as Record<string, unknown>)
+      : null;
+  const user =
+    customer.user_id && typeof customer.user_id === "object"
+      ? (customer.user_id as Record<string, unknown>)
+      : null;
+
+  const inspectionStatusRaw = String(customer.inspectionStatus || "to-do");
+
+  return {
+    _id: String(customer.id || customer._id || ""),
+    rowId: String(customer.id || customer._id || ""),
+    surveyId: "",
+    customerCode: String(customer.customerCode || ""),
+    leadId: String(lead?.lead_id || ""),
+    accountNumber: String(customer.accountNumber || "—"),
+    customerName: String(customer.name || "Unknown"),
+    company:
+      String(customer.company || "").trim() ||
+      String(customer.dba || "").trim() ||
+      String(lead?.dba || "").trim() ||
+      "—",
+    salesPerson: String(user?.fullName || "Unassigned"),
+    contractor:
+      String(customer.contractorName || assignToContractor?.fullName || "").trim() ||
+      "Unassigned",
+    projectManager: String(assignedTo?.fullName || "Unassigned"),
+    inspectionStatusRaw,
+    status: formatInspectionStatusLabel(inspectionStatusRaw),
   };
 }
