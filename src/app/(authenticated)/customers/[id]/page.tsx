@@ -145,6 +145,21 @@ export default function CustomerDetailsPage() {
 
   const notes = Array.isArray(customer?.notes) ? (customer.notes as Record<string, unknown>[]) : [];
 
+  const leadRecord =
+    customer?.leadId && typeof customer.leadId === "object"
+      ? (customer.leadId as Record<string, unknown>)
+      : null;
+
+  const dbaDisplay = String(
+    customer?.dba || leadRecord?.dba || customer?.company || ""
+  ).trim();
+  const electricCompanyDisplay = String(
+    customer?.electricCompany || leadRecord?.electricCompany || ""
+  ).trim();
+  const leadNameDisplay = String(
+    customer?.leadName || leadRecord?.leadName || leadRecord?.name || customer?.name || ""
+  ).trim();
+
   const leadSourceCode = customer?.leadSource as string | undefined;
   const leadSourceDisplay = leadSourceCode
     ? leadSourceMap[leadSourceCode] || leadSourceCode
@@ -245,9 +260,9 @@ export default function CustomerDetailsPage() {
         </div>
         <div className={styles.formGrid}>
           <ReadOnlyField label="Lead Source" value={leadSourceDisplay} />
-          <ReadOnlyField label="Lead Name" value={displayValue(customer.leadName || customer.name)} />
-          <ReadOnlyField label="DBA" value={displayValue(customer.dba)} />
-          <ReadOnlyField label="Utility / Electric Company" value={displayValue(customer.electricCompany)} />
+          <ReadOnlyField label="Lead Name" value={displayValue(leadNameDisplay)} />
+          <ReadOnlyField label="DBA" value={displayValue(dbaDisplay)} />
+          <ReadOnlyField label="Utility / Electric Company" value={displayValue(electricCompanyDisplay)} />
           <ReadOnlyField label="Account Number" value={displayValue(customer.accountNumber)} />
           <ReadOnlyField label="Legal Name" value={displayValue(customer.legalName)} />
           <ReadOnlyField label="Mobile" value={displayValue(customer.mobileNumber)} />
