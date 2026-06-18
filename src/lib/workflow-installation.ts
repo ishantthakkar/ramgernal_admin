@@ -23,10 +23,25 @@ export function formatInspectionStatusLabel(value: string): string {
   const status = String(value || "").trim().toLowerCase();
   if (!status || status === "to-do") return "To Do";
   if (status === "in_progress") return "In Progress";
-  if (status === "confirm") return "Confirmed";
+  if (status === "confirm") return "Pending Review";
   if (status === "verified") return "Verified";
   if (status === "reopen") return "Reopened";
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+}
+
+export function isAdminInspectionVerified(value: string): boolean {
+  return String(value || "").trim().toLowerCase() === "verified";
+}
+
+export function isInspectionReadyForAdminVerify(value: string): boolean {
+  const status = String(value || "").trim().toLowerCase();
+  if (!status || status === "verified") return false;
+  return ["confirm", "in_progress", "to-do", "reopen"].includes(status);
+}
+
+/** @deprecated use isAdminInspectionVerified */
+export function isAdminInspectionConfirmed(value: string): boolean {
+  return isAdminInspectionVerified(value);
 }
 
 export function mapInstallationSurveyRow(survey: Record<string, unknown>) {

@@ -31,6 +31,8 @@ import {
   mapInstallationSurveyRow,
   mapInspectionSurveyRow,
   mapInspectionCustomerRow,
+  isAdminInspectionVerified,
+  isInspectionReadyForAdminVerify,
 } from "@/lib/workflow-installation";
 
 function resolveUserDisplayName(
@@ -268,6 +270,7 @@ export default function WorkflowPage() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [verifyingInspectionId, setVerifyingInspectionId] = useState<string | null>(null);
   const itemsPerPage = 10;
   const fetchWorkflowData = async () => {
     setLoading(true);
@@ -449,6 +452,48 @@ export default function WorkflowPage() {
     }
   };
 
+  const handleVerifyInspection = async (item: {
+    surveyId?: string;
+    customerName?: string;
+    inspectionStatusRaw?: string;
+  }) => {
+    const surveyId = item.surveyId;
+    if (!surveyId) {
+      toast.error("Survey ID is missing for this inspection.");
+      return;
+    }
+
+    if (isAdminInspectionVerified(item.inspectionStatusRaw || "")) {
+      return;
+    }
+
+    if (!isInspectionReadyForAdminVerify(item.inspectionStatusRaw || "")) {
+      toast.error("Inspection is not ready for admin verification yet.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Verify inspection for "${item.customerName || "this customer"}"?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setVerifyingInspectionId(surveyId);
+      const response = await adminApi.verifyInspection(surveyId);
+      toast.success(response.message || "Inspection verified successfully.");
+      await fetchWorkflowData();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to verify inspection.";
+      toast.error(message);
+    } finally {
+      setVerifyingInspectionId(null);
+    }
+  };
+
   const handleAssignStaff = async (staff: any) => {
     try {
       setModalLoading(true);
@@ -543,6 +588,7 @@ export default function WorkflowPage() {
         "Contractor",
         "Project Manager",
         "Inspection Status",
+        "Admin Approval",
         "Actions",
       ];
     }
@@ -566,7 +612,8 @@ export default function WorkflowPage() {
       case "to-do":
       case "to do": return { color: "#ef4444", bg: "#fef2f2" };
       case "confirm":
-      case "confirmed": return { color: "#3b82f6", bg: "#eff6ff" };
+      case "confirmed":
+      case "pending review": return { color: "#f59e0b", bg: "#fffbeb" };
       case "pending_edit_approval": return { color: "#d97706", bg: "#fef3c7" };
       case "new": return { color: "#8b5cf6", bg: "#f5f3ff" };
       default: return { color: "#64748b", bg: "#f8fafc" };
@@ -964,6 +1011,36 @@ export default function WorkflowPage() {
                               {item.status || "To Do"}
                             </span>
                           </div>
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {isAdminInspectionVerified(item.inspectionStatusRaw || "") ? (
+                            <span
+                              style={{
+                                color: "#10b981",
+                                fontWeight: 700,
+                                fontSize: "0.85rem",
+                              }}
+                            >
+                              Verified
+                            </span>
+                          ) : isInspectionReadyForAdminVerify(item.inspectionStatusRaw || "") &&
+                            item.surveyId &&
+                            (canEditInspections || canCreateInspections) ? (
+                            <button
+                              type="button"
+                              className={styles.assignBtn}
+                              disabled={verifyingInspectionId === item.surveyId}
+                              onClick={() => handleVerifyInspection(item)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                            >
+                              {verifyingInspectionId === item.surveyId ? (
+                                <Loader2 size={14} className={styles.spinner} />
+                              ) : null}
+                              Verify
+                            </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Pending</span>
+                          )}
                         </td>
                       </>
                     ) : null}

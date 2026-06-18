@@ -215,6 +215,16 @@ export const adminApi = {
   getInspections: () => apiRequest("/customer/customers/inspections", {
     method: "GET",
   }),
+  confirmInspection: (surveyId: string) =>
+    apiRequest("/customer/surveys/inspection-status", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId }),
+    }),
+  verifyInspection: (surveyId: string) =>
+    apiRequest("/customer/surveys/inspection-status", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId }),
+    }),
   getQuotationsAdmin: () =>
     apiRequest("/customer/survey-quotations-list", {
       method: "GET",
