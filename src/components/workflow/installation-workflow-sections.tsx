@@ -273,7 +273,7 @@ export function InstallationWorkflowSections({
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation Details
+            <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Delivery Details
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             {materialsVerified ? (
