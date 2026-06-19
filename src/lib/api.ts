@@ -137,6 +137,9 @@ export const adminApi = {
   getCustomers: () => apiRequest("/customer/customers-list", {
     method: "GET",
   }),
+  getWorkflowSurveys: () => apiRequest("/workflow-surveys", {
+    method: "GET",
+  }),
   assignSurvey: (surveyId: string, assignedTo: string) =>
     apiRequest("/surveys/assign", {
       method: "POST",
@@ -218,12 +221,12 @@ export const adminApi = {
   confirmInspection: (surveyId: string) =>
     apiRequest("/customer/surveys/inspection-status", {
       method: "POST",
-      body: JSON.stringify({ survey_id: surveyId }),
+      body: JSON.stringify({ survey_id: surveyId, status: "submitted" }),
     }),
   verifyInspection: (surveyId: string) =>
     apiRequest("/customer/surveys/inspection-status", {
       method: "POST",
-      body: JSON.stringify({ survey_id: surveyId }),
+      body: JSON.stringify({ survey_id: surveyId, status: "verified" }),
     }),
   saveSurveyAreaVerification: (payload: Record<string, unknown> | FormData) =>
     apiRequest("/surveys/area-verification", {

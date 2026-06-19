@@ -24,6 +24,7 @@ export function formatInspectionStatusLabel(value: string): string {
   if (!status || status === "to-do") return "To Do";
   if (status === "in_progress") return "In Progress";
   if (status === "confirm") return "Pending Review";
+  if (status === "submitted") return "Submitted";
   if (status === "verified") return "Verified";
   if (status === "reopen") return "Reopened";
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
@@ -36,12 +37,161 @@ export function isAdminInspectionVerified(value: string): boolean {
 export function isInspectionReadyForAdminVerify(value: string): boolean {
   const status = String(value || "").trim().toLowerCase();
   if (!status || status === "verified") return false;
-  return ["confirm", "in_progress", "to-do", "reopen"].includes(status);
+  return ["confirm", "submitted", "in_progress", "to-do", "reopen"].includes(status);
 }
 
 /** @deprecated use isAdminInspectionVerified */
 export function isAdminInspectionConfirmed(value: string): boolean {
   return isAdminInspectionVerified(value);
+}
+
+export function formatWorkflowSurveyStatusLabel(value: string): string {
+  const status = String(value || "").trim().toLowerCase();
+  if (!status) return "N/A";
+  if (status === "verified") return "Verified";
+  if (status === "pending_edit_approval") return "Pending Approval";
+  if (status === "reopen" || status === "reopened") return "Reopened";
+  if (status === "in_progress") return "In Progress";
+  if (status === "submitted") return "Submitted";
+  if (status === "completed") return "Completed";
+  return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+}
+
+const WORKFLOW_SURVEY_STATUSES = [
+  "submitted",
+  "completed",
+  "reopened",
+  "reopen",
+  "pending_edit_approval",
+];
+
+function isSurveyRecordVerified(survey: Record<string, unknown>): boolean {
+  const confirmDate = survey.confirmDate;
+  return (
+    confirmDate != null &&
+    confirmDate !== "" &&
+    !Number.isNaN(new Date(String(confirmDate)).getTime())
+  );
+}
+
+export function isWorkflowCustomerRow(customer: Record<string, unknown>): boolean {
+  if (String(customer.verifyStatus || "").toLowerCase() === "verified") {
+    return true;
+  }
+  const status = String(customer.status || "").trim().toLowerCase();
+  return WORKFLOW_SURVEY_STATUSES.includes(status);
+}
+
+export function isWorkflowSurveyRecord(
+  survey: Record<string, unknown>,
+  customerVerifyStatus: string
+): boolean {
+  if (String(customerVerifyStatus || "").toLowerCase() === "verified") {
+    return true;
+  }
+  if (isSurveyRecordVerified(survey)) {
+    return true;
+  }
+  const status = String(survey.status || "").trim().toLowerCase();
+  return WORKFLOW_SURVEY_STATUSES.includes(status);
+}
+
+export function mapWorkflowSurveyRowFromCustomer(
+  customer: Record<string, unknown>,
+  survey: Record<string, unknown>
+) {
+  const customerId = String(customer.id || customer._id || "");
+  const lead =
+    customer.leadId && typeof customer.leadId === "object"
+      ? (customer.leadId as Record<string, unknown>)
+      : {
+          lead_id: customer.lead_id,
+          leadName: customer.leadName,
+          dba: customer.dba,
+        };
+
+  const row = mapWorkflowSurveyRow({
+    ...survey,
+    customer_id: {
+      ...customer,
+      _id: customerId,
+      leadId: lead,
+    },
+  });
+
+  const salesManagerName = String(customer.salesManagerName || "").trim();
+  const salesPersonName = String(customer.salesPersonName || "").trim();
+
+  return {
+    ...row,
+    salesManager: salesManagerName || row.salesManager,
+    salesPerson: salesPersonName || row.salesPerson,
+  };
+}
+
+function resolveSalesManagerName(
+  customer: Record<string, unknown> | null | undefined
+): string {
+  if (!customer) return "";
+  const user =
+    customer.user_id && typeof customer.user_id === "object"
+      ? (customer.user_id as Record<string, unknown>)
+      : null;
+  const supervisor =
+    user?.reportsTo && typeof user.reportsTo === "object"
+      ? (user.reportsTo as Record<string, unknown>)
+      : null;
+  if (!supervisor) return "";
+  const role = String(supervisor.userRole || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+  if (role === "sales manager") {
+    return String(supervisor.fullName || "").trim();
+  }
+  return "";
+}
+
+export function mapWorkflowSurveyRow(survey: Record<string, unknown>) {
+  const customer = survey.customer_id as Record<string, unknown> | null | undefined;
+  const customerObj =
+    customer && typeof customer === "object" ? customer : null;
+  const customerId = customerObj ? String(customerObj._id || "") : "";
+
+  const lead =
+    customerObj?.leadId && typeof customerObj.leadId === "object"
+      ? (customerObj.leadId as Record<string, unknown>)
+      : null;
+
+  const confirmDate = survey.confirmDate;
+  const isVerified =
+    confirmDate != null &&
+    confirmDate !== "" &&
+    !Number.isNaN(new Date(String(confirmDate)).getTime());
+  const statusRaw = isVerified
+    ? "verified"
+    : String(survey.status || "Pending");
+
+  const surveyName = String(
+    survey.surveyName || survey.areaName || "Survey"
+  ).trim();
+
+  return {
+    _id: customerId,
+    rowId: String(survey._id || ""),
+    surveyId: String(survey._id || ""),
+    customerId,
+    leadId: String(lead?.lead_id || ""),
+    leadName: String(customerObj?.name || lead?.leadName || ""),
+    dba: resolveCustomerDba(customerObj) || "—",
+    surveyName: surveyName || "Survey",
+    salesPerson: resolveSurveySalesPersonName(survey, customerObj) || "Unassigned",
+    salesManager: resolveSalesManagerName(customerObj),
+    surveyStatus: formatWorkflowSurveyStatusLabel(statusRaw),
+    surveyStatusRaw: statusRaw,
+    verifyStatus: isVerified ? "verified" : "pending",
+    date: survey.surveyDate || survey.updatedAt || survey.createdAt,
+  };
 }
 
 export function mapInstallationSurveyRow(survey: Record<string, unknown>) {

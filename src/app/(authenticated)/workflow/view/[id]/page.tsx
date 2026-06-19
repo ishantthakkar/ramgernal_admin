@@ -29,6 +29,7 @@ import {
   mapNotes,
   mapSiteDetailGroups,
   mapSurveyDetails,
+  resolveSurveyId,
   type NoteEntry,
   type SiteDetailRow,
   type SiteDetailSurveyGroup,
@@ -514,6 +515,7 @@ export default function WorkflowViewPage() {
 
   const searchParams = useSearchParams();
   const fromTab = searchParams.get("from");
+  const focusedSurveyId = searchParams.get("surveyId") || "";
 
   const [loading, setLoading] = useState(true);
   const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
@@ -568,22 +570,29 @@ export default function WorkflowViewPage() {
     });
   }, [data, usesInstallationWorkflowApi]);
 
+  const focusedSurveyRecords = useMemo(() => {
+    if (!focusedSurveyId) return surveyRecords;
+    return surveyRecords.filter(
+      (survey) => resolveSurveyId(survey) === focusedSurveyId
+    );
+  }, [surveyRecords, focusedSurveyId]);
+
   const surveyDetails = useMemo(() => {
     if (!data?.customer) {
       return { surveyName: "N/A", salesPerson: "N/A", surveyDate: null as string | null };
     }
-    return mapSurveyDetails(data.customer, surveyRecords);
-  }, [data, surveyRecords]);
+    return mapSurveyDetails(data.customer, focusedSurveyRecords);
+  }, [data, focusedSurveyRecords]);
 
   const siteDetailGroups = useMemo(
-    () => mapSiteDetailGroups(surveyRecords, data?.customer),
-    [surveyRecords, data?.customer]
+    () => mapSiteDetailGroups(focusedSurveyRecords, data?.customer),
+    [focusedSurveyRecords, data?.customer]
   );
 
   const noteEntries = useMemo(() => {
     if (!data?.customer) return [];
-    return mapNotes(surveyRecords, data.customer);
-  }, [data, surveyRecords]);
+    return mapNotes(focusedSurveyRecords, data.customer);
+  }, [data, focusedSurveyRecords]);
 
   const installationSurvey = useMemo(() => {
     if (usesInstallationWorkflowApi && data?.survey) {
@@ -814,7 +823,13 @@ export default function WorkflowViewPage() {
             <button
               type="button"
               className={styles.addBtn}
-              onClick={() => router.push(`/workflow/edit/${id}?from=Surveys`)}
+              onClick={() =>
+                router.push(
+                  focusedSurveyId
+                    ? `/workflow/edit/${id}?from=Surveys&surveyId=${focusedSurveyId}`
+                    : `/workflow/edit/${id}?from=Surveys`
+                )
+              }
             >
               <Edit2 size={20} /> Edit
             </button>

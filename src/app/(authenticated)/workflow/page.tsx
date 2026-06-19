@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";
-import { WorkflowSurveyListModal } from "@/components/workflow/workflow-survey-list-modal";
 import { adminApi } from "@/lib/api";
 import { canViewModule, hasPermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
@@ -34,6 +33,7 @@ import {
   isAdminInspectionVerified,
   isInspectionReadyForAdminVerify,
 } from "@/lib/workflow-installation";
+import { fetchWorkflowSurveyRows } from "@/lib/workflow-surveys-list";
 
 function resolveUserDisplayName(
   user: { fullName?: string; _id?: unknown } | null | undefined
@@ -247,14 +247,6 @@ export default function WorkflowPage() {
   const canCreateInstallations = hasPermission("Installation", "create");
   const canCreateInspections = hasPermission("Inspection", "create");
 
-  // Survey list modal (per-customer surveys)
-  const [showSurveyModal, setShowSurveyModal] = useState(false);
-  const [surveyModalCustomer, setSurveyModalCustomer] = useState<{
-    _id: string;
-    leadName: string;
-    surveyStatus: string;
-  } | null>(null);
-
   // Assignment Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignType, setAssignType] = useState<"Contractor" | "Project Manager">("Contractor");
@@ -277,39 +269,11 @@ export default function WorkflowPage() {
     setData([]);
     try {
       if (activeTab === "Surveys") {
-        const response = await adminApi.getCustomers();
-        const customers = response.customers || response.data || [];
-
-        const normalizedData = customers.map((c: any) => {
-          const lead = typeof c.leadId === "object" && c.leadId !== null ? c.leadId : null;
-          const customerId = String(c.customerCode || c.customer_code || "");
-          return {
-            _id: c.id || c._id,
-            customerId,
-            leadId: c.lead_id || lead?.lead_id || "",
-            leadName: c.leadName || lead?.leadName || lead?.name || c.name || "",
-            dba: c.dba || lead?.dba || "",
-            salesPerson: c.salesPersonName || "Unassigned",
-            salesManager: c.salesManagerName || "",
-            surveyStatus: c.status || "Pending",
-            verifyStatus: c.verifyStatus || "pending",
-            date: c.convertedDate || c.createdDate,
-          };
-        }).filter((item: any) => {
-          const status = item.surveyStatus?.toLowerCase();
-          if (item.verifyStatus === "verified") return true;
-          return (
-            status === "submitted" ||
-            status === "completed" ||
-            status === "reopened" ||
-            status === "reopen" ||
-            status === "pending_edit_approval"
-          );
-        });
+        const { rows: normalizedData, total } = await fetchWorkflowSurveyRows();
         setData(normalizedData);
         setCounts((prev) => ({
           ...prev,
-          totalSurveys: normalizedData.length,
+          totalSurveys: total,
         }));
 
       } else if (activeTab === "Quotations") {
@@ -372,8 +336,14 @@ export default function WorkflowPage() {
           installationsRes.surveys || installationsRes.installations || installationsRes.data || [];
         const submittedRows = (Array.isArray(installationSurveys) ? installationSurveys : [])
           .filter((survey: Record<string, unknown>) => {
-            const status = String(survey.installationStatus || "").toLowerCase();
-            return status === "submitted";
+            const installationStatus = String(survey.installationStatus || "").toLowerCase();
+            const inspectionStatus = String(survey.inspectionStatus || "").toLowerCase();
+            return (
+              installationStatus === "submitted" ||
+              ["confirm", "submitted", "verified", "in_progress", "reopen"].includes(
+                inspectionStatus
+              )
+            );
           })
           .map((survey: Record<string, unknown>) => mapInspectionSurveyRow(survey));
 
@@ -547,18 +517,18 @@ export default function WorkflowPage() {
     { label: "Total Inspections", value: counts.totalInspections, icon: ClipboardList, color: "#0d9488", bg: "#ccfbf1" },
   ];
 
-  const openSurveyModal = (item: {
-    _id: string;
-    leadName: string;
-    surveyStatus: string;
-  }) => {
-    setSurveyModalCustomer(item);
-    setShowSurveyModal(true);
-  };
-
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey", "Actions"];
+      return [
+        "ID",
+        "Customer",
+        "Survey",
+        "DBA",
+        "Sales Person",
+        "Sales Manager",
+        "Status",
+        "Actions",
+      ];
     }
 
     if (activeTab === "Quotations") {
@@ -576,14 +546,14 @@ export default function WorkflowPage() {
     }
 
     if (activeTab === "Installations") {
-      return ["ID", "Job No", "Customer", "Company", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
+      return ["ID", "Job No", "Customer", "DBA", "Sales Person", "Contractor", "Project Manager", "Installation Status", "Actions"];
     }
 
     if (activeTab === "Inspections") {
       return [
         "Customer ID",
         "Customer",
-        "Company",
+        "DBA",
         "Sales Person",
         "Contractor",
         "Project Manager",
@@ -614,6 +584,7 @@ export default function WorkflowPage() {
       case "confirm":
       case "confirmed":
       case "pending review": return { color: "#f59e0b", bg: "#fffbeb" };
+      case "submitted": return { color: "#3b82f6", bg: "#eff6ff" };
       case "pending_edit_approval": return { color: "#d97706", bg: "#fef3c7" };
       case "new": return { color: "#8b5cf6", bg: "#f5f3ff" };
       default: return { color: "#64748b", bg: "#f8fafc" };
@@ -628,6 +599,7 @@ export default function WorkflowPage() {
           item.leadId?.toLowerCase().includes(q) ||
           item.customerId?.toLowerCase().includes(q) ||
           item.leadName?.toLowerCase().includes(q) ||
+          item.surveyName?.toLowerCase().includes(q) ||
           item.dba?.toLowerCase().includes(q) ||
           item.salesPerson?.toLowerCase().includes(q) ||
           item.salesManager?.toLowerCase().includes(q) ||
@@ -778,35 +750,48 @@ export default function WorkflowPage() {
                         <td>
                           <span
                             className={workflowStyles.linkName}
-                            onClick={() => router.push(`/workflow/view/${item._id}?from=Surveys`)}
+                            onClick={() =>
+                              router.push(
+                                `/workflow/view/${item._id}?from=Surveys&surveyId=${item.surveyId}`
+                              )
+                            }
                           >
                             {item.leadName || "—"}
                           </span>
                         </td>
+                        <td style={{ color: "#1e293b", fontWeight: 700 }}>{item.surveyName || "—"}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.dba || "—"}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
                         <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager || "—"}</td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className={workflowStyles.surveyLinkBtn}
-                            onClick={() =>
-                              openSurveyModal({
-                                _id: item._id,
-                                leadName: item.leadName || "Customer",
-                                surveyStatus: item.surveyStatus || "",
-                              })
-                            }
-                          >
-                            Survey
-                          </button>
+                        <td>
+                          <div className={styles.statusCell}>
+                            <span
+                              className={styles.statusDotActive}
+                              style={{
+                                backgroundColor: getStatusStyle(item.surveyStatus).color,
+                              }}
+                            />
+                            <span
+                              style={{
+                                color: getStatusStyle(item.surveyStatus).color,
+                                fontWeight: 600,
+                                fontSize: "0.875rem",
+                              }}
+                            >
+                              {item.surveyStatus || "—"}
+                            </span>
+                          </div>
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
                           {canEditSurveys ? (
                             <button
                               type="button"
                               className={styles.assignBtn}
-                              onClick={() => router.push(`/workflow/edit/${item._id}?from=Surveys`)}
+                              onClick={() =>
+                                router.push(
+                                  `/workflow/edit/${item._id}?from=Surveys&surveyId=${item.surveyId}`
+                                )
+                              }
                             >
                               Edit
                             </button>
@@ -1035,8 +1020,12 @@ export default function WorkflowPage() {
                               {verifyingInspectionId === item.surveyId ? (
                                 <Loader2 size={14} className={styles.spinner} />
                               ) : null}
-                              Verify
+                              Approve
                             </button>
+                          ) : String(item.inspectionStatusRaw || "").toLowerCase() === "submitted" ? (
+                            <span style={{ color: "#3b82f6", fontWeight: 600, fontSize: "0.85rem" }}>
+                              Submitted
+                            </span>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Pending</span>
                           )}
@@ -1105,20 +1094,6 @@ export default function WorkflowPage() {
           </div>
         </div>
       </div>
-
-      {showSurveyModal && surveyModalCustomer ? (
-        <WorkflowSurveyListModal
-          customerId={surveyModalCustomer._id}
-          customerName={surveyModalCustomer.leadName}
-          customerStatus={surveyModalCustomer.surveyStatus}
-          canApproveEdits={canCreateSurveys}
-          onClose={() => {
-            setShowSurveyModal(false);
-            setSurveyModalCustomer(null);
-          }}
-          onUpdated={fetchWorkflowData}
-        />
-      ) : null}
 
       {/* Assignment Modal */}
       {showAssignModal && (

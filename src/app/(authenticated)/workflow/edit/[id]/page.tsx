@@ -25,6 +25,7 @@ import {
   mapSiteDetailGroups,
   mapSiteDetails,
   mapSurveyDetails,
+  resolveSurveyId,
   type NoteEntry,
   type SiteDetailRow,
   type SiteDetailSurveyGroup,
@@ -366,9 +367,13 @@ export default function WorkflowEditPage() {
                 new Date(b.createdAt || b.surveyDate || 0).getTime() -
                 new Date(a.createdAt || a.surveyDate || 0).getTime()
             );
+        const recordsForSite =
+          surveyId && !usesInstallationWorkflowApi
+            ? raw.filter((survey: { _id?: string; id?: string }) => resolveSurveyId(survey) === surveyId)
+            : raw;
         setCustomer(result.customer);
         setRawSurveyRecords(raw);
-        setSiteRows(mapSiteDetails(raw));
+        setSiteRows(mapSiteDetails(recordsForSite));
         if (isInspectionEdit && result.survey) {
           setVerificationEdits(buildVerificationEditsFromSurvey(result.survey));
         }
@@ -380,26 +385,35 @@ export default function WorkflowEditPage() {
       }
     };
     fetchData();
-  }, [id, isQuotationEdit, usesInstallationWorkflowApi, isInspectionEdit, router]);
+  }, [id, isQuotationEdit, usesInstallationWorkflowApi, isInspectionEdit, router, surveyId]);
+
+  const focusedSurveyRecords = useMemo(() => {
+    if (usesInstallationWorkflowApi || !surveyId) {
+      return rawSurveyRecords;
+    }
+    return rawSurveyRecords.filter(
+      (survey) => resolveSurveyId(survey) === surveyId
+    );
+  }, [rawSurveyRecords, surveyId, usesInstallationWorkflowApi]);
 
   const surveyInfo = useMemo(() => {
     if (!customer) return null;
-    return mapSurveyDetails(customer, rawSurveyRecords);
-  }, [customer, rawSurveyRecords]);
+    return mapSurveyDetails(customer, focusedSurveyRecords);
+  }, [customer, focusedSurveyRecords]);
 
   const noteEntries: NoteEntry[] = useMemo(() => {
     if (!customer) return [];
-    return mapNotes(rawSurveyRecords, customer);
-  }, [customer, rawSurveyRecords]);
+    return mapNotes(focusedSurveyRecords, customer);
+  }, [customer, focusedSurveyRecords]);
 
   const siteDetailGroups = useMemo(() => {
-    const groups = mapSiteDetailGroups(rawSurveyRecords, customer);
+    const groups = mapSiteDetailGroups(focusedSurveyRecords, customer);
     const byId = new Map(siteRows.map((r) => [r._id, r]));
     return groups.map((g) => ({
       ...g,
       areas: g.areas.map((a) => byId.get(a._id) ?? a),
     }));
-  }, [rawSurveyRecords, siteRows, customer]);
+  }, [focusedSurveyRecords, siteRows, customer]);
 
   const installationSurvey = useMemo(() => {
     if (usesInstallationWorkflowApi && rawSurveyRecords[0]) {
@@ -419,9 +433,13 @@ export default function WorkflowEditPage() {
             new Date(b.createdAt || b.surveyDate || 0).getTime() -
             new Date(a.createdAt || a.surveyDate || 0).getTime()
         );
+    const recordsForSite =
+      surveyId && !usesInstallationWorkflowApi
+        ? raw.filter((survey: { _id?: string; id?: string }) => resolveSurveyId(survey) === surveyId)
+        : raw;
     setCustomer(result.customer);
     setRawSurveyRecords(raw);
-    setSiteRows(mapSiteDetails(raw));
+    setSiteRows(mapSiteDetails(recordsForSite));
     if (isInspectionEdit && result.survey) {
       setVerificationEdits(buildVerificationEditsFromSurvey(result.survey));
     }
@@ -612,7 +630,9 @@ export default function WorkflowEditPage() {
     ? `/workflow/view/${id}?from=Inspections`
     : isInstallationEdit
       ? `/workflow/view/${id}?from=Installations`
-      : `/workflow/view/${id}?from=${fromTab || "Surveys"}`;
+      : surveyId
+        ? `/workflow/view/${id}?from=${fromTab || "Surveys"}&surveyId=${surveyId}`
+        : `/workflow/view/${id}?from=${fromTab || "Surveys"}`;
   const displayName = surveyInfo?.surveyName && surveyInfo.surveyName !== "N/A" ? surveyInfo.surveyName : "Survey";
   const surveyStatus = customer.status || "Pending";
   const statusColor = getSurveyStatusColor(surveyStatus);
