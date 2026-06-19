@@ -1,16 +1,22 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import dashboardStyles from "../dashboard.module.css";
 import styles from "./invoices.module.css";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Loader2, FileText } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
-import { MOCK_INVOICES, type InvoiceRow } from "@/lib/invoices-mock-data";
+import {
+  fetchInvoiceRows,
+  getInvoiceStatusColor,
+  type InvoiceRow,
+} from "@/lib/invoice-utils";
 import { toast } from "react-toastify";
-import { canViewModule } from "@/lib/permissions";
+import { canViewModule, hasPermission } from "@/lib/permissions";
+import { adminApi } from "@/lib/api";
+import { sanitizePdfUrl } from "@/lib/quotation-utils";
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 10;
 
 function buildPageNumbers(currentPage: number, totalPages: number): (number | "ellipsis")[] {
   if (totalPages <= 7) {
@@ -38,28 +44,51 @@ export default function InvoicesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+
+  const canCreateInvoices = hasPermission("Invoices", "create");
+  const canEditInvoices = hasPermission("Invoices", "edit");
+
+  const loadInvoices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const rows = await fetchInvoiceRows();
+      setInvoices(rows);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load invoices.";
+      toast.error(message);
+      setInvoices([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!canViewModule("Invoices")) {
       toast.error("You do not have permission to view invoices.");
       router.push("/dashboard");
+      return;
     }
-  }, [router]);
+    loadInvoices();
+  }, [router, loadInvoices]);
 
   const filteredInvoices = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
 
-    return MOCK_INVOICES.filter((invoice) => {
+    return invoices.filter((invoice) => {
       if (!term) return true;
 
       return (
         invoice.invoiceNo.toLowerCase().includes(term) ||
         invoice.customer.toLowerCase().includes(term) ||
         invoice.customerId.toLowerCase().includes(term) ||
-        invoice.status.toLowerCase().includes(term)
+        invoice.surveyName.toLowerCase().includes(term) ||
+        invoice.statusLabel.toLowerCase().includes(term)
       );
     });
-  }, [searchQuery]);
+  }, [invoices, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE));
   const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
@@ -74,12 +103,43 @@ export default function InvoicesPage() {
     setCurrentPage(page);
   }
 
-  function handleView(invoice: InvoiceRow) {
-    toast.info(`Invoice ${invoice.invoiceNo} — view coming soon.`);
+  function handleViewPdf(invoice: InvoiceRow) {
+    if (!invoice.pdfUrl) {
+      toast.info("No invoice PDF generated yet.");
+      return;
+    }
+    window.open(invoice.pdfUrl, "_blank", "noopener,noreferrer");
   }
 
-  function handleEdit(invoice: InvoiceRow) {
-    toast.info(`Invoice ${invoice.invoiceNo} — edit coming soon.`);
+  async function handleGenerateInvoice(invoice: InvoiceRow) {
+    if (!invoice.surveyId) {
+      toast.error("Survey ID is missing for this invoice.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Generate invoice for "${invoice.customer}" (${invoice.surveyName})?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setGeneratingId(invoice.surveyId);
+      const response = await adminApi.createInvoice(invoice.surveyId);
+      const pdfUrl = sanitizePdfUrl(String(response.pdfUrl || ""));
+      toast.success(response.message || "Invoice generated successfully.");
+      if (pdfUrl) {
+        window.open(pdfUrl, "_blank", "noopener,noreferrer");
+      }
+      await loadInvoices();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate invoice.";
+      toast.error(message);
+    } finally {
+      setGeneratingId(null);
+    }
   }
 
   return (
@@ -91,6 +151,7 @@ export default function InvoicesPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.directoryTitle}>Invoices</h1>
+        
       </div>
 
       <div className={dashboardStyles.tableCard}>
@@ -100,7 +161,7 @@ export default function InvoicesPage() {
               <Search size={16} color="#94a3b8" />
               <input
                 type="text"
-                placeholder="Search Users"
+                placeholder="Search invoices..."
                 className={dashboardStyles.searchInputSmall}
                 value={searchQuery}
                 onChange={(e) => {
@@ -120,15 +181,33 @@ export default function InvoicesPage() {
                 <th>Invoice Date</th>
                 <th>Customer</th>
                 <th>Customer ID</th>
-                <th>Amount</th>
+                <th>Survey</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentItems.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={6} className={styles.emptyCell}>
-                    No invoices found.
+                  <td colSpan={7} className={styles.emptyCell}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "1rem",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      <Loader2 size={32} className={dashboardStyles.spinner} />
+                      <span style={{ fontWeight: 600 }}>Loading invoices...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentItems.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className={styles.emptyCell}>
+                    No invoices found. Surveys show here after inspection admin approval.
                   </td>
                 </tr>
               ) : (
@@ -136,33 +215,66 @@ export default function InvoicesPage() {
                   <tr key={invoice.id}>
                     <td className={styles.monoCell}>{invoice.invoiceNo}</td>
                     <td style={{ color: "#64748b", fontWeight: 500 }}>
-                      {formatDate(invoice.invoiceDate)}
+                      {invoice.invoiceDate ? formatDate(invoice.invoiceDate) : "—"}
                     </td>
                     <td>
                       <span
                         className={styles.customerLink}
-                        onClick={() => handleView(invoice)}
+                        onClick={() => handleViewPdf(invoice)}
                       >
                         {invoice.customer}
                       </span>
                     </td>
                     <td className={styles.monoCell}>{invoice.customerId}</td>
+                    <td style={{ color: "#1e293b", fontWeight: 600 }}>{invoice.surveyName}</td>
                     <td>
                       <div className={dashboardStyles.statusCell}>
-                        <span className={dashboardStyles.statusDotInactive} />
-                        {invoice.status}
+                        <span
+                          className={dashboardStyles.statusDotActive}
+                          style={{
+                            backgroundColor: getInvoiceStatusColor(invoice.status),
+                          }}
+                        />
+                        <span
+                          style={{
+                            color: getInvoiceStatusColor(invoice.status),
+                            fontWeight: 600,
+                          }}
+                        >
+                          {invoice.hasPdf ? invoice.statusLabel : "Ready to Generate"}
+                        </span>
                       </div>
                     </td>
                     <td>
                       <div className={styles.actionButtons}>
-                       
-                        <button
-                          type="button"
-                          className={dashboardStyles.assignBtn}
-                          onClick={() => handleEdit(invoice)}
-                        >
-                          Edit
-                        </button>
+                        {invoice.hasPdf ? (
+                          <button
+                            type="button"
+                            className={dashboardStyles.assignBtn}
+                            onClick={() => handleViewPdf(invoice)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                          >
+                            <FileText size={14} />
+                            View PDF
+                          </button>
+                        ) : null}
+                        {!invoice.hasPdf && (canCreateInvoices || canEditInvoices) ? (
+                          <button
+                            type="button"
+                            className={dashboardStyles.assignBtn}
+                            disabled={generatingId === invoice.surveyId}
+                            onClick={() => handleGenerateInvoice(invoice)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                          >
+                            {generatingId === invoice.surveyId ? (
+                              <Loader2 size={14} className={dashboardStyles.spinner} />
+                            ) : null}
+                            Generate
+                          </button>
+                        ) : null}
+                        {!invoice.hasPdf && !canCreateInvoices && !canEditInvoices ? (
+                          <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>—</span>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

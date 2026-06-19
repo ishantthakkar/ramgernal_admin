@@ -249,6 +249,30 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ surveyId }),
     }),
+  getInvoicesList: (params?: { invoiceStatus?: string; hasInvoices?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.invoiceStatus) query.set("invoiceStatus", params.invoiceStatus);
+    if (params?.hasInvoices) query.set("hasInvoices", params.hasInvoices);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/customer/invoices-list${suffix}`, {
+      method: "GET",
+    });
+  },
+  createInvoice: (surveyId: string) =>
+    apiRequest("/customer/invoice", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId }),
+    }),
+  getInvoiceDetails: (surveyId: string) =>
+    apiRequest("/customer/invoice/details", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId }),
+    }),
+  previewInvoice: (surveyId: string) =>
+    apiRequest("/customer/invoice/preview", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId }),
+    }),
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),

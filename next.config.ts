@@ -14,10 +14,12 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
+    const apiBase =
+      process.env.API_PROXY_TARGET || "https://ramgeneral-api.onrender.com/api";
     return [
       {
-        source: '/api/proxy/:path*',
-        destination: 'https://ramgeneral-api.onrender.com/api/:path*',
+        source: "/api/proxy/:path*",
+        destination: `${apiBase}/:path*`,
       },
     ];
   },
