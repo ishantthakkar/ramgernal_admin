@@ -13,6 +13,7 @@ import {
   Plus,
   FileText,
   Info,
+  Briefcase,
 } from "lucide-react";
 import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
@@ -33,9 +34,25 @@ import { hasPermission } from "@/lib/permissions";
 import { QuotationPdfPreview } from "@/components/workflow/quotation-pdf-preview";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
 import {
+  buildVerificationEditsFromSurvey,
+  InspectionWorkflowSections,
+  type InspectionVerificationEdit,
+} from "@/components/workflow/inspection-workflow-sections";
+import {
   resolveInstallationSurvey,
   resolveSurveyContractorName,
 } from "@/lib/workflow-installation-details";
+import { formatInspectionStatusLabel } from "@/lib/workflow-installation";
+import {
+  formatRelativeUpdated,
+  getInspectionStatusColor,
+  mapInspectionAreas,
+  resolveCustomerDisplayName,
+  resolveCustomerMobile,
+  resolveInspectionStatusRaw,
+  resolveServiceAddress,
+  resolveUpdatedAt,
+} from "@/lib/workflow-inspection-view";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   const display = value?.trim() || "—";
@@ -315,13 +332,14 @@ export default function WorkflowEditPage() {
   const fromTab = searchParams.get("from");
   const surveyId = searchParams.get("surveyId") || undefined;
   const isQuotationEdit = fromTab === "Quotations";
-  const isInstallationEdit = fromTab === "Installations" || fromTab === "Inspections";
+  const isInspectionEdit = fromTab === "Inspections";
+  const isInstallationEdit = fromTab === "Installations";
+  const usesInstallationWorkflowApi = isInstallationEdit || isInspectionEdit;
 
   const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);
   const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
   const [customer, setCustomer] = useState<any>(null);
-  const [customerCode, setCustomerCode] = useState("");
   const [rawSurveyRecords, setRawSurveyRecords] = useState<any[]>([]);
   const [siteRows, setSiteRows] = useState<SiteDetailRow[]>([]);
   const [newNoteText, setNewNoteText] = useState("");
@@ -329,16 +347,19 @@ export default function WorkflowEditPage() {
   const [activeTab, setActiveTab] = useState<"survey" | "installations">(fromTab?.toLowerCase() === "installations" ? "installations" : "survey");
   const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
   const [activeImageTitle, setActiveImageTitle] = useState("");
+  const [verificationEdits, setVerificationEdits] = useState<
+    Record<string, InspectionVerificationEdit>
+  >({});
 
   useEffect(() => {
     if (!id || isQuotationEdit) return;
 
     const fetchData = async () => {
       try {
-        const result = isInstallationEdit
+        const result = usesInstallationWorkflowApi
           ? await adminApi.getInstallationWorkflowDetails(id)
           : await adminApi.getCustomerWorkflowDetails(id);
-        const raw = isInstallationEdit
+        const raw = usesInstallationWorkflowApi
           ? [result.survey]
           : (result.surveys || []).slice().sort(
               (a: any, b: any) =>
@@ -346,9 +367,11 @@ export default function WorkflowEditPage() {
                 new Date(a.createdAt || a.surveyDate || 0).getTime()
             );
         setCustomer(result.customer);
-        setCustomerCode(String(result.customer?.customerCode || ""));
         setRawSurveyRecords(raw);
         setSiteRows(mapSiteDetails(raw));
+        if (isInspectionEdit && result.survey) {
+          setVerificationEdits(buildVerificationEditsFromSurvey(result.survey));
+        }
       } catch (err: any) {
         toast.error(err.message || "Failed to load workflow details.");
         router.push("/workflow");
@@ -357,7 +380,7 @@ export default function WorkflowEditPage() {
       }
     };
     fetchData();
-  }, [id, isQuotationEdit, isInstallationEdit, router]);
+  }, [id, isQuotationEdit, usesInstallationWorkflowApi, isInspectionEdit, router]);
 
   const surveyInfo = useMemo(() => {
     if (!customer) return null;
@@ -379,17 +402,17 @@ export default function WorkflowEditPage() {
   }, [rawSurveyRecords, siteRows, customer]);
 
   const installationSurvey = useMemo(() => {
-    if (isInstallationEdit && rawSurveyRecords[0]) {
+    if (usesInstallationWorkflowApi && rawSurveyRecords[0]) {
       return rawSurveyRecords[0];
     }
     return resolveInstallationSurvey(rawSurveyRecords);
-  }, [isInstallationEdit, rawSurveyRecords]);
+  }, [usesInstallationWorkflowApi, rawSurveyRecords]);
 
   async function refreshWorkflow() {
-    const result = isInstallationEdit
+    const result = usesInstallationWorkflowApi
       ? await adminApi.getInstallationWorkflowDetails(id)
       : await adminApi.getCustomerWorkflowDetails(id);
-    const raw = isInstallationEdit
+    const raw = usesInstallationWorkflowApi
       ? [result.survey]
       : (result.surveys || []).slice().sort(
           (a: any, b: any) =>
@@ -399,6 +422,9 @@ export default function WorkflowEditPage() {
     setCustomer(result.customer);
     setRawSurveyRecords(raw);
     setSiteRows(mapSiteDetails(raw));
+    if (isInspectionEdit && result.survey) {
+      setVerificationEdits(buildVerificationEditsFromSurvey(result.survey));
+    }
   }
 
   const handleSiteRowChange = (idx: number, field: keyof SiteDetailRow, value: string) => {
@@ -413,8 +439,8 @@ export default function WorkflowEditPage() {
     handleSiteRowChange(idx, field, value);
   };
 
-  const handleAddNote = async () => {
-    const text = newNoteText.trim();
+  const handleAddNote = async (noteText?: string) => {
+    const text = (noteText ?? newNoteText).trim();
     if (!text) {
       toast.error("Please enter a note.");
       return;
@@ -422,6 +448,21 @@ export default function WorkflowEditPage() {
 
     setAddingNote(true);
     try {
+      if (isInspectionEdit) {
+        const customerId = String(customer?._id || customer?.id || "").trim();
+        if (!customerId) {
+          toast.error("Customer not found.");
+          return;
+        }
+        const response = await adminApi.updateCustomerWorkflow(customerId, {
+          notes: [{ note: text, title: "Inspection Note" }],
+        });
+        toast.success(response.message || "Note added successfully.");
+        if (!noteText) setNewNoteText("");
+        await refreshWorkflow();
+        return;
+      }
+
       const response = await adminApi.updateCustomerWorkflow(id, {
         notes: [{ note: text, title: "Survey Note" }],
       });
@@ -442,12 +483,62 @@ export default function WorkflowEditPage() {
     }
   };
 
+  const handleVerificationChange = (
+    fixtureId: string,
+    field: keyof InspectionVerificationEdit,
+    value: string
+  ) => {
+    setVerificationEdits((prev) => ({
+      ...prev,
+      [fixtureId]: {
+        verifiedQty: prev[fixtureId]?.verifiedQty ?? "",
+        issueFound: prev[fixtureId]?.issueFound ?? "no",
+        comments: prev[fixtureId]?.comments ?? "",
+        [field]: field === "issueFound" ? (value === "yes" ? "yes" : "no") : value,
+      },
+    }));
+  };
+
+  async function saveInspectionVerification() {
+    const groups = mapInspectionAreas(installationSurvey);
+
+    for (const group of groups) {
+      if (!group.id || group.id.startsWith("area-")) continue;
+
+      const fixtures = group.fixtures
+        .filter((fixture) => fixture.id && !fixture.id.startsWith("area-"))
+        .map((fixture) => {
+          const edit = verificationEdits[fixture.id];
+          return {
+            id: fixture.id,
+            verified_qty: Number(edit?.verifiedQty || 0),
+            issueFound: edit?.issueFound === "yes" ? "yes" : "no",
+            comments: edit?.comments ?? "",
+          };
+        });
+
+      if (!fixtures.length) continue;
+
+      await adminApi.saveSurveyAreaVerification({
+        area_id: group.id,
+        fixtures: JSON.stringify(fixtures),
+      });
+    }
+  }
+
   const handleSave = async () => {
     setSaving(true);
     try {
+      if (isInspectionEdit) {
+        await saveInspectionVerification();
+        toast.success("Inspection updated successfully.");
+        router.push(`/workflow/view/${id}?from=Inspections`);
+        return;
+      }
+
       if (activeTab === "survey") {
         await adminApi.updateCustomerWorkflow(id, {
-          customerCode: customerCode.trim(),
+          customerCode: String(customer?.customerCode || "").trim(),
           surveys: siteRows,
         });
         toast.success("Survey site details saved successfully.");
@@ -514,15 +605,22 @@ export default function WorkflowEditPage() {
   const isContractorAssigned = isInstallationEdit
     ? !!resolveSurveyContractorName(installationSurvey)
     : !!(customer.assignToContractor || customer.contractorName || customer.contractor);
-  const isSurveyEdit = fromTab === "Surveys" || activeTab === "survey";
+  const isSurveyEdit = fromTab === "Surveys";
   const workflowTab = fromTab || (activeTab === "survey" ? "Surveys" : "Installations");
   const backUrl = `/workflow?tab=${workflowTab}`;
-  const viewUrl = isInstallationEdit
-    ? `/workflow/view/${id}?from=Installations`
-    : `/workflow/view/${id}?from=${fromTab || "Surveys"}`;
+  const viewUrl = isInspectionEdit
+    ? `/workflow/view/${id}?from=Inspections`
+    : isInstallationEdit
+      ? `/workflow/view/${id}?from=Installations`
+      : `/workflow/view/${id}?from=${fromTab || "Surveys"}`;
   const displayName = surveyInfo?.surveyName && surveyInfo.surveyName !== "N/A" ? surveyInfo.surveyName : "Survey";
   const surveyStatus = customer.status || "Pending";
   const statusColor = getSurveyStatusColor(surveyStatus);
+  const inspectionStatusRaw = resolveInspectionStatusRaw(installationSurvey, customer);
+  const inspectionStatusColor = getInspectionStatusColor(inspectionStatusRaw);
+  const inspectionUpdatedLabel = isInspectionEdit
+    ? formatRelativeUpdated(resolveUpdatedAt(installationSurvey, customer))
+    : "";
 
   return (
     <div className={styles.addUserPage}>
@@ -539,17 +637,51 @@ export default function WorkflowEditPage() {
             </span>
           </>
         )}
+        {isInspectionEdit && (
+          <>
+            <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+            <span style={{ cursor: "pointer" }} onClick={() => router.push(viewUrl)}>
+              VIEW INSPECTION
+            </span>
+          </>
+        )}
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span className={styles.breadcrumbCurrent}>
-          {isSurveyEdit ? "EDIT SURVEY" : "EDIT WORKFLOW"}
+          {isSurveyEdit ? "EDIT SURVEY" : isInspectionEdit ? "EDIT INSPECTION" : "EDIT WORKFLOW"}
         </span>
       </div>
 
       <div className={styles.pageHeader} style={{ marginBottom: "2.5rem" }}>
         <div>
           <h1 className={styles.welcomeText}>
-            {isSurveyEdit ? `Edit Survey: ${displayName}` : "Edit Workflow"}
+            {isSurveyEdit
+              ? `Edit Survey: ${displayName}`
+              : isInspectionEdit
+                ? `Edit Inspection: ${displayName}`
+                : "Edit Workflow"}
           </h1>
+          {isInspectionEdit && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  backgroundColor: `${inspectionStatusColor}15`,
+                  color: inspectionStatusColor,
+                  padding: "0.25rem 0.75rem",
+                  borderRadius: "99px",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                {formatInspectionStatusLabel(inspectionStatusRaw)}
+              </span>
+              {inspectionUpdatedLabel ? (
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+                  {inspectionUpdatedLabel}
+                </span>
+              ) : null}
+            </div>
+          )}
           {isSurveyEdit && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
               <span
@@ -586,7 +718,7 @@ export default function WorkflowEditPage() {
             </div>
           )}
 
-          {fromTab !== "Surveys" && fromTab !== "Installations" && (
+          {fromTab !== "Surveys" && fromTab !== "Installations" && fromTab !== "Inspections" && (
             <div
               className={styles.tabs}
               style={{ marginTop: "1.5rem", width: "fit-content", background: "#f1f5f9", padding: "4px", borderRadius: "10px" }}
@@ -627,103 +759,128 @@ export default function WorkflowEditPage() {
 
       </div>
 
-      {activeTab === "survey" && surveyInfo && (
-        <section className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <Info size={22} color="var(--admin-primary, #004d4d)" /> Survey Details
-          </div>
-          <div className={styles.formGrid}>
-            <EditableField
-              label="Customer ID"
-              value={customerCode}
-              onChange={setCustomerCode}
-              placeholder="Enter customer ID"
-            />
-            <ReadOnlyField label="Survey Name" value={surveyInfo.surveyName} />
-            <ReadOnlyField label="Sales Person Name" value={surveyInfo.salesPerson} />
-            <ReadOnlyField
-              label="Survey Date"
-              value={surveyInfo.surveyDate ? formatDate(surveyInfo.surveyDate) : "—"}
-            />
-          </div>
-        </section>
-      )}
-
-      {activeTab === "survey" ? (
+      {isInspectionEdit ? (
         <>
           <section className={styles.formSection}>
             <div className={styles.sectionTitle}>
-              <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
+              <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Project Information
             </div>
-            <p className={styles.sectionSubtitle}>
-              Surveyed areas, fixtures, quantities, and pricing.
-            </p>
-            <SiteDetailsEditCards
-              groups={siteDetailGroups}
-              onFieldChange={handleSiteRowChangeById}
-              canVerify={isSurveyEdit && hasPermission("Surveys", "create")}
-              verifyingSurveyId={verifyingSurveyId}
-              onVerifySurvey={handleVerifySurvey}
-            />
-          </section>
-
-          <section className={styles.formSection}>
-            <div className={detailStyles.notesSectionTitle}>
-              <span className={detailStyles.notesSectionIcon} aria-hidden>
-                <FileText size={22} color="#ea580c" strokeWidth={2} />
-              </span>
-              Notes
-            </div>
-
-            {noteEntries.length === 0 ? (
-              <div className={addStyles.emptyState}>No notes on file.</div>
-            ) : (
-              <NotesList entries={noteEntries} />
-            )}
-
-            <div className={detailStyles.notesAddBlock}>
-              <label htmlFor="workflow-new-note">New note</label>
-              <textarea
-                id="workflow-new-note"
-                className={styles.formInput}
-                value={newNoteText}
-                onChange={(e) => setNewNoteText(e.target.value)}
-                placeholder="Enter note text..."
-                rows={4}
-                style={{ width: "100%", resize: "vertical", minHeight: "100px" }}
-              />
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.75rem" }}>
-                <button
-                  type="button"
-                  className={addStyles.modalSaveBtn}
-                  onClick={handleAddNote}
-                  disabled={addingNote || !newNoteText.trim()}
-                  style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
-                >
-                  {addingNote ? <Loader2 size={16} className={styles.spinner} /> : <Plus size={16} />}
-                  {addingNote ? "Adding..." : "Add Note"}
-                </button>
-              </div>
+            <div className={styles.formGrid}>
+              <ReadOnlyField label="Service Address" value={resolveServiceAddress(customer)} />
+              <ReadOnlyField label="Name" value={resolveCustomerDisplayName(customer)} />
+              <ReadOnlyField label="Mobile" value={resolveCustomerMobile(customer)} />
             </div>
           </section>
+
+          <InspectionWorkflowSections
+            survey={installationSurvey}
+            customer={customer}
+            mode="edit"
+            verificationEdits={verificationEdits}
+            onVerificationChange={handleVerificationChange}
+            onAddNote={(text) => handleAddNote(text)}
+            addingNote={addingNote}
+            onViewImages={(images, title) => {
+              setSelectedImages(images);
+              setActiveImageTitle(title);
+            }}
+          />
         </>
       ) : (
-        <InstallationWorkflowSections
-          installationSurvey={installationSurvey}
-          mode="edit"
-          onRefresh={refreshWorkflow}
-          onViewImages={(images, title) => {
-            setSelectedImages(images);
-            setActiveImageTitle(title);
-          }}
-        />
+        <>
+          {activeTab === "survey" && surveyInfo ? (
+            <section className={styles.formSection}>
+              <div className={styles.sectionTitle}>
+                <Info size={22} color="var(--admin-primary, #004d4d)" /> Survey Details
+              </div>
+              <div className={styles.formGrid}>
+                <ReadOnlyField label="Survey Name" value={surveyInfo.surveyName} />
+                <ReadOnlyField label="Sales Person Name" value={surveyInfo.salesPerson} />
+                <ReadOnlyField
+                  label="Survey Date"
+                  value={surveyInfo.surveyDate ? formatDate(surveyInfo.surveyDate) : "—"}
+                />
+              </div>
+            </section>
+          ) : null}
+
+          {activeTab === "survey" ? (
+            <>
+              <section className={styles.formSection}>
+                <div className={styles.sectionTitle}>
+                  <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
+                </div>
+                <p className={styles.sectionSubtitle}>
+                  Surveyed areas, fixtures, quantities, and pricing.
+                </p>
+                <SiteDetailsEditCards
+                  groups={siteDetailGroups}
+                  onFieldChange={handleSiteRowChangeById}
+                  canVerify={isSurveyEdit && hasPermission("Surveys", "create")}
+                  verifyingSurveyId={verifyingSurveyId}
+                  onVerifySurvey={handleVerifySurvey}
+                />
+              </section>
+
+              <section className={styles.formSection}>
+                <div className={detailStyles.notesSectionTitle}>
+                  <span className={detailStyles.notesSectionIcon} aria-hidden>
+                    <FileText size={22} color="#ea580c" strokeWidth={2} />
+                  </span>
+                  Notes
+                </div>
+
+                {noteEntries.length === 0 ? (
+                  <div className={addStyles.emptyState}>No notes on file.</div>
+                ) : (
+                  <NotesList entries={noteEntries} />
+                )}
+
+                <div className={detailStyles.notesAddBlock}>
+                  <label htmlFor="workflow-new-note">New note</label>
+                  <textarea
+                    id="workflow-new-note"
+                    className={styles.formInput}
+                    value={newNoteText}
+                    onChange={(e) => setNewNoteText(e.target.value)}
+                    placeholder="Enter note text..."
+                    rows={4}
+                    style={{ width: "100%", resize: "vertical", minHeight: "100px" }}
+                  />
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.75rem" }}>
+                    <button
+                      type="button"
+                      className={addStyles.modalSaveBtn}
+                      onClick={() => handleAddNote()}
+                      disabled={addingNote || !newNoteText.trim()}
+                      style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
+                    >
+                      {addingNote ? <Loader2 size={16} className={styles.spinner} /> : <Plus size={16} />}
+                      {addingNote ? "Adding..." : "Add Note"}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </>
+          ) : (
+            <InstallationWorkflowSections
+              installationSurvey={installationSurvey}
+              mode="edit"
+              onRefresh={refreshWorkflow}
+              onViewImages={(images, title) => {
+                setSelectedImages(images);
+                setActiveImageTitle(title);
+              }}
+            />
+          )}
+        </>
       )}
 
       <div className={styles.actionFooter}>
         <button
           type="button"
           className={styles.cancelBtn}
-          onClick={() => router.push(backUrl)}
+          onClick={() => router.push(isInspectionEdit ? viewUrl : backUrl)}
           disabled={saving}
         >
           <X size={20} /> Cancel

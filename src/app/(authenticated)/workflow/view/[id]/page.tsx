@@ -40,7 +40,17 @@ import {
   resolveSurveySalesPersonName,
 } from "@/lib/workflow-installation-details";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
-import { resolveCustomerDba } from "@/lib/workflow-installation";
+import { InspectionWorkflowSections } from "@/components/workflow/inspection-workflow-sections";
+import { resolveCustomerDba, formatInspectionStatusLabel } from "@/lib/workflow-installation";
+import {
+  formatRelativeUpdated,
+  getInspectionStatusColor,
+  resolveCustomerDisplayName,
+  resolveCustomerMobile,
+  resolveInspectionStatusRaw,
+  resolveServiceAddress,
+  resolveUpdatedAt,
+} from "@/lib/workflow-inspection-view";
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   const display = value?.trim() || "—";
@@ -519,12 +529,13 @@ export default function WorkflowViewPage() {
   const [assignModalLoading, setAssignModalLoading] = useState(false);
 
   const isSurveyView = fromTab === "Surveys";
-  const isInstallationView = fromTab === "Installations" || fromTab === "Inspections";
   const isInspectionView = fromTab === "Inspections";
-  const surveyId = isInstallationView ? id : "";
+  const isInstallationView = fromTab === "Installations";
+  const usesInstallationWorkflowApi = isInstallationView || isInspectionView;
+  const surveyId = usesInstallationWorkflowApi ? id : "";
 
   const refreshData = async () => {
-    const result = isInstallationView
+    const result = usesInstallationWorkflowApi
       ? await adminApi.getInstallationWorkflowDetails(id)
       : await adminApi.getCustomerWorkflowDetails(id);
     setData(result);
@@ -542,10 +553,10 @@ export default function WorkflowViewPage() {
       }
     };
     if (id) fetchData();
-  }, [id, router, isInstallationView]);
+  }, [id, router, usesInstallationWorkflowApi]);
 
   const surveyRecords = useMemo(() => {
-    if (isInstallationView && data?.survey) {
+    if (usesInstallationWorkflowApi && data?.survey) {
       return [data.survey];
     }
     const list = data?.surveys;
@@ -555,7 +566,7 @@ export default function WorkflowViewPage() {
       const timeB = new Date(b.createdAt || b.surveyDate || 0).getTime();
       return timeA - timeB;
     });
-  }, [data, isInstallationView]);
+  }, [data, usesInstallationWorkflowApi]);
 
   const surveyDetails = useMemo(() => {
     if (!data?.customer) {
@@ -575,11 +586,11 @@ export default function WorkflowViewPage() {
   }, [data, surveyRecords]);
 
   const installationSurvey = useMemo(() => {
-    if (isInstallationView && data?.survey) {
+    if (usesInstallationWorkflowApi && data?.survey) {
       return data.survey as Record<string, unknown>;
     }
     return resolveInstallationSurvey(surveyRecords);
-  }, [data, isInstallationView, surveyRecords]);
+  }, [data, usesInstallationWorkflowApi, surveyRecords]);
 
   const handleViewImages = (images: string[], area: string) => {
     setSelectedImages(images);
@@ -678,7 +689,7 @@ export default function WorkflowViewPage() {
   const legalName = String(customer.legalName || customer.name || "").trim();
   const dba = resolveCustomerDba(customer);
   const companyOrDba = dba || String(customer.company || "").trim();
-  const salesPerson = isInstallationView
+  const salesPerson = usesInstallationWorkflowApi
     ? resolveSurveySalesPersonName(installationSurvey, customer)
     : String(customer?.user_id?.fullName || customer?.user_id?.name || "").trim();
   const contractorName = resolveSurveyContractorName(installationSurvey);
@@ -703,6 +714,11 @@ export default function WorkflowViewPage() {
   const installCity = String(primaryAddress?.city || "").trim();
   const installState = String(primaryAddress?.state || "").trim();
   const installZip = String(primaryAddress?.zip || "").trim();
+  const inspectionStatusRaw = resolveInspectionStatusRaw(installationSurvey, customer);
+  const inspectionStatusColor = getInspectionStatusColor(inspectionStatusRaw);
+  const inspectionUpdatedLabel = isInspectionView
+    ? formatRelativeUpdated(resolveUpdatedAt(installationSurvey, customer))
+    : "";
 
   return (
     <div className={styles.addUserPage}>
@@ -734,6 +750,28 @@ export default function WorkflowViewPage() {
                   ? `Installation: ${displayName}`
                   : "Workflow Details"}
           </h1>
+          {isInspectionView && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  backgroundColor: `${inspectionStatusColor}15`,
+                  color: inspectionStatusColor,
+                  padding: "0.25rem 0.75rem",
+                  borderRadius: "99px",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                {formatInspectionStatusLabel(inspectionStatusRaw)}
+              </span>
+              {inspectionUpdatedLabel ? (
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
+                  {inspectionUpdatedLabel}
+                </span>
+              ) : null}
+            </div>
+          )}
           {isSurveyView && (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
               <span
@@ -826,6 +864,17 @@ export default function WorkflowViewPage() {
             <ReadOnlyField label="Job ID" value={jobId} />
           </div>
         </section>
+      ) : isInspectionView ? (
+        <section className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Project Information
+          </div>
+          <div className={styles.formGrid}>
+            <ReadOnlyField label="Service Address" value={resolveServiceAddress(customer)} />
+            <ReadOnlyField label="Name" value={resolveCustomerDisplayName(customer)} />
+            <ReadOnlyField label="Mobile" value={resolveCustomerMobile(customer)} />
+          </div>
+        </section>
       ) : (
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
@@ -839,7 +888,7 @@ export default function WorkflowViewPage() {
         </section>
       )}
 
-      {!isSurveyView && !isInstallationView && (
+      {!isSurveyView && !usesInstallationWorkflowApi && (
         <section className={styles.formSection}>
           <div className={styles.sectionTitle}>
             <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation
@@ -868,7 +917,7 @@ export default function WorkflowViewPage() {
         </section>
       )}
 
-      {!isSurveyView && !isInstallationView && (
+      {!isSurveyView && !usesInstallationWorkflowApi && (
         <div
           className={styles.tabs}
           style={{ marginBottom: "2rem", width: "fit-content", background: "#f1f5f9", padding: "4px", borderRadius: "10px" }}
@@ -892,7 +941,13 @@ export default function WorkflowViewPage() {
         </div>
       )}
 
-      {isInstallationView ? (
+      {isInspectionView ? (
+        <InspectionWorkflowSections
+          survey={installationSurvey}
+          customer={customer}
+          onViewImages={handleViewImages}
+        />
+      ) : isInstallationView ? (
         <InstallationWorkflowSections
           installationSurvey={installationSurvey}
           mode="view"

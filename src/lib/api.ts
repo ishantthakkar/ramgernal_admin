@@ -225,6 +225,11 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ survey_id: surveyId }),
     }),
+  saveSurveyAreaVerification: (payload: Record<string, unknown> | FormData) =>
+    apiRequest("/surveys/area-verification", {
+      method: "POST",
+      body: payload instanceof FormData ? payload : JSON.stringify(payload),
+    }),
   getQuotationsAdmin: () =>
     apiRequest("/customer/survey-quotations-list", {
       method: "GET",

@@ -558,7 +558,7 @@ export default function WorkflowPage() {
 
   const getHeaders = () => {
     if (activeTab === "Surveys") {
-      return ["ID", "Customer ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey", "Actions"];
+      return ["ID", "Name", "DBA", "Sales Person", "Sales Manager", "Survey", "Actions"];
     }
 
     if (activeTab === "Quotations") {
@@ -775,7 +775,6 @@ export default function WorkflowPage() {
                     {activeTab === "Surveys" ? (
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId || "—"}</td>
-                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.customerId || "—"}</td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
