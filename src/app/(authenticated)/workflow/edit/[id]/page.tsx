@@ -43,7 +43,7 @@ import {
   resolveInstallationSurvey,
   resolveSurveyContractorName,
 } from "@/lib/workflow-installation-details";
-import { formatInspectionStatusLabel } from "@/lib/workflow-installation";
+import { formatInspectionStatusLabel, formatAdminInspectionApprovalLabel, getAdminInspectionApprovalColor, isAdminInspectionVerified, isInspectionReadyForAdminVerify } from "@/lib/workflow-installation";
 import {
   formatRelativeUpdated,
   getInspectionStatusColor,
@@ -339,6 +339,7 @@ export default function WorkflowEditPage() {
 
   const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);
+  const [approvingInspection, setApprovingInspection] = useState(false);
   const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [rawSurveyRecords, setRawSurveyRecords] = useState<any[]>([]);
@@ -642,6 +643,42 @@ export default function WorkflowEditPage() {
     ? formatRelativeUpdated(resolveUpdatedAt(installationSurvey, customer))
     : "";
 
+  const canEditInspections = hasPermission("Inspection", "edit");
+  const canCreateInspections = hasPermission("Inspection", "create");
+  const canApproveInspection =
+    isInspectionEdit &&
+    !isAdminInspectionVerified(inspectionStatusRaw) &&
+    isInspectionReadyForAdminVerify(inspectionStatusRaw) &&
+    (canEditInspections || canCreateInspections);
+
+  const handleApproveInspection = async () => {
+    if (!id) {
+      toast.error("Survey ID is missing for this inspection.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Approve inspection for "${displayName || "this customer"}"?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setApprovingInspection(true);
+      const response = await adminApi.verifyInspection(id);
+      toast.success(response.message || "Inspection approved successfully.");
+      await refreshWorkflow();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to approve inspection.";
+      toast.error(message);
+    } finally {
+      setApprovingInspection(false);
+    }
+  };
+
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
@@ -700,6 +737,19 @@ export default function WorkflowEditPage() {
                   {inspectionUpdatedLabel}
                 </span>
               ) : null}
+              <span
+                style={{
+                  backgroundColor: `${getAdminInspectionApprovalColor(inspectionStatusRaw)}15`,
+                  color: getAdminInspectionApprovalColor(inspectionStatusRaw),
+                  padding: "0.25rem 0.75rem",
+                  borderRadius: "99px",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                Admin: {formatAdminInspectionApprovalLabel(inspectionStatusRaw)}
+              </span>
             </div>
           )}
           {isSurveyEdit && (
@@ -901,11 +951,28 @@ export default function WorkflowEditPage() {
           type="button"
           className={styles.cancelBtn}
           onClick={() => router.push(isInspectionEdit ? viewUrl : backUrl)}
-          disabled={saving}
+          disabled={saving || approvingInspection}
         >
           <X size={20} /> Cancel
         </button>
-        <button type="button" className={styles.createBtn} onClick={handleSave} disabled={saving}>
+        {canApproveInspection ? (
+          <button
+            type="button"
+            className={styles.addBtn}
+            onClick={handleApproveInspection}
+            disabled={saving || approvingInspection}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+          >
+            {approvingInspection ? <Loader2 size={20} className={styles.spinner} /> : null}
+            Approve Inspection
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={styles.createBtn}
+          onClick={handleSave}
+          disabled={saving || approvingInspection}
+        >
           {saving ? (
             "Saving..."
           ) : (

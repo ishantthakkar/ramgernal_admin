@@ -30,8 +30,8 @@ import {
   mapInstallationSurveyRow,
   mapInspectionSurveyRow,
   mapInspectionCustomerRow,
-  isAdminInspectionVerified,
-  isInspectionReadyForAdminVerify,
+  formatAdminInspectionApprovalLabel,
+  getAdminInspectionApprovalColor,
 } from "@/lib/workflow-installation";
 import { fetchWorkflowSurveyRows } from "@/lib/workflow-surveys-list";
 
@@ -245,7 +245,6 @@ export default function WorkflowPage() {
 
   const canCreateSurveys = hasPermission("Surveys", "create");
   const canCreateInstallations = hasPermission("Installation", "create");
-  const canCreateInspections = hasPermission("Inspection", "create");
 
   // Assignment Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -262,7 +261,6 @@ export default function WorkflowPage() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [verifyingInspectionId, setVerifyingInspectionId] = useState<string | null>(null);
   const itemsPerPage = 10;
   const fetchWorkflowData = async () => {
     setLoading(true);
@@ -419,48 +417,6 @@ export default function WorkflowPage() {
       toast.error(`Could not load ${type} list.`);
     } finally {
       setModalLoading(false);
-    }
-  };
-
-  const handleVerifyInspection = async (item: {
-    surveyId?: string;
-    customerName?: string;
-    inspectionStatusRaw?: string;
-  }) => {
-    const surveyId = item.surveyId;
-    if (!surveyId) {
-      toast.error("Survey ID is missing for this inspection.");
-      return;
-    }
-
-    if (isAdminInspectionVerified(item.inspectionStatusRaw || "")) {
-      return;
-    }
-
-    if (!isInspectionReadyForAdminVerify(item.inspectionStatusRaw || "")) {
-      toast.error("Inspection is not ready for admin verification yet.");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        `Verify inspection for "${item.customerName || "this customer"}"?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setVerifyingInspectionId(surveyId);
-      const response = await adminApi.verifyInspection(surveyId);
-      toast.success(response.message || "Inspection verified successfully.");
-      await fetchWorkflowData();
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to verify inspection.";
-      toast.error(message);
-    } finally {
-      setVerifyingInspectionId(null);
     }
   };
 
@@ -997,38 +953,19 @@ export default function WorkflowPage() {
                           </div>
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
-                          {isAdminInspectionVerified(item.inspectionStatusRaw || "") ? (
-                            <span
-                              style={{
-                                color: "#10b981",
-                                fontWeight: 700,
-                                fontSize: "0.85rem",
-                              }}
-                            >
-                              Verified
-                            </span>
-                          ) : isInspectionReadyForAdminVerify(item.inspectionStatusRaw || "") &&
-                            item.surveyId &&
-                            (canEditInspections || canCreateInspections) ? (
-                            <button
-                              type="button"
-                              className={styles.assignBtn}
-                              disabled={verifyingInspectionId === item.surveyId}
-                              onClick={() => handleVerifyInspection(item)}
-                              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
-                            >
-                              {verifyingInspectionId === item.surveyId ? (
-                                <Loader2 size={14} className={styles.spinner} />
-                              ) : null}
-                              Approve
-                            </button>
-                          ) : String(item.inspectionStatusRaw || "").toLowerCase() === "submitted" ? (
-                            <span style={{ color: "#3b82f6", fontWeight: 600, fontSize: "0.85rem" }}>
-                              Submitted
-                            </span>
-                          ) : (
-                            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Pending</span>
-                          )}
+                          <span
+                            style={{
+                              color: getAdminInspectionApprovalColor(
+                                item.inspectionStatusRaw || ""
+                              ),
+                              fontWeight: 700,
+                              fontSize: "0.85rem",
+                            }}
+                          >
+                            {formatAdminInspectionApprovalLabel(
+                              item.inspectionStatusRaw || ""
+                            )}
+                          </span>
                         </td>
                       </>
                     ) : null}

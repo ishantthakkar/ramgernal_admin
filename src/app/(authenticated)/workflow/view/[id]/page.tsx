@@ -42,7 +42,7 @@ import {
 } from "@/lib/workflow-installation-details";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
 import { InspectionWorkflowSections } from "@/components/workflow/inspection-workflow-sections";
-import { resolveCustomerDba, formatInspectionStatusLabel } from "@/lib/workflow-installation";
+import { resolveCustomerDba, formatInspectionStatusLabel, formatAdminInspectionApprovalLabel, getAdminInspectionApprovalColor, isAdminInspectionVerified, isInspectionReadyForAdminVerify } from "@/lib/workflow-installation";
 import {
   formatRelativeUpdated,
   getInspectionStatusColor,
@@ -519,6 +519,7 @@ export default function WorkflowViewPage() {
 
   const [loading, setLoading] = useState(true);
   const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
+  const [approvingInspection, setApprovingInspection] = useState(false);
   const [data, setData] = useState<any>(null);
   const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
   const [activeArea, setActiveArea] = useState<string>("");
@@ -686,6 +687,7 @@ export default function WorkflowViewPage() {
   const canEditInstallations = hasPermission("Installation", "edit");
   const canEditInspections = hasPermission("Inspection", "edit");
   const canCreateInstallations = hasPermission("Installation", "create");
+  const canCreateInspections = hasPermission("Inspection", "create");
   const canVerifySurveys = hasPermission("Surveys", "create");
   const workflowTab = fromTab || (isSurveyView ? "Surveys" : "Installations");
   const backUrl = `/workflow?tab=${workflowTab}`;
@@ -728,6 +730,40 @@ export default function WorkflowViewPage() {
   const inspectionUpdatedLabel = isInspectionView
     ? formatRelativeUpdated(resolveUpdatedAt(installationSurvey, customer))
     : "";
+
+  const canApproveInspection =
+    isInspectionView &&
+    !isAdminInspectionVerified(inspectionStatusRaw) &&
+    isInspectionReadyForAdminVerify(inspectionStatusRaw) &&
+    (canEditInspections || canCreateInspections);
+
+  const handleApproveInspection = async () => {
+    if (!id) {
+      toast.error("Survey ID is missing for this inspection.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Approve inspection for "${displayName || "this customer"}"?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setApprovingInspection(true);
+      const response = await adminApi.verifyInspection(id);
+      toast.success(response.message || "Inspection approved successfully.");
+      await refreshData();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to approve inspection.";
+      toast.error(message);
+    } finally {
+      setApprovingInspection(false);
+    }
+  };
 
   return (
     <div className={styles.addUserPage}>
@@ -779,6 +815,19 @@ export default function WorkflowViewPage() {
                   {inspectionUpdatedLabel}
                 </span>
               ) : null}
+              <span
+                style={{
+                  backgroundColor: `${getAdminInspectionApprovalColor(inspectionStatusRaw)}15`,
+                  color: getAdminInspectionApprovalColor(inspectionStatusRaw),
+                  padding: "0.25rem 0.75rem",
+                  borderRadius: "99px",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                Admin: {formatAdminInspectionApprovalLabel(inspectionStatusRaw)}
+              </span>
             </div>
           )}
           {isSurveyView && (
@@ -843,6 +892,18 @@ export default function WorkflowViewPage() {
               <Edit2 size={20} /> Edit
             </button>
           )}
+          {isInspectionView && canApproveInspection ? (
+            <button
+              type="button"
+              className={styles.addBtn}
+              disabled={approvingInspection}
+              onClick={handleApproveInspection}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              {approvingInspection ? <Loader2 size={20} className={styles.spinner} /> : null}
+              Approve Inspection
+            </button>
+          ) : null}
           {isInspectionView && canEditInspections && (
             <button
               type="button"

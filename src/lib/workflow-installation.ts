@@ -40,6 +40,24 @@ export function isInspectionReadyForAdminVerify(value: string): boolean {
   return ["confirm", "submitted", "in_progress", "to-do", "reopen"].includes(status);
 }
 
+export function formatAdminInspectionApprovalLabel(value: string): string {
+  if (isAdminInspectionVerified(value)) return "Verified";
+  const status = String(value || "").trim().toLowerCase();
+  if (status === "submitted") return "Awaiting Approval";
+  if (status === "confirm") return "Pending Review";
+  if (isInspectionReadyForAdminVerify(value)) return "Awaiting Approval";
+  return "Pending";
+}
+
+export function getAdminInspectionApprovalColor(value: string): string {
+  if (isAdminInspectionVerified(value)) return "#10b981";
+  const status = String(value || "").trim().toLowerCase();
+  if (status === "submitted") return "#3b82f6";
+  if (status === "confirm") return "#f59e0b";
+  if (isInspectionReadyForAdminVerify(value)) return "#f59e0b";
+  return "#94a3b8";
+}
+
 /** @deprecated use isAdminInspectionVerified */
 export function isAdminInspectionConfirmed(value: string): boolean {
   return isAdminInspectionVerified(value);
