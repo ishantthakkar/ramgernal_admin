@@ -365,8 +365,10 @@ export const adminApi = {
       | {
           sku: string;
           name: string;
-          salesPrice: number;
-          commission: number;
+          utilityPrice: number;
+          directPrice: number;
+          agentCommission: number;
+          managerCommission: number;
           installationCost: number;
           productType: string;
         }
@@ -385,8 +387,10 @@ export const adminApi = {
       | {
           sku: string;
           name: string;
-          salesPrice: number;
-          commission: number;
+          utilityPrice: number;
+          directPrice: number;
+          agentCommission: number;
+          managerCommission: number;
           installationCost: number;
           productType?: string;
         }

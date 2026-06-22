@@ -48,8 +48,10 @@ interface Product {
   id: string;
   sku: string;
   name: string;
-  salesPrice: number;
-  commission: number;
+  utilityPrice: number;
+  directPrice: number;
+  agentCommission: number;
+  managerCommission: number;
   installationCost: number;
   productType: ProductFixtureType;
   pendingUpload?: "create" | "add-also" | "overwrite";
@@ -67,8 +69,10 @@ type DataSource = "api" | "upload";
 const PROPOSED_TABLE_COLUMNS = [
   "SKU",
   "Name",
-  "Sales Price",
-  "Commission",
+  "Utility Price",
+  "Direct Price",
+  "Agent Commission",
+  "Manager Commission",
   "Installation Cost",
   "Actions",
 ] as const;
@@ -97,8 +101,10 @@ function mapProduct(
     id: String(raw._id ?? raw.id),
     sku: String(raw.sku),
     name: String(raw.name),
-    salesPrice: Number(raw.salesPrice ?? 0),
-    commission: Number(raw.commission ?? 0),
+    utilityPrice: Number(raw.utilityPrice ?? raw.salesPrice ?? 0),
+    directPrice: Number(raw.directPrice ?? 0),
+    agentCommission: Number(raw.agentCommission ?? raw.commission ?? 0),
+    managerCommission: Number(raw.managerCommission ?? 0),
     installationCost: Number(raw.installationCost ?? 0),
     productType: PRODUCT_FIXTURE_TABS.includes(productType)
       ? productType
@@ -116,8 +122,10 @@ function mapUploadRow(
       id: `upload-${row.rowNumber}-${index}`,
       sku: row.sku,
       name: row.name,
-      salesPrice: row.salesPrice,
-      commission: row.commission,
+      utilityPrice: row.utilityPrice,
+      directPrice: row.directPrice,
+      agentCommission: row.agentCommission,
+      managerCommission: row.managerCommission,
       installationCost: row.installationCost,
       productType,
       pendingUpload: "create",
@@ -128,8 +136,10 @@ function mapUploadRow(
     id: `upload-${row.rowNumber}-${index}`,
     sku: "",
     name: row.name,
-    salesPrice: 0,
-    commission: 0,
+    utilityPrice: 0,
+    directPrice: 0,
+    agentCommission: 0,
+    managerCommission: 0,
     installationCost: 0,
     productType,
     pendingUpload: "create",
@@ -145,8 +155,10 @@ function mapDuplicateAddAlsoRow(
     id: `upload-add-also-${item.rowNumber}-${index}`,
     sku: item.sku,
     name: item.uploadedName,
-    salesPrice: item.salesPrice,
-    commission: item.commission,
+    utilityPrice: item.utilityPrice,
+    directPrice: item.directPrice,
+    agentCommission: item.agentCommission,
+    managerCommission: item.managerCommission,
     installationCost: item.installationCost,
     productType,
     pendingUpload: "add-also",
@@ -161,8 +173,10 @@ function mapDuplicateOverwriteRow(
     id: item.existingId,
     sku: item.sku,
     name: item.uploadedName,
-    salesPrice: item.salesPrice,
-    commission: item.commission,
+    utilityPrice: item.utilityPrice,
+    directPrice: item.directPrice,
+    agentCommission: item.agentCommission,
+    managerCommission: item.managerCommission,
     installationCost: item.installationCost,
     productType,
     pendingUpload: "overwrite",
@@ -282,8 +296,10 @@ export default function ProductsPage() {
       return (
         product.sku.toLowerCase().includes(query) ||
         product.name.toLowerCase().includes(query) ||
-        formatMoney(product.salesPrice).toLowerCase().includes(query) ||
-        formatMoney(product.commission).toLowerCase().includes(query) ||
+        formatMoney(product.utilityPrice).toLowerCase().includes(query) ||
+        formatMoney(product.directPrice).toLowerCase().includes(query) ||
+        formatMoney(product.agentCommission).toLowerCase().includes(query) ||
+        formatMoney(product.managerCommission).toLowerCase().includes(query) ||
         formatMoney(product.installationCost).toLowerCase().includes(query)
       );
     });
@@ -337,13 +353,25 @@ export default function ProductsPage() {
 
     const payload = isExistingFixtureType(activeTab)
       ? products.map(({ name }) => ({ name }))
-      : products.map(({ sku, name, salesPrice, commission, installationCost }) => ({
-          sku,
-          name,
-          salesPrice,
-          commission,
-          installationCost,
-        }));
+      : products.map(
+          ({
+            sku,
+            name,
+            utilityPrice,
+            directPrice,
+            agentCommission,
+            managerCommission,
+            installationCost,
+          }) => ({
+            sku,
+            name,
+            utilityPrice,
+            directPrice,
+            agentCommission,
+            managerCommission,
+            installationCost,
+          })
+        );
 
     const suffix = new Date().toISOString().slice(0, 10);
     exportProductsToExcel(
@@ -538,8 +566,10 @@ export default function ProductsPage() {
             sku: isProposedExcelRow(row) ? row.sku : rowName,
             uploadedName: rowName,
             existingName: existing.name,
-            salesPrice: isProposedExcelRow(row) ? row.salesPrice : 0,
-            commission: isProposedExcelRow(row) ? row.commission : 0,
+            utilityPrice: isProposedExcelRow(row) ? row.utilityPrice : 0,
+            directPrice: isProposedExcelRow(row) ? row.directPrice : 0,
+            agentCommission: isProposedExcelRow(row) ? row.agentCommission : 0,
+            managerCommission: isProposedExcelRow(row) ? row.managerCommission : 0,
             installationCost: isProposedExcelRow(row) ? row.installationCost : 0,
             existingId: existing.id,
           });
@@ -597,8 +627,10 @@ export default function ProductsPage() {
           const proposedPayload = {
             sku: product.sku,
             name: product.name,
-            salesPrice: product.salesPrice,
-            commission: product.commission,
+            utilityPrice: product.utilityPrice,
+            directPrice: product.directPrice,
+            agentCommission: product.agentCommission,
+            managerCommission: product.managerCommission,
             installationCost: product.installationCost,
             productType: activeTab,
           };
@@ -922,10 +954,16 @@ export default function ProductsPage() {
                           </td>
                           <td className={productStyles.nameCell}>{product.name}</td>
                           <td className={productStyles.priceCell}>
-                            {formatMoney(product.salesPrice)}
+                            {formatMoney(product.utilityPrice)}
                           </td>
                           <td className={productStyles.moneyCell}>
-                            {formatMoney(product.commission)}
+                            {formatMoney(product.directPrice)}
+                          </td>
+                          <td className={productStyles.moneyCell}>
+                            {formatMoney(product.agentCommission)}
+                          </td>
+                          <td className={productStyles.moneyCell}>
+                            {formatMoney(product.managerCommission)}
                           </td>
                           <td className={productStyles.moneyCell}>
                             {formatMoney(product.installationCost)}

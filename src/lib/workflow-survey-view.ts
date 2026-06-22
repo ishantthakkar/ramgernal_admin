@@ -24,6 +24,7 @@ export interface SurveyDetailsFields {
 
 interface SurveyProduct {
   name?: string;
+  utilityPrice?: number;
   salesPrice?: number;
   price?: number;
 }
@@ -228,6 +229,7 @@ function mapFixtureToRow(
   const qty = parseFloat(fixture.proposedQty || "0") || 0;
   const unitPrice =
     parseFloat(fixture.price || "0") ||
+    Number(fixture.product?.utilityPrice) ||
     Number(fixture.product?.salesPrice) ||
     Number(fixture.product?.price) ||
     0;

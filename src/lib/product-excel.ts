@@ -8,8 +8,10 @@ import {
 export const PROPOSED_PRODUCT_EXCEL_HEADERS = [
   "SKU",
   "Name",
-  "Sales Price",
-  "Commission",
+  "Utility Price",
+  "Direct Price",
+  "Agent Commission",
+  "Manager Commission",
   "Installation Cost",
 ] as const;
 
@@ -21,8 +23,10 @@ export const PRODUCT_EXCEL_HEADERS = PROPOSED_PRODUCT_EXCEL_HEADERS;
 const PROPOSED_TEMPLATE_EXAMPLE: ProductFormData = {
   sku: "RAM-EXAMPLE-001",
   name: "Example Product Name",
-  salesPrice: 99.99,
-  commission: 10,
+  utilityPrice: 99.99,
+  directPrice: 89.99,
+  agentCommission: 10,
+  managerCommission: 5,
   installationCost: 25,
 };
 
@@ -54,8 +58,12 @@ function normalizeHeaderKey(key: string): string {
 const PROPOSED_HEADER_FIELD_MAP: Record<string, keyof ProductFormData> = {
   sku: "sku",
   name: "name",
-  salesprice: "salesPrice",
-  commission: "commission",
+  utilityprice: "utilityPrice",
+  salesprice: "utilityPrice",
+  directprice: "directPrice",
+  agentcommission: "agentCommission",
+  commission: "agentCommission",
+  managercommission: "managerCommission",
   installationcost: "installationCost",
 };
 
@@ -101,8 +109,10 @@ export function downloadProductTemplate(
         [
           PROPOSED_TEMPLATE_EXAMPLE.sku,
           PROPOSED_TEMPLATE_EXAMPLE.name,
-          PROPOSED_TEMPLATE_EXAMPLE.salesPrice,
-          PROPOSED_TEMPLATE_EXAMPLE.commission,
+          PROPOSED_TEMPLATE_EXAMPLE.utilityPrice,
+          PROPOSED_TEMPLATE_EXAMPLE.directPrice,
+          PROPOSED_TEMPLATE_EXAMPLE.agentCommission,
+          PROPOSED_TEMPLATE_EXAMPLE.managerCommission,
           PROPOSED_TEMPLATE_EXAMPLE.installationCost,
         ],
       ];
@@ -132,8 +142,10 @@ export function exportProductsToExcel(
           return [
             proposed.sku,
             proposed.name,
-            proposed.salesPrice,
-            proposed.commission,
+            proposed.utilityPrice,
+            proposed.directPrice,
+            proposed.agentCommission,
+            proposed.managerCommission,
             proposed.installationCost,
           ];
         }),
@@ -143,6 +155,34 @@ export function exportProductsToExcel(
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
   XLSX.writeFile(workbook, filename);
+}
+
+function validateUniqueSkusInFile(rows: ProductExcelRow[]): ProductExcelParseError[] {
+  const errors: ProductExcelParseError[] = [];
+  const skuRows = new Map<string, { rowNumbers: number[]; displaySku: string }>();
+
+  for (const row of rows) {
+    const skuKey = row.sku.trim().toLowerCase();
+    const existing = skuRows.get(skuKey);
+    if (existing) {
+      existing.rowNumbers.push(row.rowNumber);
+    } else {
+      skuRows.set(skuKey, { rowNumbers: [row.rowNumber], displaySku: row.sku.trim() });
+    }
+  }
+
+  for (const { rowNumbers, displaySku } of skuRows.values()) {
+    if (rowNumbers.length <= 1) continue;
+
+    for (const rowNumber of rowNumbers) {
+      errors.push({
+        rowNumber,
+        message: `Duplicate SKU "${displaySku}" in file. Each SKU must be unique.`,
+      });
+    }
+  }
+
+  return errors;
 }
 
 function parseProposedRows(
@@ -179,15 +219,30 @@ function parseProposedRows(
       return;
     }
 
-    const salesPriceResult = parseMoneyCell(mapped.salesPrice, "Sales Price");
-    if (salesPriceResult.error) {
-      errors.push({ rowNumber, message: salesPriceResult.error });
+    const utilityPriceResult = parseMoneyCell(mapped.utilityPrice, "Utility Price");
+    if (utilityPriceResult.error) {
+      errors.push({ rowNumber, message: utilityPriceResult.error });
       return;
     }
 
-    const commissionResult = parseMoneyCell(mapped.commission, "Commission");
-    if (commissionResult.error) {
-      errors.push({ rowNumber, message: commissionResult.error });
+    const directPriceResult = parseMoneyCell(mapped.directPrice, "Direct Price");
+    if (directPriceResult.error) {
+      errors.push({ rowNumber, message: directPriceResult.error });
+      return;
+    }
+
+    const agentCommissionResult = parseMoneyCell(mapped.agentCommission, "Agent Commission");
+    if (agentCommissionResult.error) {
+      errors.push({ rowNumber, message: agentCommissionResult.error });
+      return;
+    }
+
+    const managerCommissionResult = parseMoneyCell(
+      mapped.managerCommission,
+      "Manager Commission"
+    );
+    if (managerCommissionResult.error) {
+      errors.push({ rowNumber, message: managerCommissionResult.error });
       return;
     }
 
@@ -204,11 +259,22 @@ function parseProposedRows(
       rowNumber,
       sku,
       name,
-      salesPrice: salesPriceResult.value!,
-      commission: commissionResult.value!,
+      utilityPrice: utilityPriceResult.value!,
+      directPrice: directPriceResult.value!,
+      agentCommission: agentCommissionResult.value!,
+      managerCommission: managerCommissionResult.value!,
       installationCost: installationCostResult.value!,
     });
   });
+
+  const duplicateSkuErrors = validateUniqueSkusInFile(rows);
+  if (duplicateSkuErrors.length > 0) {
+    const duplicateRowNumbers = new Set(duplicateSkuErrors.map((error) => error.rowNumber));
+    return {
+      rows: rows.filter((row) => !duplicateRowNumbers.has(row.rowNumber)),
+      errors: [...errors, ...duplicateSkuErrors],
+    };
+  }
 
   return { rows, errors };
 }

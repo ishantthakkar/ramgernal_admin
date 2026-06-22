@@ -11,8 +11,10 @@ import {
 export interface ProposedProductFormData {
   sku: string;
   name: string;
-  salesPrice: number;
-  commission: number;
+  utilityPrice: number;
+  directPrice: number;
+  agentCommission: number;
+  managerCommission: number;
   installationCost: number;
 }
 
@@ -35,8 +37,10 @@ interface ProductFormModalProps {
 const emptyProposedForm = {
   sku: "",
   name: "",
-  salesPrice: "",
-  commission: "",
+  utilityPrice: "",
+  directPrice: "",
+  agentCommission: "",
+  managerCommission: "",
   installationCost: "",
 };
 
@@ -48,10 +52,30 @@ function toProposedFormValues(data: ProposedProductFormData) {
   return {
     sku: data.sku,
     name: data.name,
-    salesPrice: String(data.salesPrice),
-    commission: String(data.commission),
+    utilityPrice: String(data.utilityPrice),
+    directPrice: String(data.directPrice),
+    agentCommission: String(data.agentCommission),
+    managerCommission: String(data.managerCommission),
     installationCost: String(data.installationCost),
   };
+}
+
+function validateMoneyField(
+  value: string,
+  fieldLabel: string,
+  errors: Record<string, string>,
+  fieldKey: string
+): number | null {
+  const parsed = parseFloat(value);
+  if (!value.trim()) {
+    errors[fieldKey] = `${fieldLabel} is required.`;
+    return null;
+  }
+  if (isNaN(parsed) || parsed < 0) {
+    errors[fieldKey] = "Enter a valid amount.";
+    return null;
+  }
+  return parsed;
 }
 
 export function ProductFormModal({
@@ -122,26 +146,36 @@ export function ProductFormModal({
       next.name = "Name is required.";
     }
 
-    const salesPrice = parseFloat(proposedForm.salesPrice);
-    if (!proposedForm.salesPrice.trim()) {
-      next.salesPrice = "Sales Price is required.";
-    } else if (isNaN(salesPrice) || salesPrice < 0) {
-      next.salesPrice = "Enter a valid amount.";
-    }
-
-    const commission = parseFloat(proposedForm.commission);
-    if (!proposedForm.commission.trim()) {
-      next.commission = "Commission is required.";
-    } else if (isNaN(commission) || commission < 0) {
-      next.commission = "Enter a valid amount.";
-    }
-
-    const installationCost = parseFloat(proposedForm.installationCost);
-    if (!proposedForm.installationCost.trim()) {
-      next.installationCost = "Installation Cost is required.";
-    } else if (isNaN(installationCost) || installationCost < 0) {
-      next.installationCost = "Enter a valid amount.";
-    }
+    const utilityPrice = validateMoneyField(
+      proposedForm.utilityPrice,
+      "Utility Price",
+      next,
+      "utilityPrice"
+    );
+    const directPrice = validateMoneyField(
+      proposedForm.directPrice,
+      "Direct Price",
+      next,
+      "directPrice"
+    );
+    const agentCommission = validateMoneyField(
+      proposedForm.agentCommission,
+      "Agent Commission",
+      next,
+      "agentCommission"
+    );
+    const managerCommission = validateMoneyField(
+      proposedForm.managerCommission,
+      "Manager Commission",
+      next,
+      "managerCommission"
+    );
+    const installationCost = validateMoneyField(
+      proposedForm.installationCost,
+      "Installation Cost",
+      next,
+      "installationCost"
+    );
 
     setErrors(next);
     if (Object.keys(next).length > 0) return null;
@@ -149,9 +183,11 @@ export function ProductFormModal({
     return {
       sku: proposedForm.sku.trim(),
       name: proposedForm.name.trim(),
-      salesPrice,
-      commission,
-      installationCost,
+      utilityPrice: utilityPrice!,
+      directPrice: directPrice!,
+      agentCommission: agentCommission!,
+      managerCommission: managerCommission!,
+      installationCost: installationCost!,
     };
   }
 
@@ -178,7 +214,7 @@ export function ProductFormModal({
     <div className={modalStyles.modalOverlay} onClick={handleClose}>
       <div
         className={modalStyles.modalContent}
-        style={{ maxWidth: 560 }}
+        style={{ maxWidth: 640 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={modalStyles.modalHeader}>
@@ -278,51 +314,105 @@ export function ProductFormModal({
                 </div>
 
                 <div className={modalStyles.formGroup}>
-                  <label htmlFor="product-sales-price">
-                    Sales Price <span style={{ color: "#ef4444" }}>*</span>
+                  <label htmlFor="product-utility-price">
+                    Utility Price <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <input
-                    id="product-sales-price"
+                    id="product-utility-price"
                     type="number"
                     min="0"
                     step="0.01"
                     className={modalStyles.formInput}
                     placeholder="0.00"
-                    value={proposedForm.salesPrice}
+                    value={proposedForm.utilityPrice}
                     required
                     onChange={(e) => {
-                      setProposedForm((prev) => ({ ...prev, salesPrice: e.target.value }));
-                      if (errors.salesPrice) setErrors((prev) => ({ ...prev, salesPrice: "" }));
+                      setProposedForm((prev) => ({ ...prev, utilityPrice: e.target.value }));
+                      if (errors.utilityPrice) setErrors((prev) => ({ ...prev, utilityPrice: "" }));
                     }}
                   />
-                  {errors.salesPrice && (
+                  {errors.utilityPrice && (
                     <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
-                      {errors.salesPrice}
+                      {errors.utilityPrice}
                     </span>
                   )}
                 </div>
 
                 <div className={modalStyles.formGroup}>
-                  <label htmlFor="product-commission">
-                    Commission <span style={{ color: "#ef4444" }}>*</span>
+                  <label htmlFor="product-direct-price">
+                    Direct Price <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <input
-                    id="product-commission"
+                    id="product-direct-price"
                     type="number"
                     min="0"
                     step="0.01"
                     className={modalStyles.formInput}
                     placeholder="0.00"
-                    value={proposedForm.commission}
+                    value={proposedForm.directPrice}
                     required
                     onChange={(e) => {
-                      setProposedForm((prev) => ({ ...prev, commission: e.target.value }));
-                      if (errors.commission) setErrors((prev) => ({ ...prev, commission: "" }));
+                      setProposedForm((prev) => ({ ...prev, directPrice: e.target.value }));
+                      if (errors.directPrice) setErrors((prev) => ({ ...prev, directPrice: "" }));
                     }}
                   />
-                  {errors.commission && (
+                  {errors.directPrice && (
                     <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
-                      {errors.commission}
+                      {errors.directPrice}
+                    </span>
+                  )}
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label htmlFor="product-agent-commission">
+                    Agent Commission <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    id="product-agent-commission"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className={modalStyles.formInput}
+                    placeholder="0.00"
+                    value={proposedForm.agentCommission}
+                    required
+                    onChange={(e) => {
+                      setProposedForm((prev) => ({ ...prev, agentCommission: e.target.value }));
+                      if (errors.agentCommission) {
+                        setErrors((prev) => ({ ...prev, agentCommission: "" }));
+                      }
+                    }}
+                  />
+                  {errors.agentCommission && (
+                    <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                      {errors.agentCommission}
+                    </span>
+                  )}
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label htmlFor="product-manager-commission">
+                    Manager Commission <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    id="product-manager-commission"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className={modalStyles.formInput}
+                    placeholder="0.00"
+                    value={proposedForm.managerCommission}
+                    required
+                    onChange={(e) => {
+                      setProposedForm((prev) => ({ ...prev, managerCommission: e.target.value }));
+                      if (errors.managerCommission) {
+                        setErrors((prev) => ({ ...prev, managerCommission: "" }));
+                      }
+                    }}
+                  />
+                  {errors.managerCommission && (
+                    <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                      {errors.managerCommission}
                     </span>
                   )}
                 </div>

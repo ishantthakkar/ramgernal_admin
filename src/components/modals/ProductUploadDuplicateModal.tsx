@@ -9,8 +9,10 @@ export interface DuplicateUploadItem {
   sku: string;
   uploadedName: string;
   existingName: string;
-  salesPrice: number;
-  commission: number;
+  utilityPrice: number;
+  directPrice: number;
+  agentCommission: number;
+  managerCommission: number;
   installationCost: number;
   existingId: string;
 }
