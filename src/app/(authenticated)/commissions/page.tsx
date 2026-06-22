@@ -17,11 +17,12 @@ import { toast } from "react-toastify";
 import { canViewModule } from "@/lib/permissions";
 import type {
   SalesPersonPayableRow,
+  SalesManagerPayableRow,
   ContractorPayableRow,
   PayablesListResponse,
 } from "@/lib/payables-types";
 
-const PAYABLES_TABS = ["Sales Persons", "Contractors"] as const;
+const PAYABLES_TABS = ["Sales Persons", "Sales Manager", "Contractors"] as const;
 type PayablesTab = (typeof PAYABLES_TABS)[number];
 
 const ITEMS_PER_PAGE = 10;
@@ -47,7 +48,21 @@ function getHeaders(tab: PayablesTab): string[] {
       "Quotation Amount",
       "Commission",
       "Paid",
-      "Pending",
+      "Payable",
+    ];
+  }
+  if (tab === "Sales Manager") {
+    return [
+      "Legal Name",
+      "Sales Manager",
+      "Survey Name",
+      "Survey Date",
+      "Quotation Number",
+      "Confirmed",
+      "Quotation Amount",
+      "Commission",
+      "Paid",
+      "Payable",
     ];
   }
   return [
@@ -77,6 +92,7 @@ export default function PayablesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [salesRows, setSalesRows] = useState<SalesPersonPayableRow[]>([]);
+  const [salesManagerRows, setSalesManagerRows] = useState<SalesManagerPayableRow[]>([]);
   const [contractorRows, setContractorRows] = useState<ContractorPayableRow[]>([]);
 
   useEffect(() => {
@@ -91,6 +107,7 @@ export default function PayablesPage() {
       setLoading(true);
       const response = (await adminApi.getCommissionList()) as PayablesListResponse;
       setSalesRows(response.salesPersons || []);
+      setSalesManagerRows(response.salesManagers || []);
       setContractorRows(response.contractors || []);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load payables.";
@@ -123,6 +140,17 @@ export default function PayablesPage() {
       );
     }
 
+    if (activeTab === "Sales Manager") {
+      if (!term) return salesManagerRows;
+      return salesManagerRows.filter(
+        (row) =>
+          row.legalName?.toLowerCase().includes(term) ||
+          row.salesManager?.toLowerCase().includes(term) ||
+          row.surveyName?.toLowerCase().includes(term) ||
+          row.quotationNumber?.toLowerCase().includes(term)
+      );
+    }
+
     if (!term) return contractorRows;
     return contractorRows.filter(
       (row) =>
@@ -132,7 +160,7 @@ export default function PayablesPage() {
         row.jobNo?.toLowerCase().includes(term) ||
         row.surveyName?.toLowerCase().includes(term)
     );
-  }, [activeTab, salesRows, contractorRows, searchTerm]);
+  }, [activeTab, salesRows, salesManagerRows, contractorRows, searchTerm]);
 
   const tableColSpan = getHeaders(activeTab).length;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
@@ -155,8 +183,10 @@ export default function PayablesPage() {
 
   const emptyMessage =
     activeTab === "Sales Persons"
-      ? "No sales person payables found. Surveys appear here after quotation is approved."
-      : "No contractor payables found. Surveys appear here after quotation is approved.";
+      ? "No sales person payables found."
+      : activeTab === "Sales Manager"
+        ? "No sales manager payables found."
+        : "No contractor payables found.";
 
   return (
     <div className={styles.usersPage}>
@@ -240,6 +270,18 @@ export default function PayablesPage() {
                       }
                     />
                   ))
+                ) : activeTab === "Sales Manager" ? (
+                  (currentItems as SalesManagerPayableRow[]).map((row) => (
+                    <SalesManagerRow
+                      key={row.id}
+                      row={row}
+                      onView={() =>
+                        router.push(
+                          `/commissions/view/${row.customerId}?surveyId=${row.surveyId}&for=sales-manager`
+                        )
+                      }
+                    />
+                  ))
                 ) : (
                   (currentItems as ContractorPayableRow[]).map((row) => (
                     <ContractorRow
@@ -306,6 +348,36 @@ function SalesPersonRow({ row, onView }: SalesPersonRowProps) {
         </span>
       </td>
       <td className={payablesStyles.textCell}>{row.salesPerson || "—"}</td>
+      <td className={payablesStyles.moneyCell}>{row.surveyName || "—"}</td>
+      <td className={payablesStyles.mutedCell}>
+        {row.surveyDate ? formatDate(row.surveyDate) : "—"}
+      </td>
+      <td className={payablesStyles.monoCell}>{row.quotationNumber || "—"}</td>
+      <td className={payablesStyles.mutedCell}>
+        {row.confirmed ? formatDate(row.confirmed) : "—"}
+      </td>
+      <td className={payablesStyles.priceCell}>{formatMoney(row.quotationAmount)}</td>
+      <td className={payablesStyles.priceCell}>{formatMoney(row.commission)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.paid)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.pending)}</td>
+    </tr>
+  );
+}
+
+interface SalesManagerRowProps {
+  row: SalesManagerPayableRow;
+  onView: () => void;
+}
+
+function SalesManagerRow({ row, onView }: SalesManagerRowProps) {
+  return (
+    <tr>
+      <td>
+        <span className={payablesStyles.nameCell} onClick={onView}>
+          {row.legalName || "—"}
+        </span>
+      </td>
+      <td className={payablesStyles.textCell}>{row.salesManager || "—"}</td>
       <td className={payablesStyles.moneyCell}>{row.surveyName || "—"}</td>
       <td className={payablesStyles.mutedCell}>
         {row.surveyDate ? formatDate(row.surveyDate) : "—"}

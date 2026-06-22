@@ -36,11 +36,15 @@ export function formatInvoiceStatusLabel(value: string): string {
   const status = String(value || "").trim().toLowerCase();
   if (!status || status === "pending") return "Pending";
   if (status === "approved") return "Approved";
+  if (status === "fully_paid" || status === "fully paid") return "Fully Paid";
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 export function getInvoiceStatusColor(status: string): string {
   switch (String(status || "").toLowerCase()) {
+    case "fully_paid":
+    case "fully paid":
+      return "#059669";
     case "approved":
       return "#10b981";
     case "pending":

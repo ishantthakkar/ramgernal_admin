@@ -46,6 +46,7 @@ export default function InvoicesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
 
   const canCreateInvoices = hasPermission("Invoices", "create");
@@ -139,6 +140,33 @@ export default function InvoicesPage() {
       toast.error(message);
     } finally {
       setGeneratingId(null);
+    }
+  }
+
+  async function handleMarkFullyPaid(invoice: InvoiceRow) {
+    if (!invoice.surveyId) {
+      toast.error("Survey ID is missing for this invoice.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Mark invoice for "${invoice.customer}" (${invoice.surveyName}) as fully paid? This unlocks sales manager commission and the remaining sales person commission.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setMarkingPaidId(invoice.surveyId);
+      const response = await adminApi.markInvoiceFullyPaid(invoice.surveyId);
+      toast.success(response.message || "Invoice marked as fully paid.");
+      await loadInvoices();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to mark invoice as fully paid.";
+      toast.error(message);
+    } finally {
+      setMarkingPaidId(null);
     }
   }
 
@@ -256,6 +284,22 @@ export default function InvoicesPage() {
                           >
                             <FileText size={14} />
                             View PDF
+                          </button>
+                        ) : null}
+                        {invoice.hasPdf &&
+                        invoice.status !== "fully_paid" &&
+                        (canCreateInvoices || canEditInvoices) ? (
+                          <button
+                            type="button"
+                            className={dashboardStyles.assignBtn}
+                            disabled={markingPaidId === invoice.surveyId}
+                            onClick={() => handleMarkFullyPaid(invoice)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+                          >
+                            {markingPaidId === invoice.surveyId ? (
+                              <Loader2 size={14} className={dashboardStyles.spinner} />
+                            ) : null}
+                            Mark Fully Paid
                           </button>
                         ) : null}
                         {!invoice.hasPdf && (canCreateInvoices || canEditInvoices) ? (

@@ -273,10 +273,15 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ survey_id: surveyId }),
     }),
+  markInvoiceFullyPaid: (surveyId: string) =>
+    apiRequest("/customer/invoice/mark-paid", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId }),
+    }),
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),
-  getPayableDetails: (id: string, params?: { surveyId?: string; for?: "contractor" }) => {
+  getPayableDetails: (id: string, params?: { surveyId?: string; for?: "contractor" | "sales-manager" }) => {
     const query = new URLSearchParams();
     if (params?.surveyId) query.set("surveyId", params.surveyId);
     if (params?.for) query.set("for", params.for);
@@ -293,7 +298,7 @@ export const adminApi = {
       paymentMethod: string;
       paymentDate?: string;
       note?: string;
-      for?: "contractor";
+      for?: "contractor" | "sales-manager";
     }
   ) =>
     apiRequest(`/customer/customers/${id}/commission-payments`, {

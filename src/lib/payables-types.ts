@@ -14,6 +14,22 @@ export interface SalesPersonPayableRow {
   pending: number;
 }
 
+export interface SalesManagerPayableRow {
+  id: string;
+  customerId: string;
+  surveyId: string;
+  legalName: string;
+  salesManager: string;
+  surveyName: string;
+  surveyDate: string;
+  quotationNumber: string;
+  confirmed: string;
+  quotationAmount: number;
+  commission: number;
+  paid: number;
+  pending: number;
+}
+
 export interface ContractorPayableRow {
   id: string;
   customerId: string;
@@ -38,9 +54,11 @@ export interface PayablesSummary {
 
 export interface PayablesListResponse {
   salesPersons: SalesPersonPayableRow[];
+  salesManagers: SalesManagerPayableRow[];
   contractors: ContractorPayableRow[];
   overallSummary: {
     salesPersons: PayablesSummary;
+    salesManagers: PayablesSummary;
     contractors: PayablesSummary;
   };
 }

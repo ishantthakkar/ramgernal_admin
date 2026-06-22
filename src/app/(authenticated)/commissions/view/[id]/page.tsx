@@ -31,14 +31,30 @@ interface PaymentEntry {
   createdAt?: string;
 }
 
+interface CommissionMilestone {
+  key: string;
+  label: string;
+  share: string;
+  amount: number;
+  unlocked: boolean;
+}
+
 interface PayableDetails {
   customerId: string;
   surveyId: string | null;
   commissionId: string | null;
   legalName: string;
   commission: number;
+  eligible: number;
   paid: number;
   pending: number;
+  locked: number;
+  balance: number;
+  milestones?: {
+    projectApproved: boolean;
+    invoiceFullyPaid: boolean;
+    schedule: CommissionMilestone[];
+  };
   leadId: string;
   leadSource: string;
   quotationNumber: string;
@@ -76,7 +92,12 @@ export default function ViewCommissionPage() {
   const searchParams = useSearchParams();
   const id = params.id as string;
   const surveyId = searchParams.get("surveyId") || undefined;
-  const payableFor = searchParams.get("for") === "contractor" ? ("contractor" as const) : undefined;
+  const payableFor =
+    searchParams.get("for") === "contractor"
+      ? ("contractor" as const)
+      : searchParams.get("for") === "sales-manager"
+        ? ("sales-manager" as const)
+        : undefined;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,7 +141,7 @@ export default function ViewCommissionPage() {
       return;
     }
     if (amount > details.pending) {
-      toast.error(`Payment cannot exceed pending commission of ${formatMoney(details.pending)}.`);
+      toast.error(`Payment cannot exceed payable amount of ${formatMoney(details.pending)}.`);
       return;
     }
     if (!paymentForm.paymentMethod) {
@@ -226,6 +247,13 @@ export default function ViewCommissionPage() {
             {formatMoney(details.quotationAmount)}
           </ReadOnlyField>
           <ReadOnlyField
+            label="Eligible / Payable Now"
+            icon={<DollarSign size={16} color={MUTED_ICON} />}
+            valueClassName={viewStyles.readonlyFieldPrimary}
+          >
+            {formatMoney(details.eligible ?? details.pending)}
+          </ReadOnlyField>
+          <ReadOnlyField
             label="Paid Amount"
             icon={<CheckCircle2 size={16} color="#059669" />}
             valueClassName={viewStyles.readonlyFieldSuccess}
@@ -233,14 +261,59 @@ export default function ViewCommissionPage() {
             {formatMoney(details.paid)}
           </ReadOnlyField>
           <ReadOnlyField
-            label="Pending Amount"
+            label="Payable Balance"
             icon={<Clock size={16} color="#d97706" />}
             valueClassName={viewStyles.readonlyFieldWarning}
           >
             {formatMoney(details.pending)}
           </ReadOnlyField>
+          <ReadOnlyField
+            label="Locked (Milestones Pending)"
+            icon={<Clock size={16} color="#94a3b8" />}
+          >
+            {formatMoney(details.locked ?? 0)}
+          </ReadOnlyField>
         </div>
       </div>
+
+      {details.milestones?.schedule?.length ? (
+        <div className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <CheckCircle2 size={22} color={PRIMARY_ICON} /> Commission Milestones
+          </div>
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.paymentTable}>
+              <thead>
+                <tr>
+                  <th>Milestone</th>
+                  <th>Share</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.milestones.schedule.map((milestone) => (
+                  <tr key={milestone.key}>
+                    <td className={viewStyles.methodCell}>{milestone.label}</td>
+                    <td className={viewStyles.methodCell}>{milestone.share}</td>
+                    <td className={viewStyles.amountCell}>{formatMoney(milestone.amount)}</td>
+                    <td className={viewStyles.methodCell}>
+                      <span
+                        style={{
+                          color: milestone.unlocked ? "#059669" : "#94a3b8",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {milestone.unlocked ? "Unlocked" : "Locked"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.formSection}>
         <div className={viewStyles.paymentSectionHeader}>
@@ -319,7 +392,7 @@ export default function ViewCommissionPage() {
               <div>
                 <h3>Add Payment</h3>
                 <div style={{ fontSize: "0.85rem", color: "#64748b", marginTop: "0.2rem" }}>
-                  Pending commission:{" "}
+                  Payable balance:{" "}
                   <strong style={{ color: "#d97706" }}>{formatMoney(details.pending)}</strong>
                 </div>
               </div>
