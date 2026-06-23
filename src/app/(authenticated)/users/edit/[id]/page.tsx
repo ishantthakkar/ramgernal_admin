@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import { canViewModule, hasPermission } from "@/lib/permissions";
 import {
   normalizeRoleName,
   resolveRoleId,
@@ -55,6 +56,7 @@ export default function EditUserPage() {
   const searchParams = useSearchParams();
   const id = params.id as string;
   const tabFromUrl = parseUserTabFromParam(searchParams.get("tab"));
+  const canEditUsers = hasPermission("User", "edit");
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -100,6 +102,12 @@ export default function EditUserPage() {
   }, [profilePreview]);
 
   useEffect(() => {
+    if (!canViewModule("User") || !canEditUsers) {
+      toast.error("You do not have permission to edit users.");
+      router.push(getUsersListPath(tabFromUrl));
+      return;
+    }
+
     async function loadUser() {
       if (!id) return;
       setFetching(true);
@@ -127,6 +135,11 @@ export default function EditUserPage() {
 
         setWorkingSchedule(scheduleFromUser(user));
 
+        const existingProfileImage = String(user.profileImage || "").trim();
+        if (existingProfileImage) {
+          setProfilePreview(existingProfileImage);
+        }
+
         const existingReportsTo =
           user.reportsTo?._id?.toString?.() || user.reportsTo?.toString?.() || "";
         preserveSupervisorRef.current = true;
@@ -141,7 +154,7 @@ export default function EditUserPage() {
     }
 
     loadUser();
-  }, [id, router, tabFromUrl]);
+  }, [id, router, tabFromUrl, canEditUsers]);
 
   useEffect(() => {
     if (!supervisorTarget) {
@@ -277,7 +290,6 @@ export default function EditUserPage() {
         userRole: formData.userRole,
         status: formData.status,
         ...scheduleToApiPayload(workingSchedule),
-        hasProfilePicture: !!profilePicture,
       };
 
       if (formData.password.trim()) {
@@ -288,7 +300,11 @@ export default function EditUserPage() {
         payload.reportsToId = reportsToId;
       }
 
-      await adminApi.updateUser(payload);
+      const updated = await adminApi.updateUser(payload);
+
+      if (profilePicture) {
+        await adminApi.uploadUserProfileImage(id, profilePicture);
+      }
       toast.success("User profile updated!");
       router.push(withUserTab(`/users/view/${id}`, returnTab));
     } catch (err: unknown) {

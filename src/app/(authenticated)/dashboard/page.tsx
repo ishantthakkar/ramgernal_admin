@@ -19,10 +19,11 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { canViewModule } from "@/lib/permissions";
+import { mapDashboardStats, type DashboardStats } from "@/lib/mappers/dashboard";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function DashboardPage() {
     const fetchStats = async () => {
       try {
         const data = await adminApi.getDashboardStats();
-        setStats(data);
+        setStats(mapDashboardStats(data));
       } catch (error: any) {
         toast.error(error.message || "Failed to fetch dashboard stats");
       } finally {

@@ -16,6 +16,13 @@ import {
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { formatDate } from "@/lib/dateUtils";
+import {
+  mapLeadRows,
+  computeLeadStats,
+  LOST_LEAD_STATUS,
+  CONVERTED_LEAD_STATUS,
+  type LeadRow,
+} from "@/lib/mappers/leads";
 
 export default function LeadsPage() {
   const router = useRouter();
@@ -28,7 +35,7 @@ export default function LeadsPage() {
   const validTabs = ["Active Leads", "Lost Lead"];
   const initialTab = validTabs.includes(tabParam || "") ? tabParam! : "Active Leads";
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [leads, setLeads] = useState<any[]>([]);
+  const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<number | null>(30); // 30 days by default
@@ -39,7 +46,7 @@ export default function LeadsPage() {
     setLoading(true);
     try {
       const response = await adminApi.getLeads();
-      setLeads(response.leads || []);
+      setLeads(mapLeadRows(response.leads || []));
     } catch (err) {
       console.error("Failed to fetch leads:", err);
     } finally {
@@ -55,14 +62,11 @@ export default function LeadsPage() {
     setCurrentPage(1);
   }, [activeTab, dateRange]);
 
-  const filteredLeads = leads.filter(lead => {
-    // Search Filter
+  const filteredLeads = leads.filter((lead) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
-      lead.lead_id?.toLowerCase().includes(q) ||
+      lead.leadId?.toLowerCase().includes(q) ||
       lead.leadName?.toLowerCase().includes(q) ||
-      lead.name?.toLowerCase().includes(q) ||
-      lead.leadSourceName?.toLowerCase().includes(q) ||
       lead.leadSource?.toLowerCase().includes(q) ||
       lead.dba?.toLowerCase().includes(q) ||
       lead.mobileNumber?.includes(searchQuery) ||
@@ -70,42 +74,46 @@ export default function LeadsPage() {
 
     if (!matchesSearch) return false;
 
-    // Date Filter
     if (dateRange) {
-      const createdDate = new Date(lead.createdDate || lead.createdAt);
+      const createdDate = new Date(lead.createdDate);
+      if (Number.isNaN(createdDate.getTime())) return false;
       const diffTime = Math.abs(new Date().getTime() - createdDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       if (diffDays > dateRange) return false;
     }
 
-    // Exclude Converted/Closed Leads from both tabs
-    if (lead.status === "Converted To Customer" || lead.status === "Closed") return false;
-
-    // Tab Filter
-    if (activeTab === "Active Leads") {
-      return lead.status !== "Lost Leads";
+    if (
+      lead.status === CONVERTED_LEAD_STATUS ||
+      lead.status === "Closed"
+    ) {
+      return false;
     }
-    return lead.status === "Lost Leads";
+
+    if (activeTab === "Active Leads") {
+      return lead.status !== LOST_LEAD_STATUS;
+    }
+    return lead.status === LOST_LEAD_STATUS;
   });
 
+  const leadStats = computeLeadStats(leads);
   const stats = [
     {
       label: "Total",
-      value: leads.filter(l => l.status !== "Closed" && l.status !== "Converted To Customer").length.toString(),
+      value: leadStats.total.toString(),
       color: "#3b6fd9",
-      bg: "#e8f0fe"
+      bg: "#e8f0fe",
     },
     {
       label: "Active",
-      value: leads.filter(l => l.status === "Active" || l.status === "New").length.toString(),
+      value: leadStats.active.toString(),
       color: "#475569",
-      bg: "#f1f5f9"
+      bg: "#f1f5f9",
     },
     {
       label: "Lost Lead",
-      value: leads.filter(l => l.status === "Lost Leads").length.toString(),
+      value: leadStats.lost.toString(),
       color: "#c9922e",
-      bg: "#faf3e8"
+      bg: "#faf3e8",
     },
   ];
 
@@ -237,16 +245,9 @@ export default function LeadsPage() {
                 </td>
               </tr>
             ) : (
-              currentLeads.map((lead, idx) => {
-                const displayName = lead.leadName || lead.name || "—";
-                const displaySource =
-                  lead.leadSourceName ||
-                  lead.leadSource ||
-                  "—";
-
-                return (
-                  <tr key={lead.id || idx}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{lead.lead_id || "—"}</td>
+              currentLeads.map((lead) => (
+                  <tr key={lead.id}>
+                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{lead.leadId || "—"}</td>
                     <td
                       style={{
                         cursor: "pointer",
@@ -257,12 +258,12 @@ export default function LeadsPage() {
                       }}
                       onClick={() => router.push(`/leads/${lead.id}`)}
                     >
-                      {displayName}
+                      {lead.leadName || "—"}
                     </td>
-                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{displaySource}</td>
+                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{lead.leadSource || "—"}</td>
                     <td style={{ fontWeight: 500, color: "#1e293b" }}>{lead.mobileNumber || "—"}</td>
                     <td>{lead.dba || "—"}</td>
-                    <td style={{ fontWeight: 600, color: "var(--admin-primary, #004d4d)" }}>{lead.salesPersonName || "Unassigned"}</td>
+                    <td style={{ fontWeight: 600, color: "var(--admin-primary, #004d4d)" }}>{lead.salesPersonName}</td>
                     <td>
                       <div className={dashboardStyles.statusCell}>
                         <span
@@ -274,7 +275,7 @@ export default function LeadsPage() {
                               : dashboardStyles.statusDotInactive
                           }
                         />
-                        {lead.status}
+                        {lead.statusLabel}
                       </div>
                     </td>
                     <td style={{ color: "#64748b" }}>{lead.lastActivity ? formatDate(lead.lastActivity) : "N/A"}</td>
@@ -289,8 +290,7 @@ export default function LeadsPage() {
                       )}
                     </td>
                   </tr>
-                );
-              })
+                ))
             )}
           </tbody>
         </table>

@@ -22,7 +22,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
-import { hasPermission } from "@/lib/permissions";
+import { canViewModule, hasPermission } from "@/lib/permissions";
 import { getSupervisorFieldLabel } from "../../user-form-utils";
 import { WorkingScheduleView } from "../../components/WorkingScheduleView";
 import { WorkingHoursCell } from "../../components/WorkingHoursCell";
@@ -90,6 +90,7 @@ export default function ViewUserPage() {
   const searchParams = useSearchParams();
   const id = params.id as string;
   const canEditUsers = hasPermission("User", "edit");
+  const canViewUsers = canViewModule("User");
   const tabFromUrl = parseUserTabFromParam(searchParams.get("tab"));
 
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -97,6 +98,12 @@ export default function ViewUserPage() {
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
+    if (!canViewUsers) {
+      toast.error("You do not have permission to view users.");
+      router.push(getUsersListPath(tabFromUrl));
+      return;
+    }
+
     async function fetchUser() {
       try {
         const response = await adminApi.getUserById(id);
@@ -115,7 +122,7 @@ export default function ViewUserPage() {
     }
 
     if (id) fetchUser();
-  }, [id, router, tabFromUrl]);
+  }, [id, router, tabFromUrl, canViewUsers]);
 
   if (fetching) {
     return (
@@ -170,12 +177,9 @@ export default function ViewUserPage() {
       </div>
 
       <div className={styles.formSection}>
-        <div className={styles.sectionTitle}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
           <UserPlus size={22} color="var(--admin-primary, #004d4d)" /> Profile Information
         </div>
-        <p className={styles.sectionSubtitle}>
-          Full profile identification details for this user account.
-        </p>
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
@@ -236,23 +240,16 @@ export default function ViewUserPage() {
       </div>
 
       <div className={styles.formSection}>
-        <div className={viewStyles.workingHoursSectionTitle}>
-          <div className={viewStyles.workingHoursIconCircle}>
-            <Clock size={20} />
-          </div>
-          Working Hours
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <Clock size={22} color="var(--admin-primary, #004d4d)" /> Working Hours
         </div>
-        <p className={styles.sectionSubtitle}>
-          Weekly schedule with different hours for each working day.
-        </p>
         <WorkingScheduleView user={user} />
       </div>
 
       <div className={styles.formSection}>
-        <div className={styles.sectionTitle}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
           <ShieldCheck size={22} color="var(--admin-primary, #004d4d)" /> Access & Permissions
         </div>
-        <p className={styles.sectionSubtitle}>Assigned role, supervisor, and current system status.</p>
 
         <div className={styles.formGrid}>
           <div className={styles.formGroup}>
@@ -317,10 +314,9 @@ export default function ViewUserPage() {
 
       {isContractor && (
         <div className={styles.formSection}>
-          <div className={styles.sectionTitle}>
+          <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
             <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Project Summary
           </div>
-          <p className={styles.sectionSubtitle}>Project assignments and installation status summary.</p>
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
@@ -356,10 +352,9 @@ export default function ViewUserPage() {
 
       {isProjectManager && (
         <div className={styles.formSection}>
-          <div className={styles.sectionTitle}>
+          <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
             <Workflow size={22} color="var(--admin-primary, #004d4d)" /> Inspection Summary
           </div>
-          <p className={styles.sectionSubtitle}>Pending and completed survey inspection summary.</p>
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
@@ -386,10 +381,9 @@ export default function ViewUserPage() {
 
       {isSalesPerson && (
         <div className={styles.formSection}>
-          <div className={styles.sectionTitle}>
+          <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
             <Users size={22} color="var(--admin-primary, #004d4d)" /> Leads & Customers Summary
           </div>
-          <p className={styles.sectionSubtitle}>Active leads, customers, and lost leads summary.</p>
 
           <div className={styles.formGrid}>
             <div className={styles.formGroup}>
@@ -425,17 +419,12 @@ export default function ViewUserPage() {
 
       {showDirectReports && (
         <div className={`${styles.formSection} ${viewStyles.subordinatesSection}`}>
-          <div className={viewStyles.subordinatesTitle}>
+          <div className={`${viewStyles.subordinatesTitle} ${viewStyles.subordinatesTitleSpaced}`}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Users size={22} color="var(--admin-primary, #004d4d)" />
               {directReportsTitle} ({directReports.length})
             </div>
           </div>
-          <p className={viewStyles.subordinatesSubtitle}>
-            {isSalesManager
-              ? "All sales persons reporting to this sales manager."
-              : "All sales managers and project managers reporting to this admin."}
-          </p>
 
           {directReports.length === 0 ? (
             <div className={viewStyles.subordinatesEmpty}>No team members assigned yet.</div>

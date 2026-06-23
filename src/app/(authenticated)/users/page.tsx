@@ -207,7 +207,7 @@ export default function UsersPage() {
       ];
     }
     if (activeTab === "Contractors") {
-      return [...commonPrefix, ...contactCols, "Assigned Projects", "Submitted Inst.", "In Progress Inst.", ...commonSuffix];
+      return [...commonPrefix, ...contactCols, "Assigned Projects", "Completed Inst.", "In Progress Inst.", ...commonSuffix];
     }
     if (activeTab === "Project Manager") {
       return [...commonPrefix, "Manager", ...contactCols, "Pending Inspections", "Completed Inspections", ...commonSuffix];

@@ -14,6 +14,7 @@ export interface SiteDetailRow {
   totalPrice: string;
   note: string;
   images: string[];
+  _sourceAreaIndex?: number;
 }
 
 export interface SurveyDetailsFields {
@@ -243,6 +244,7 @@ function mapFixtureToRow(
 
   return {
     _id: `${surveyId}-${rowIndex}`,
+    _sourceAreaIndex: areaIndex,
     area: resolveAreaName(survey, area, areaIndex, fixtureIndex),
     heightFt: formatHeightValue(fixture.heightFt),
     heightIn: formatHeightValue(fixture.heightIn),
@@ -322,6 +324,7 @@ function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
     if (!fixtures.length) {
       rows.push({
         _id: `${surveyId}-${rowIndex}`,
+        _sourceAreaIndex: areaIndex,
         area: resolveAreaName(survey, area, areaIndex, 0),
         heightFt: "N/A",
         heightIn: "N/A",
@@ -559,4 +562,63 @@ export function mapNotes(
     const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
     return tb - ta;
   });
+}
+
+const SITE_ROW_KEY = /^([a-f0-9]{24})-(\d+)$/i;
+
+export function parseSiteRowKey(rowId: string): { surveyId: string; index: number } | null {
+  const match = String(rowId || "").trim().match(SITE_ROW_KEY);
+  if (!match) return null;
+  return { surveyId: match[1], index: Number.parseInt(match[2], 10) };
+}
+
+export function getSourceAreaIndex(row: SiteDetailRow): number {
+  if (Number.isFinite(row._sourceAreaIndex)) {
+    return Number(row._sourceAreaIndex);
+  }
+  return parseSiteRowKey(row._id)?.index ?? 0;
+}
+
+export function reindexSurveySiteRows(
+  rows: SiteDetailRow[],
+  surveyId: string,
+  fromIndex: number,
+  toIndex: number
+): SiteDetailRow[] {
+  const surveyRowIndexes: number[] = [];
+  const surveyRows: SiteDetailRow[] = [];
+
+  rows.forEach((row, idx) => {
+    if (parseSiteRowKey(row._id)?.surveyId === surveyId) {
+      surveyRowIndexes.push(idx);
+      surveyRows.push(row);
+    }
+  });
+
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= surveyRows.length ||
+    toIndex >= surveyRows.length ||
+    fromIndex === toIndex
+  ) {
+    return rows;
+  }
+
+  const next = [...surveyRows];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+
+  const reindexed = next.map((row, newIndex) => ({
+    ...row,
+    _sourceAreaIndex: getSourceAreaIndex(row),
+    _id: `${surveyId}-${newIndex}`,
+  }));
+
+  const result = [...rows];
+  surveyRowIndexes.forEach((originalIdx, i) => {
+    result[originalIdx] = reindexed[i];
+  });
+
+  return result;
 }

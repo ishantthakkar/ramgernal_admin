@@ -109,8 +109,11 @@ export function formatQuotationStatusLabel(status: string): string {
 }
 
 export interface SurveyQuotationApiRow {
-  customerId?: string;
+  customerId?: string | { _id?: string; id?: string };
   customerName?: string;
+  leadId?: string;
+  salesPersonName?: string;
+  salesManagerName?: string;
   survey_id?: string;
   surveyName?: string;
   quotationStatus?: string;
@@ -154,6 +157,16 @@ export function findSurveyQuotationRow(
   return rows.find((row) => String(row.customerId) === customerId);
 }
 
+function resolveCustomerId(value: unknown): string {
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return String(record._id || record.id || "");
+  }
+  return String(value || "").trim();
+}
+
+export { resolveCustomerId };
+
 export function mapSurveyQuotationListItem(
   row: SurveyQuotationApiRow,
   index: number,
@@ -163,7 +176,7 @@ export function mapSurveyQuotationListItem(
     salesPersonName?: string;
   }
 ): WorkflowQuotationRow {
-  const customerId = String(row.customerId || "");
+  const customerId = resolveCustomerId(row.customerId);
   const surveyId = String(row.survey_id || "");
   const generatedUrl = getLatestQuotationUrl(row.generateQuotation);
   const signedUrl = getLatestQuotationUrl(row.uploadSignedQuotation);
@@ -174,11 +187,11 @@ export function mapSurveyQuotationListItem(
     _id: surveyId || `${customerId}-${index}`,
     customerId,
     surveyId,
-    leadId: meta?.leadId || "—",
-    customerName: row.customerName || "—",
+    leadId: (row.leadId || meta?.leadId || "").trim() || "—",
+    customerName: (row.customerName || "").trim() || "—",
     surveyName,
-    salesManager: meta?.salesManagerName || "—",
-    salesPerson: meta?.salesPersonName || "—",
+    salesManager: (row.salesManagerName || meta?.salesManagerName || "").trim() || "—",
+    salesPerson: (row.salesPersonName || meta?.salesPersonName || "").trim() || "—",
     generatedPdfUrl: generatedUrl,
     generatedPdfName: "Generated",
     signedPdfUrl: signedUrl,

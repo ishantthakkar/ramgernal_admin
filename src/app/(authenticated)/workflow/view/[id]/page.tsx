@@ -14,6 +14,7 @@ import {
   Hammer,
   Edit2,
   Info,
+  Save,
   User,
   Briefcase,
   UserPlus,
@@ -28,7 +29,10 @@ import { SiteSurveyVerifyControl } from "@/components/workflow/site-survey-verif
 import {
   mapNotes,
   mapSiteDetailGroups,
+  mapSiteDetails,
   mapSurveyDetails,
+  parseSiteRowKey,
+  reindexSurveySiteRows,
   resolveSurveyId,
   type NoteEntry,
   type SiteDetailRow,
@@ -214,7 +218,7 @@ function HeightReadOnlyField({
   );
 }
 
-function SiteRoomCard({
+function SiteAreaDetailContent({
   row,
   roomIndex,
   onViewImages,
@@ -225,8 +229,7 @@ function SiteRoomCard({
 }) {
   const previewImages = row.images.slice(0, 4);
   const hasMoreImages = row.images.length > previewImages.length;
-
-  const roomLabel = row.area?.trim() ? row.area : `Room ${roomIndex + 1}`;
+  const roomLabel = row.area?.trim() ? row.area.toUpperCase() : `ROOM ${roomIndex + 1}`;
 
   return (
     <article className={modalStyles.siteRoomCard}>
@@ -253,7 +256,7 @@ function SiteRoomCard({
                 <img src={img} alt={`${row.area} ${idx + 1}`} />
               </button>
             ))}
-            {hasMoreImages && (
+            {hasMoreImages ? (
               <button
                 type="button"
                 className={modalStyles.siteMediaMore}
@@ -261,7 +264,7 @@ function SiteRoomCard({
               >
                 +{row.images.length - previewImages.length}
               </button>
-            )}
+            ) : null}
           </div>
         ) : (
           <div
@@ -291,6 +294,452 @@ function SiteRoomCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function EditableField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className={styles.formGroup}>
+      <label>{label}</label>
+      <input
+        type={type}
+        className={styles.formInput}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function SiteAreaEditForm({
+  row,
+  onFieldChange,
+}: {
+  row: SiteDetailRow;
+  onFieldChange: (field: keyof SiteDetailRow, value: string) => void;
+}) {
+  const change = (field: keyof SiteDetailRow) => (value: string) => onFieldChange(field, value);
+
+  return (
+    <article className={modalStyles.siteRoomCard}>
+      <div className={styles.formGrid} style={{ marginBottom: "1.25rem" }}>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <EditableField
+            label="Area"
+            value={row.area || ""}
+            onChange={change("area")}
+            placeholder="Room name"
+          />
+        </div>
+      </div>
+      <div className={styles.formGrid}>
+        <EditableField
+          label="Existing Fixture Type"
+          value={row.existingFixtureType || ""}
+          onChange={change("existingFixtureType")}
+        />
+        <EditableField
+          label="Height Ft"
+          value={row.heightFt === "N/A" ? "" : row.heightFt || ""}
+          onChange={change("heightFt")}
+          placeholder="e.g. 10"
+        />
+        <EditableField
+          label="Height In"
+          value={row.heightIn === "N/A" ? "" : row.heightIn || ""}
+          onChange={change("heightIn")}
+          placeholder="e.g. 6"
+        />
+        <EditableField
+          label="Existing Bulb"
+          value={row.existingBulbs || ""}
+          onChange={change("existingBulbs")}
+        />
+        <EditableField
+          label="Existing Quantity"
+          value={row.existingQuantity || ""}
+          onChange={change("existingQuantity")}
+          type="number"
+        />
+      </div>
+
+      <div className={`${styles.formGroup} ${modalStyles.siteMediaBlock}`}>
+        <label>Images / Videos</label>
+        <div
+          className={styles.formInput}
+          style={{
+            background: "#f8fafc",
+            color: "#94a3b8",
+            fontWeight: 600,
+            border: "1px solid #e2e8f0",
+            minHeight: "2.75rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+          }}
+        >
+          <ImageIcon size={16} />
+          {row.images?.length ? `${row.images.length} image(s) on file` : "No images"}
+        </div>
+      </div>
+
+      <div className={styles.formGrid}>
+        <EditableField
+          label="Proposed Fixture"
+          value={row.proposedFixture || ""}
+          onChange={change("proposedFixture")}
+        />
+        <EditableField
+          label="Proposed Quantity"
+          value={row.proposedQuantity || ""}
+          onChange={change("proposedQuantity")}
+          type="number"
+        />
+        <EditableField
+          label="Price Per Unit"
+          value={row.pricePerUnit === "—" ? "" : row.pricePerUnit || ""}
+          onChange={change("pricePerUnit")}
+        />
+        <EditableField
+          label="Total Price"
+          value={row.totalPrice === "—" ? "" : row.totalPrice || ""}
+          onChange={change("totalPrice")}
+        />
+        <div className={styles.formGroup} style={{ gridColumn: "1 / -1" }}>
+          <label>Note</label>
+          <textarea
+            className={styles.formInput}
+            value={row.note || ""}
+            onChange={(e) => change("note")(e.target.value)}
+            rows={3}
+            style={{ resize: "vertical", minHeight: "5rem" }}
+          />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function SiteAreaDetailModal({
+  row,
+  roomIndex,
+  canEdit,
+  saving,
+  onClose,
+  onViewImages,
+  onSave,
+}: {
+  row: SiteDetailRow | null;
+  roomIndex: number;
+  canEdit: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onViewImages: (images: string[], area: string) => void;
+  onSave: (row: SiteDetailRow) => Promise<void>;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftRow, setDraftRow] = useState<SiteDetailRow | null>(null);
+
+  useEffect(() => {
+    if (row) {
+      setDraftRow({ ...row });
+      setIsEditing(false);
+    } else {
+      setDraftRow(null);
+      setIsEditing(false);
+    }
+  }, [row]);
+
+  if (!row || !draftRow) return null;
+
+  const roomLabel = row.area?.trim() ? row.area.toUpperCase() : `ROOM ${roomIndex + 1}`;
+
+  function handleFieldChange(field: keyof SiteDetailRow, value: string) {
+    setDraftRow((prev) => (prev ? { ...prev, [field]: value } : prev));
+  }
+
+  async function handleSave() {
+    if (!draftRow) return;
+    await onSave(draftRow);
+    setIsEditing(false);
+  }
+
+  function handleCancelEdit() {
+    setDraftRow({ ...row } as SiteDetailRow);
+    setIsEditing(false);
+  }
+
+  function handleClose() {
+    if (saving) return;
+    if (isEditing) {
+      handleCancelEdit();
+    }
+    onClose();
+  }
+
+  return (
+    <div
+      className={modalStyles.imgModalOverlay}
+      onClick={() => {
+        if (!isEditing && !saving) onClose();
+      }}
+    >
+      <div
+        className={modalStyles.imgModalContent}
+        style={{ maxWidth: 920 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={modalStyles.imgModalHeader}>
+          <div>
+            <h3>{roomLabel}</h3>
+            <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
+              {isEditing ? "Edit area details" : "Area details"}
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {canEdit && !isEditing ? (
+              <button
+                type="button"
+                className={styles.assignBtn}
+                onClick={() => setIsEditing(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+              >
+                <Edit2 size={16} /> Edit
+              </button>
+            ) : null}
+            <button type="button" className={modalStyles.closeBtn} onClick={handleClose} disabled={saving}>
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+        <div className={modalStyles.siteSurveyDetailModalBody}>
+          {isEditing ? (
+            <SiteAreaEditForm row={draftRow} onFieldChange={handleFieldChange} />
+          ) : (
+            <SiteAreaDetailContent row={row} roomIndex={roomIndex} onViewImages={onViewImages} />
+          )}
+        </div>
+        {isEditing ? (
+          <div className={modalStyles.siteAreaModalFooter}>
+            <button
+              type="button"
+              className={styles.cancelBtn}
+              onClick={handleCancelEdit}
+              disabled={saving}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles.addBtn}
+              onClick={handleSave}
+              disabled={saving}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              {saving ? <Loader2 size={18} className={styles.spinner} /> : <Save size={18} />}
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SiteAreaSummaryCard({
+  row,
+  roomIndex,
+  canReorder,
+  isDragging,
+  isDragOver,
+  onView,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
+}: {
+  row: SiteDetailRow;
+  roomIndex: number;
+  canReorder: boolean;
+  isDragging: boolean;
+  isDragOver: boolean;
+  onView: () => void;
+  onDragStart: () => void;
+  onDragOver: (event: React.DragEvent<HTMLElement>) => void;
+  onDragLeave: () => void;
+  onDrop: (event: React.DragEvent<HTMLElement>) => void;
+  onDragEnd: () => void;
+}) {
+  const roomLabel = row.area?.trim() ? row.area.toUpperCase() : `ROOM ${roomIndex + 1}`;
+
+  const handleRowDragStart = (event: React.DragEvent<HTMLElement>) => {
+    if ((event.target as HTMLElement).closest("button, a, input, textarea, select, [data-no-drag]")) {
+      event.preventDefault();
+      return;
+    }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(roomIndex));
+    onDragStart();
+  };
+
+  return (
+    <article
+      draggable={canReorder}
+      className={`${modalStyles.siteAreaRowCard} ${canReorder ? modalStyles.siteAreaRowDraggable : ""} ${isDragging ? modalStyles.siteAreaRowDragging : ""} ${isDragOver ? modalStyles.siteAreaRowDragOver : ""}`}
+      onDragStart={canReorder ? handleRowDragStart : undefined}
+      onDragEnd={canReorder ? onDragEnd : undefined}
+      onDragOver={canReorder ? onDragOver : undefined}
+      onDragLeave={canReorder ? onDragLeave : undefined}
+      onDrop={canReorder ? onDrop : undefined}
+    >
+      <div className={modalStyles.siteAreaRowMetric}>
+        <span className={modalStyles.siteAreaRowMetricLabel}>Area</span>
+        <span className={modalStyles.siteAreaRowMetricValue}>{roomLabel}</span>
+      </div>
+
+      <div className={modalStyles.siteAreaRowMetric}>
+        <span className={modalStyles.siteAreaRowMetricLabel}>Proposed Fixture</span>
+        <span className={modalStyles.siteAreaRowMetricValue}>
+          {row.proposedFixture?.trim() || "—"}
+        </span>
+      </div>
+
+      <div className={modalStyles.siteAreaRowMetric}>
+        <span className={modalStyles.siteAreaRowMetricLabel}>Proposed Quantity</span>
+        <span className={modalStyles.siteAreaRowMetricValue}>
+          {row.proposedQuantity?.trim() || "—"}
+        </span>
+      </div>
+
+      <div className={modalStyles.siteAreaRowMetric}>
+        <span className={modalStyles.siteAreaRowMetricLabel}>Note</span>
+        <span
+          className={`${modalStyles.siteAreaRowMetricValue} ${modalStyles.siteAreaRowNoteValue}`}
+          title={row.note?.trim() || undefined}
+        >
+          {row.note?.trim() || "—"}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        className={modalStyles.siteAreaRowActionBtn}
+        data-no-drag
+        onClick={onView}
+      >
+        View
+      </button>
+    </article>
+  );
+}
+
+function SiteDetailsAreaList({
+  groups,
+  onViewArea,
+  canReorder,
+  reordering,
+  onReorder,
+  canVerify,
+  verifyingSurveyId,
+  onVerifySurvey,
+}: {
+  groups: SiteDetailSurveyGroup[];
+  onViewArea: (row: SiteDetailRow, roomIndex: number) => void;
+  canReorder: boolean;
+  reordering: boolean;
+  onReorder: (surveyId: string, fromIndex: number, toIndex: number) => void;
+  canVerify: boolean;
+  verifyingSurveyId: string | null;
+  onVerifySurvey: (surveyId: string, surveyName: string) => void;
+}) {
+  const hasAreas = groups.some((group) => group.areas.length > 0);
+  const [dragging, setDragging] = useState<{ surveyId: string; index: number } | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  if (!groups.length || !hasAreas) {
+    return <div className={addStyles.emptyState}>No site survey details found.</div>;
+  }
+
+  return (
+    <div className={modalStyles.siteAreaList}>
+      {groups.map((group) => (
+        <div key={group.surveyId} className={modalStyles.siteAreaGroup}>
+          {groups.length > 1 ? (
+            <div className={modalStyles.siteAreaGroupHeader}>
+              <p className={modalStyles.siteAreaGroupTitle}>
+                Survey {group.surveyIndex + 1} · {group.surveyName}
+                {group.surveyDate ? ` · ${formatDate(group.surveyDate)}` : ""}
+              </p>
+              <SiteSurveyVerifyControl
+                surveyId={group.surveyId}
+                surveyName={group.surveyName}
+                isVerified={group.isVerified}
+                canVerify={canVerify}
+                verifying={verifyingSurveyId === group.surveyId}
+                onVerify={onVerifySurvey}
+                compact
+              />
+            </div>
+          ) : null}
+
+          {canReorder && group.areas.length > 1 ? (
+            <p className={modalStyles.siteAreaReorderHint}>Drag a row up or down to change area order.</p>
+          ) : null}
+
+          {group.areas.map((row, roomIndex) => (
+            <SiteAreaSummaryCard
+              key={row._id}
+              row={row}
+              roomIndex={roomIndex}
+              canReorder={canReorder && group.areas.length > 1 && !reordering}
+              isDragging={dragging?.surveyId === group.surveyId && dragging.index === roomIndex}
+              isDragOver={dragging?.surveyId === group.surveyId && dragOverIndex === roomIndex}
+              onView={() => onViewArea(row, roomIndex)}
+              onDragStart={() => setDragging({ surveyId: group.surveyId, index: roomIndex })}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                if (dragging?.surveyId === group.surveyId) {
+                  setDragOverIndex(roomIndex);
+                }
+              }}
+              onDragLeave={() => {
+                if (dragOverIndex === roomIndex) {
+                  setDragOverIndex(null);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const fromIndex = dragging?.surveyId === group.surveyId ? dragging.index : Number.NaN;
+                setDragging(null);
+                setDragOverIndex(null);
+                if (!Number.isFinite(fromIndex) || fromIndex === roomIndex) return;
+                onReorder(group.surveyId, fromIndex, roomIndex);
+              }}
+              onDragEnd={() => {
+                setDragging(null);
+                setDragOverIndex(null);
+              }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -333,106 +782,6 @@ function NotesList({ entries }: { entries: NoteEntry[] }) {
   );
 }
 
-function SiteSurveyList({
-  groups,
-  canVerify,
-  verifyingSurveyId,
-  onSelectSurvey,
-  onVerifySurvey,
-}: {
-  groups: SiteDetailSurveyGroup[];
-  canVerify: boolean;
-  verifyingSurveyId: string | null;
-  onSelectSurvey: (group: SiteDetailSurveyGroup) => void;
-  onVerifySurvey: (surveyId: string, surveyName: string) => void;
-}) {
-  if (!groups.length) {
-    return <div className={addStyles.emptyState}>No site survey details found.</div>;
-  }
-
-  return (
-    <div className={modalStyles.siteSurveyList}>
-      {groups.map((group) => (
-        <div key={group.surveyId} className={modalStyles.siteSurveyListItem}>
-          <button
-            type="button"
-            className={modalStyles.siteSurveyListMainBtn}
-            onClick={() => onSelectSurvey(group)}
-          >
-            <h4 className={modalStyles.siteSurveyListName}>{group.surveyName}</h4>
-            <p className={modalStyles.siteSurveyListDate}>
-              {group.surveyDate ? formatDate(group.surveyDate) : "—"}
-            </p>
-            {group.areasSummary ? (
-              <p className={modalStyles.siteSurveyListAreas}>Areas: {group.areasSummary}</p>
-            ) : null}
-          </button>
-          <div className={modalStyles.siteSurveyListActions}>
-            <SiteSurveyVerifyControl
-              surveyId={group.surveyId}
-              surveyName={group.surveyName}
-              isVerified={group.isVerified}
-              canVerify={canVerify}
-              verifying={verifyingSurveyId === group.surveyId}
-              onVerify={onVerifySurvey}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SiteSurveyDetailModal({
-  group,
-  onClose,
-  onViewImages,
-}: {
-  group: SiteDetailSurveyGroup | null;
-  onClose: () => void;
-  onViewImages: (images: string[], area: string) => void;
-}) {
-  if (!group) return null;
-
-  return (
-    <div className={modalStyles.imgModalOverlay} onClick={onClose}>
-      <div
-        className={modalStyles.imgModalContent}
-        style={{ maxWidth: 920 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={modalStyles.imgModalHeader}>
-          <div>
-            <h3>{group.surveyName}</h3>
-            <p style={{ margin: "4px 0 0", fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>
-              {group.surveyDate ? formatDate(group.surveyDate) : "—"}
-              {group.areasSummary ? ` · Areas: ${group.areasSummary}` : ""}
-            </p>
-          </div>
-          <button type="button" className={modalStyles.closeBtn} onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-        <div className={modalStyles.siteSurveyDetailModalBody}>
-          {group.areas.length > 0 ? (
-            <div className={modalStyles.siteDetailsStack}>
-              {group.areas.map((row, roomIndex) => (
-                <SiteRoomCard
-                  key={row._id}
-                  row={row}
-                  roomIndex={roomIndex}
-                  onViewImages={onViewImages}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className={addStyles.emptyState}>No area details found for this survey.</div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function SurveyViewSections({
   surveyName,
@@ -441,9 +790,14 @@ function SurveyViewSections({
   siteDetailGroups,
   noteEntries,
   canVerify,
+  canEdit,
+  savingSiteRow,
   verifyingSurveyId,
   onVerifySurvey,
   onViewImages,
+  onSaveSiteRow,
+  onReorderSiteRows,
+  reorderingAreas,
 }: {
   surveyName: string;
   salesPerson: string;
@@ -451,12 +805,29 @@ function SurveyViewSections({
   siteDetailGroups: SiteDetailSurveyGroup[];
   noteEntries: NoteEntry[];
   canVerify: boolean;
+  canEdit: boolean;
+  savingSiteRow: boolean;
   verifyingSurveyId: string | null;
   onVerifySurvey: (surveyId: string, surveyName: string) => void;
   onViewImages: (images: string[], area: string) => void;
+  onSaveSiteRow: (row: SiteDetailRow) => Promise<void>;
+  onReorderSiteRows: (surveyId: string, fromIndex: number, toIndex: number) => Promise<void>;
+  reorderingAreas: boolean;
 }) {
-  const [selectedSurveyGroup, setSelectedSurveyGroup] =
-    useState<SiteDetailSurveyGroup | null>(null);
+  const singleGroup = siteDetailGroups.length === 1 ? siteDetailGroups[0] : null;
+  const [selectedArea, setSelectedArea] = useState<{
+    row: SiteDetailRow;
+    roomIndex: number;
+  } | null>(null);
+
+  const selectedRow = useMemo(() => {
+    if (!selectedArea) return null;
+    for (const group of siteDetailGroups) {
+      const match = group.areas.find((area) => area._id === selectedArea.row._id);
+      if (match) return match;
+    }
+    return selectedArea.row;
+  }, [selectedArea, siteDetailGroups]);
 
   return (
     <>
@@ -475,23 +846,50 @@ function SurveyViewSections({
       </section>
 
       <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
+            marginBottom: "1.25rem",
+          }}
+        >
+          <div className={styles.sectionTitle} style={{ marginBottom: 0 }}>
+            <Info size={22} color="#ea580c" strokeWidth={2} /> Site Details
+          </div>
+          {singleGroup ? (
+            <SiteSurveyVerifyControl
+              surveyId={singleGroup.surveyId}
+              surveyName={singleGroup.surveyName}
+              isVerified={singleGroup.isVerified}
+              canVerify={canVerify}
+              verifying={verifyingSurveyId === singleGroup.surveyId}
+              onVerify={onVerifySurvey}
+              compact
+            />
+          ) : null}
         </div>
-        <p className={styles.sectionSubtitle}>
-          Select a survey to view fixtures, quantities, pricing, and images.
-        </p>
-        <SiteSurveyList
+
+        <SiteDetailsAreaList
           groups={siteDetailGroups}
+          onViewArea={(row, roomIndex) => setSelectedArea({ row, roomIndex })}
+          canReorder={canEdit}
+          reordering={reorderingAreas || savingSiteRow}
+          onReorder={onReorderSiteRows}
           canVerify={canVerify}
           verifyingSurveyId={verifyingSurveyId}
-          onSelectSurvey={setSelectedSurveyGroup}
           onVerifySurvey={onVerifySurvey}
         />
-        <SiteSurveyDetailModal
-          group={selectedSurveyGroup}
-          onClose={() => setSelectedSurveyGroup(null)}
+        <SiteAreaDetailModal
+          row={selectedRow}
+          roomIndex={selectedArea?.roomIndex ?? 0}
+          canEdit={canEdit}
+          saving={savingSiteRow}
+          onClose={() => setSelectedArea(null)}
           onViewImages={onViewImages}
+          onSave={onSaveSiteRow}
         />
       </section>
 
@@ -530,6 +928,9 @@ export default function WorkflowViewPage() {
   const [assignType, setAssignType] = useState<"Contractor" | "Project Manager">("Contractor");
   const [availableStaff, setAvailableStaff] = useState<any[]>([]);
   const [assignModalLoading, setAssignModalLoading] = useState(false);
+  const [siteRows, setSiteRows] = useState<SiteDetailRow[]>([]);
+  const [savingSiteRow, setSavingSiteRow] = useState(false);
+  const [reorderingAreas, setReorderingAreas] = useState(false);
 
   const isSurveyView = fromTab === "Surveys";
   const isInspectionView = fromTab === "Inspections";
@@ -585,10 +986,19 @@ export default function WorkflowViewPage() {
     return mapSurveyDetails(data.customer, focusedSurveyRecords);
   }, [data, focusedSurveyRecords]);
 
-  const siteDetailGroups = useMemo(
-    () => mapSiteDetailGroups(focusedSurveyRecords, data?.customer),
-    [focusedSurveyRecords, data?.customer]
-  );
+  useEffect(() => {
+    setSiteRows(mapSiteDetails(focusedSurveyRecords));
+  }, [focusedSurveyRecords]);
+
+  const siteDetailGroups = useMemo(() => {
+    const groups = mapSiteDetailGroups(focusedSurveyRecords, data?.customer);
+    return groups.map((group) => {
+      const orderedRows = siteRows.filter(
+        (row) => parseSiteRowKey(row._id)?.surveyId === group.surveyId
+      );
+      return orderedRows.length > 0 ? { ...group, areas: orderedRows } : group;
+    });
+  }, [focusedSurveyRecords, siteRows, data?.customer]);
 
   const noteEntries = useMemo(() => {
     if (!data?.customer) return [];
@@ -601,6 +1011,63 @@ export default function WorkflowViewPage() {
     }
     return resolveInstallationSurvey(surveyRecords);
   }, [data, usesInstallationWorkflowApi, surveyRecords]);
+
+  const handleReorderSiteRows = async (
+    surveyId: string,
+    fromIndex: number,
+    toIndex: number
+  ) => {
+    if (fromIndex === toIndex) return;
+
+    const nextRows = reindexSurveySiteRows(siteRows, surveyId, fromIndex, toIndex);
+    setSiteRows(nextRows);
+
+    try {
+      setReorderingAreas(true);
+      const response = await adminApi.updateCustomerWorkflow(id, {
+        customerCode: String(data?.customer?.customerCode || "").trim(),
+        surveys: nextRows,
+      });
+      if (response?.surveys) {
+        setData((prev: typeof data) =>
+          prev
+            ? {
+                ...prev,
+                customer: response.customer ?? prev.customer,
+                surveys: response.surveys,
+              }
+            : prev
+        );
+      }
+      toast.success("Area order updated.");
+    } catch (err: unknown) {
+      setSiteRows(mapSiteDetails(focusedSurveyRecords));
+      const message = err instanceof Error ? err.message : "Failed to reorder areas.";
+      toast.error(message);
+    } finally {
+      setReorderingAreas(false);
+    }
+  };
+
+  const handleSaveSiteRow = async (updatedRow: SiteDetailRow) => {
+    try {
+      setSavingSiteRow(true);
+      const nextRows = siteRows.map((row) => (row._id === updatedRow._id ? updatedRow : row));
+      await adminApi.updateCustomerWorkflow(id, {
+        customerCode: String(data?.customer?.customerCode || "").trim(),
+        surveys: nextRows,
+      });
+      setSiteRows(nextRows);
+      await refreshData();
+      toast.success("Area details saved successfully.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save area details.";
+      toast.error(message);
+      throw err;
+    } finally {
+      setSavingSiteRow(false);
+    }
+  };
 
   const handleViewImages = (images: string[], area: string) => {
     setSelectedImages(images);
@@ -1037,9 +1504,14 @@ export default function WorkflowViewPage() {
           siteDetailGroups={siteDetailGroups}
           noteEntries={noteEntries}
           canVerify={isSurveyView && canVerifySurveys}
+          canEdit={isSurveyView && canEditSurveys}
+          savingSiteRow={savingSiteRow}
           verifyingSurveyId={verifyingSurveyId}
           onVerifySurvey={handleVerifySurvey}
           onViewImages={handleViewImages}
+          onSaveSiteRow={handleSaveSiteRow}
+          onReorderSiteRows={handleReorderSiteRows}
+          reorderingAreas={reorderingAreas}
         />
       ) : (
         <InstallationWorkflowSections

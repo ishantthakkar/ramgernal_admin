@@ -59,6 +59,14 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(userData),
     }),
+  uploadUserProfileImage: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    return apiRequest(`/user/${id}/profile/image`, {
+      method: "POST",
+      body: formData,
+    });
+  },
   getLeadSources: () =>
     apiRequest("/lead-sources", {
       method: "GET",

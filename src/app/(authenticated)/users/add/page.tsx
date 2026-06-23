@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
+import { canViewModule, hasPermission } from "@/lib/permissions";
 import { normalizeRoleName, getSupervisorTargetRole, getSupervisorLabel, createDefaultSchedule, scheduleToApiPayload, validateWorkingSchedule } from "../user-form-utils";
 import type { DayScheduleEntry } from "../user-form-utils";
 import { WorkingScheduleEditor } from "../components/WorkingScheduleEditor";
@@ -34,6 +35,7 @@ interface SupervisorOption {
 
 export default function AddUserPage() {
   const router = useRouter();
+  const canCreateUsers = hasPermission("User", "create");
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [supervisorOptions, setSupervisorOptions] = useState<SupervisorOption[]>([]);
@@ -68,8 +70,13 @@ export default function AddUserPage() {
   const needsSupervisor = supervisorTarget !== null;
 
   useEffect(() => {
+    if (!canViewModule("User") || !canCreateUsers) {
+      toast.error("You do not have permission to create users.");
+      router.push("/users");
+      return;
+    }
     fetchRoles();
-  }, []);
+  }, [canCreateUsers, router]);
 
   useEffect(() => {
     if (!supervisorTarget) {
@@ -197,12 +204,15 @@ export default function AddUserPage() {
     setLoading(true);
 
     try {
-      await adminApi.createUser({
+      const created = await adminApi.createUser({
         ...formData,
         ...scheduleToApiPayload(workingSchedule),
-        hasProfilePicture: !!profilePicture,
         ...(needsSupervisor ? { reportsToId } : {}),
       });
+      const createdUserId = String(created?.user?._id || created?.user?.id || "");
+      if (profilePicture && createdUserId) {
+        await adminApi.uploadUserProfileImage(createdUserId, profilePicture);
+      }
       toast.success("User created successfully!");
       router.push("/users");
     } catch (err: unknown) {

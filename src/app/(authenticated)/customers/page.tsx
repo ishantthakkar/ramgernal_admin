@@ -7,33 +7,11 @@ import { ChevronLeft, ChevronRight, Search, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
-
-interface CustomerListItem {
-  id?: string;
-  _id?: string;
-  lead_id?: string;
-  leadId?: string;
-  accountNumber?: string;
-  leadName?: string;
-  name?: string;
-  email?: string;
-  mobileNumber?: string;
-  dba?: string;
-  status?: string;
-  salesPersonName?: string;
-}
-
-function getLeadId(customer: CustomerListItem): string {
-  return customer.lead_id || customer.leadId || "";
-}
-
-function getLeadName(customer: CustomerListItem): string {
-  return customer.leadName || customer.name || "";
-}
+import { mapCustomerRows, type CustomerRow } from "@/lib/mappers/customers";
 
 export default function CustomersPage() {
   const router = useRouter();
-  const [customers, setCustomers] = useState<CustomerListItem[]>([]);
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,8 +24,8 @@ export default function CustomersPage() {
       setLoading(true);
       try {
         const response = await adminApi.getCustomers();
-        const data = response.customers || response.data || response;
-        setCustomers(Array.isArray(data) ? data : []);
+        const raw = response.customers || response.data || response;
+        setCustomers(mapCustomerRows(Array.isArray(raw) ? raw : []));
       } catch (err) {
         console.error("Failed to fetch customers:", err);
       } finally {
@@ -60,14 +38,14 @@ export default function CustomersPage() {
   const filteredCustomers = customers.filter((customer) => {
     const q = searchQuery.toLowerCase();
     return (
-      getLeadId(customer).toLowerCase().includes(q) ||
-      getLeadName(customer).toLowerCase().includes(q) ||
-      customer.email?.toLowerCase().includes(q) ||
-      customer.mobileNumber?.includes(searchQuery) ||
-      customer.accountNumber?.toLowerCase().includes(q) ||
-      customer.dba?.toLowerCase().includes(q) ||
-      customer.salesPersonName?.toLowerCase().includes(q) ||
-      customer.status?.toLowerCase().includes(q)
+      customer.leadId.toLowerCase().includes(q) ||
+      customer.leadName.toLowerCase().includes(q) ||
+      customer.email.toLowerCase().includes(q) ||
+      customer.mobileNumber.includes(searchQuery) ||
+      customer.accountNumber.toLowerCase().includes(q) ||
+      customer.dba.toLowerCase().includes(q) ||
+      customer.salesPersonName.toLowerCase().includes(q) ||
+      customer.statusLabel.toLowerCase().includes(q)
     );
   });
 
@@ -144,18 +122,14 @@ export default function CustomersPage() {
               </tr>
             ) : filteredCustomers.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                <td colSpan={7} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
                   No customers found.
                 </td>
               </tr>
             ) : (
-              currentItems.map((customer, idx) => {
-                const customerId = customer.id || customer._id;
-                const displayName = getLeadName(customer) || "—";
-
-                return (
-                  <tr key={customerId || idx}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{getLeadId(customer) || "—"}</td>
+              currentItems.map((customer) => (
+                  <tr key={customer.id}>
+                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{customer.leadId || "—"}</td>
                     <td
                       style={{
                         cursor: "pointer",
@@ -164,28 +138,27 @@ export default function CustomersPage() {
                         textDecoration: "underline",
                         textDecorationColor: "var(--admin-primary, #004d4d)",
                       }}
-                      onClick={() => router.push(`/customers/${customerId}`)}
+                      onClick={() => router.push(`/customers/${customer.id}`)}
                     >
-                      {displayName}
+                      {customer.leadName || "—"}
                     </td>
-                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{customer.accountNumber || "—"}</td>
-                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{customer.mobileNumber || "—"}</td>
-                    <td style={{ color: "#64748b" }}>{customer.email || "—"}</td>
-                    <td>{customer.dba || "—"}</td>
+                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{customer.accountNumber}</td>
+                    <td style={{ fontWeight: 500, color: "#1e293b" }}>{customer.mobileNumber}</td>
+                    <td style={{ color: "#64748b" }}>{customer.email}</td>
+                    <td>{customer.dba}</td>
                     <td>
                       {canEdit && (
                         <button
                           type="button"
                           className={dashboardStyles.assignBtn}
-                          onClick={() => router.push(`/customers/${customerId}/edit`)}
+                          onClick={() => router.push(`/customers/${customer.id}/edit`)}
                         >
                           Edit
                         </button>
                       )}
                     </td>
                   </tr>
-                );
-              })
+                ))
             )}
           </tbody>
         </table>

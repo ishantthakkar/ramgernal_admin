@@ -23,26 +23,18 @@ import { adminApi } from "@/lib/api";
 import { canViewModule, hasPermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
 import {
-  mapSurveyQuotationListItem,
-  type SurveyQuotationApiRow,
-} from "@/lib/quotation-utils";
+  fetchWorkflowTabData,
+  filterWorkflowRows,
+  loadWorkflowCustomerMetaMap,
+  type WorkflowCustomerMeta,
+  type WorkflowTab,
+  type WorkflowTabRow,
+} from "@/lib/mappers/workflow";
+import { getStatusBadgeStyle } from "@/lib/mappers/status-labels";
 import {
-  mapInstallationSurveyRow,
-  mapInspectionSurveyRow,
-  mapInspectionCustomerRow,
   formatAdminInspectionApprovalLabel,
   getAdminInspectionApprovalColor,
 } from "@/lib/workflow-installation";
-import { fetchWorkflowSurveyRows } from "@/lib/workflow-surveys-list";
-
-function resolveUserDisplayName(
-  user: { fullName?: string; _id?: unknown } | null | undefined
-): string {
-  if (!user) return "—";
-  const idStr = String(user._id || "");
-  if (idStr === "[object Object]" || !user.fullName) return "—";
-  return user.fullName;
-}
 
 function QuotationPdfLink({
   url,
@@ -76,147 +68,6 @@ function QuotationPdfLink({
   );
 }
 
-// Mock data for workflow items
-const MOCK_SURVEYS = [
-  {
-    _id: "S001",
-    customerName: "John Doe",
-    company: "Sunwell Solar",
-    salesperson: "Alice Smith",
-    contractor: "",
-    projectManager: "",
-    surveyStatus: "Completed",
-    installationStatus: "In Progress",
-    inspectionStatus: "Not Started",
-    date: "2024-04-20"
-  },
-  {
-    _id: "S002",
-    customerName: "Jane Roe",
-    company: "Green Energy Co",
-    salesperson: "Bob Johnson",
-    contractor: "Dave Wilson",
-    projectManager: "Sarah Connor",
-    surveyStatus: "Verified",
-    installationStatus: "Not Started",
-    inspectionStatus: "Not Started",
-    date: "2024-04-19"
-  },
-  {
-    _id: "S003",
-    customerName: "Marcus Aurelius",
-    company: "Rome Renewables",
-    salesperson: "Alice Smith",
-    contractor: "",
-    projectManager: "",
-    surveyStatus: "Pending",
-    installationStatus: "Not Started",
-    inspectionStatus: "Not Started",
-    date: "2024-04-21"
-  },
-];
-
-const MOCK_INSTALLATIONS = [
-  {
-    _id: "inst_1",
-    displayId: "VC-92410",
-    customerName: "Andrew Scoff",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Not Started"
-  },
-  {
-    _id: "inst_2",
-    displayId: "VC-92410",
-    customerName: "Cliff Booth",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "In Process"
-  },
-  {
-    _id: "inst_3",
-    displayId: "VC-92410",
-    customerName: "Mark Zyden",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Completed"
-  },
-  {
-    _id: "inst_4",
-    displayId: "VC-92410",
-    customerName: "Halisen Margot",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Verified"
-  },
-  {
-    _id: "inst_5",
-    displayId: "VC-92410",
-    customerName: "Halisen Margot",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Reopened"
-  },
-];
-
-const MOCK_INSPECTIONS = [
-  {
-    _id: "insp_1",
-    customerName: "Andrew Scoff",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Not Started"
-  },
-  {
-    _id: "insp_2",
-    customerName: "Cliff Booth",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "In Process"
-  },
-  {
-    _id: "insp_3",
-    customerName: "Mark Zyden",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Completed"
-  },
-  {
-    _id: "insp_4",
-    customerName: "Halisen Margot",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Verified"
-  },
-  {
-    _id: "insp_5",
-    customerName: "Halisen Margot",
-    company: "Xelectronics",
-    salesPerson: "Jack Hclison",
-    contractor: "Methew Zynd",
-    projectManager: "Medison Cly",
-    status: "Reopened"
-  },
-];
-
 export default function WorkflowPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -235,8 +86,11 @@ export default function WorkflowPage() {
 
   const initialTab = validTabs.includes(tabParam || "") ? tabParam! : (validTabs[0] || "Surveys");
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any[]>(MOCK_SURVEYS);
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<WorkflowTabRow[]>([]);
+  const [customerMetaMap, setCustomerMetaMap] = useState<
+    Map<string, WorkflowCustomerMeta>
+  >(new Map());
 
   // Permissions for actions
   const canEditSurveys = hasPermission("Surveys", "edit");
@@ -266,112 +120,38 @@ export default function WorkflowPage() {
     setLoading(true);
     setData([]);
     try {
+      const { rows, total } = await fetchWorkflowTabData(
+        activeTab as WorkflowTab,
+        customerMetaMap.size > 0 ? customerMetaMap : undefined
+      );
+      setData(rows);
+
       if (activeTab === "Surveys") {
-        const { rows: normalizedData, total } = await fetchWorkflowSurveyRows();
-        setData(normalizedData);
-        setCounts((prev) => ({
-          ...prev,
-          totalSurveys: total,
-        }));
-
+        setCounts((prev) => ({ ...prev, totalSurveys: total }));
       } else if (activeTab === "Quotations") {
-        const [quotationsRes, customersListRes] = await Promise.all([
-          adminApi.getQuotationsAdmin(),
-          adminApi.getCustomers(),
-        ]);
-        const quotations = (quotationsRes.quotations || []) as SurveyQuotationApiRow[];
-
-        const customerMetaMap = new Map<
-          string,
-          { leadId: string; salesManagerName: string; salesPersonName: string }
-        >();
-        for (const row of customersListRes.customers || []) {
-          const id = String(row.id || row._id || "");
-          if (!id) continue;
-          customerMetaMap.set(id, {
-            leadId: row.lead_id || "",
-            salesManagerName: row.salesManagerName || "",
-            salesPersonName: row.salesPersonName || "",
-          });
-        }
-
-        const normalizedData = quotations.map((row, index) => {
-          const customerId = String(row.customerId || "");
-          const meta = customerMetaMap.get(customerId);
-          return mapSurveyQuotationListItem(row, index, meta);
-        });
-        setData(normalizedData);
-        setCounts((prev) => ({
-          ...prev,
-          totalQuotations: quotationsRes.total ?? normalizedData.length,
-        }));
-
+        setCounts((prev) => ({ ...prev, totalQuotations: total }));
       } else if (activeTab === "Installations") {
-        const response = await adminApi.getInstallations();
-        const surveys = response.surveys || response.installations || response.data || [];
-
-        const normalizedData = (Array.isArray(surveys) ? surveys : []).map((survey: Record<string, unknown>) =>
-          mapInstallationSurveyRow(survey)
-        );
-        setData(normalizedData);
-        setCounts((prev) => ({
-          ...prev,
-          totalInstallations: response.total ?? normalizedData.length,
-        }));
-
+        setCounts((prev) => ({ ...prev, totalInstallations: total }));
       } else if (activeTab === "Inspections") {
-        const [inspectionsRes, installationsRes] = await Promise.all([
-          adminApi.getInspections(),
-          adminApi.getInstallations(),
-        ]);
-
-        const legacyCustomers = inspectionsRes.customers || inspectionsRes.data || [];
-        const legacyRows = (Array.isArray(legacyCustomers) ? legacyCustomers : []).map(
-          (customer: Record<string, unknown>) => mapInspectionCustomerRow(customer)
-        );
-
-        const installationSurveys =
-          installationsRes.surveys || installationsRes.installations || installationsRes.data || [];
-        const submittedRows = (Array.isArray(installationSurveys) ? installationSurveys : [])
-          .filter((survey: Record<string, unknown>) => {
-            const installationStatus = String(survey.installationStatus || "").toLowerCase();
-            const inspectionStatus = String(survey.inspectionStatus || "").toLowerCase();
-            return (
-              installationStatus === "submitted" ||
-              ["confirm", "submitted", "verified", "in_progress", "reopen"].includes(
-                inspectionStatus
-              )
-            );
-          })
-          .map((survey: Record<string, unknown>) => mapInspectionSurveyRow(survey));
-
-        const mergedBySurvey = new Map<string, ReturnType<typeof mapInspectionSurveyRow>>();
-        for (const row of submittedRows) {
-          if (row.surveyId) mergedBySurvey.set(row.surveyId, row);
-        }
-
-        const legacyOnly = legacyRows.filter((row) => {
-          if (!row.surveyId) return true;
-          return !mergedBySurvey.has(row.surveyId);
-        });
-
-        const normalizedData = [...mergedBySurvey.values(), ...legacyOnly];
-        setData(normalizedData);
-        setCounts((prev) => ({
-          ...prev,
-          totalInspections: normalizedData.length,
-        }));
+        setCounts((prev) => ({ ...prev, totalInspections: total }));
       }
     } catch (err) {
       console.error("Failed to fetch workflow data:", err);
+      toast.error(`Failed to load ${activeTab.toLowerCase()}.`);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    loadWorkflowCustomerMetaMap()
+      .then(setCustomerMetaMap)
+      .catch((err) => console.warn("Failed to preload customer meta:", err));
+  }, []);
+
+  useEffect(() => {
     fetchWorkflowData();
-  }, [activeTab]);
+  }, [activeTab, customerMetaMap.size]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -523,73 +303,12 @@ export default function WorkflowPage() {
 
   const tableColSpan = getHeaders().length;
 
-  const getStatusStyle = (status: string) => {
-    if (!status || status === "-") return { color: "#94a3b8", bg: "#f1f5f9" };
-    switch (status.toLowerCase()) {
-      case "completed": return { color: "#94a3b8", bg: "#f1f5f9" };
-      case "verified": return { color: "#3b82f6", bg: "#eff6ff" };
-      case "pending":
-      case "not started": return { color: "#ef4444", bg: "#fef2f2" };
-      case "in progress":
-      case "in-process":
-      case "in process": return { color: "#10b981", bg: "#ecfdf5" };
-      case "reopened":
-      case "reopen": return { color: "#fbbf24", bg: "#fffbeb" };
-      case "to-do":
-      case "to do": return { color: "#ef4444", bg: "#fef2f2" };
-      case "confirm":
-      case "confirmed":
-      case "pending review": return { color: "#f59e0b", bg: "#fffbeb" };
-      case "submitted": return { color: "#3b82f6", bg: "#eff6ff" };
-      case "pending_edit_approval": return { color: "#d97706", bg: "#fef3c7" };
-      case "new": return { color: "#8b5cf6", bg: "#f5f3ff" };
-      default: return { color: "#64748b", bg: "#f8fafc" };
-    }
-  };
+  const getStatusStyle = (status: string) => getStatusBadgeStyle(status);
 
-  const filteredData = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return data.filter((item) => {
-      if (activeTab === "Surveys") {
-        return (
-          item.leadId?.toLowerCase().includes(q) ||
-          item.customerId?.toLowerCase().includes(q) ||
-          item.leadName?.toLowerCase().includes(q) ||
-          item.surveyName?.toLowerCase().includes(q) ||
-          item.dba?.toLowerCase().includes(q) ||
-          item.salesPerson?.toLowerCase().includes(q) ||
-          item.salesManager?.toLowerCase().includes(q) ||
-          item.surveyStatus?.toLowerCase().includes(q)
-        );
-      }
-      if (activeTab === "Quotations") {
-        return (
-          item.leadId?.toString().toLowerCase().includes(q) ||
-          item.customerName?.toLowerCase().includes(q) ||
-          item.surveyName?.toLowerCase().includes(q) ||
-          item.salesManager?.toLowerCase().includes(q) ||
-          item.salesPerson?.toLowerCase().includes(q) ||
-          item.statusLabel?.toLowerCase().includes(q)
-        );
-      }
-      return (
-        item.customerName?.toLowerCase().includes(q) ||
-        item.jobId?.toLowerCase().includes(q) ||
-        item.surveyName?.toLowerCase().includes(q) ||
-        item.leadId?.toLowerCase().includes(q) ||
-        item.customerCode?.toLowerCase().includes(q) ||
-        item.dba?.toLowerCase().includes(q) ||
-        item.email?.toLowerCase().includes(q) ||
-        item.mobileNumber?.toLowerCase().includes(q) ||
-        item.company?.toLowerCase().includes(q) ||
-        item.salesPerson?.toLowerCase().includes(q) ||
-        item.contractor?.toLowerCase().includes(q) ||
-        item.projectManager?.toLowerCase().includes(q) ||
-        item.status?.toLowerCase().includes(q) ||
-        item.accountNumber?.toLowerCase().includes(q)
-      );
-    });
-  }, [data, searchTerm, activeTab]);
+  const filteredData = useMemo(
+    () => filterWorkflowRows(data, activeTab as WorkflowTab, searchTerm),
+    [data, searchTerm, activeTab]
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / itemsPerPage));
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -601,6 +320,15 @@ export default function WorkflowPage() {
       setCurrentPage(page);
     }
   };
+
+  function getWorkflowRowKey(item: WorkflowTabRow, index: number): string {
+    const row = item as Record<string, unknown>;
+    return String(row.rowId || row.surveyId || row._id || `${activeTab}-${index}`);
+  }
+
+  function row(item: WorkflowTabRow): Record<string, unknown> {
+    return item as Record<string, unknown>;
+  }
 
   function getQuotationStatusStyle(status: string) {
     switch (status?.toLowerCase()) {
@@ -698,43 +426,45 @@ export default function WorkflowPage() {
                   </td>
                 </tr>
               ) : (
-                currentItems.map((item, index) => (
-                  <tr key={item.rowId || item.surveyId || item._id || `${activeTab}-${index}`}>
+                currentItems.map((item, index) => {
+                  const r = row(item);
+                  return (
+                  <tr key={getWorkflowRowKey(item, index)}>
                     {activeTab === "Surveys" ? (
                       <>
-                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId || "—"}</td>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{String(r.leadId || "—")}</td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
                             onClick={() =>
                               router.push(
-                                `/workflow/view/${item._id}?from=Surveys&surveyId=${item.surveyId}`
+                                `/workflow/view/${r._id}?from=Surveys&surveyId=${r.surveyId}`
                               )
                             }
                           >
-                            {item.leadName || "—"}
+                            {String(r.leadName || "—")}
                           </span>
                         </td>
-                        <td style={{ color: "#1e293b", fontWeight: 700 }}>{item.surveyName || "—"}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.dba || "—"}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager || "—"}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 700 }}>{String(r.surveyName || "—")}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.dba || "—")}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.salesPerson || "—")}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.salesManager || "—")}</td>
                         <td>
                           <div className={styles.statusCell}>
                             <span
                               className={styles.statusDotActive}
                               style={{
-                                backgroundColor: getStatusStyle(item.surveyStatus).color,
+                                backgroundColor: getStatusStyle(String(r.surveyStatus || "")).color,
                               }}
                             />
                             <span
                               style={{
-                                color: getStatusStyle(item.surveyStatus).color,
+                                color: getStatusStyle(String(r.surveyStatus || "")).color,
                                 fontWeight: 600,
                                 fontSize: "0.875rem",
                               }}
                             >
-                              {item.surveyStatus || "—"}
+                              {String(r.surveyStatus || "—")}
                             </span>
                           </div>
                         </td>
@@ -745,7 +475,7 @@ export default function WorkflowPage() {
                               className={styles.assignBtn}
                               onClick={() =>
                                 router.push(
-                                  `/workflow/edit/${item._id}?from=Surveys&surveyId=${item.surveyId}`
+                                  `/workflow/edit/${r._id}?from=Surveys&surveyId=${r.surveyId}`
                                 )
                               }
                             >
@@ -758,40 +488,40 @@ export default function WorkflowPage() {
                       </>
                     ) : activeTab === "Quotations" ? (
                       <>
-                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{item.leadId}</td>
+                        <td style={{ fontWeight: 600, color: "#94a3b8" }}>{String(r.leadId || "—")}</td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
                             onClick={() =>
                               router.push(
-                                `/workflow/quotations/${item.customerId}?surveyId=${item.surveyId}&from=Quotations`
+                                `/workflow/quotations/${r.customerId}?surveyId=${r.surveyId}&from=Quotations`
                               )
                             }
                           >
-                            {item.customerName}
+                            {String(r.customerName || "—")}
                           </span>
                         </td>
-                        <td style={{ color: "#1e293b", fontWeight: 700 }}>{item.surveyName}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesManager}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 700 }}>{String(r.surveyName || "—")}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.salesManager || "—")}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.salesPerson || "—")}</td>
                         <td onClick={(e) => e.stopPropagation()}>
                           <QuotationPdfLink
-                            url={item.generatedPdfUrl}
+                            url={String(r.generatedPdfUrl || "")}
                             label="PDF"
-                            title={item.generatedPdfName}
+                            title={String(r.generatedPdfName || "")}
                           />
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
-                          {item.signedPdfUrl ? (
+                          {r.signedPdfUrl ? (
                             <QuotationPdfLink
-                              url={item.signedPdfUrl}
+                              url={String(r.signedPdfUrl || "")}
                               label="PDF"
-                              title={item.signedPdfName}
+                              title={String(r.signedPdfName || "")}
                             />
                           ) : canCreateSurveys ? (
                             <SignedQuotationUpload
-                              customerId={item.customerId}
-                              surveyId={item.surveyId}
+                              customerId={String(r.customerId || "")}
+                              surveyId={String(r.surveyId || "")}
                               onUploaded={fetchWorkflowData}
                             />
                           ) : (
@@ -803,11 +533,11 @@ export default function WorkflowPage() {
                             <span
                               className={styles.statusDotActive}
                               style={{
-                                backgroundColor: getQuotationStatusStyle(item.quotationStatus).color,
+                                backgroundColor: getQuotationStatusStyle(String(r.quotationStatus || "")).color,
                               }}
                             />
                             <span style={{ color: "#1e293b", fontWeight: 600 }}>
-                              {item.statusLabel}
+                              {String(r.statusLabel || "—")}
                             </span>
                           </div>
                         </td>
@@ -817,7 +547,7 @@ export default function WorkflowPage() {
                             className={styles.assignBtn}
                             onClick={() =>
                               router.push(
-                                `/workflow/edit/${item.customerId}?surveyId=${item.surveyId}&from=Quotations`
+                                `/workflow/edit/${r.customerId}?surveyId=${r.surveyId}&from=Quotations`
                               )
                             }
                           >
@@ -828,26 +558,26 @@ export default function WorkflowPage() {
                     ) : activeTab === "Installations" ? (
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>
-                          {item.leadId || item.customerCode || item.accountNumber || "—"}
+                          {String(r.leadId || r.customerCode || r.accountNumber || "—")}
                         </td>
                         <td style={{ fontWeight: 600, color: "#1e293b" }}>
-                          {item.jobId || "—"}
+                          {String(r.jobId || "—")}
                         </td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
-                            onClick={() => router.push(`/workflow/view/${item.surveyId}?from=Installations`)}
+                            onClick={() => router.push(`/workflow/view/${r.surveyId}?from=Installations`)}
                           >
-                            {item.customerName}
+                            {String(r.customerName || "—")}
                           </span>
                         </td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.company || "—")}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.salesPerson || "—")}</td>
                         <td>
-                          {item.contractor && item.contractor !== "Unassigned" ? (
+                          {r.contractor && r.contractor !== "Unassigned" ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
                               <User size={14} color="#94a3b8" />
-                              {item.contractor}
+                              {String(r.contractor)}
                             </div>
                           ) : canCreateInstallations ? (
                             <button
@@ -855,7 +585,7 @@ export default function WorkflowPage() {
                               className={styles.assignBtn}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openAssignModal("Contractor", item);
+                                openAssignModal("Contractor", r);
                               }}
                               style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
                             >
@@ -866,17 +596,17 @@ export default function WorkflowPage() {
                           )}
                         </td>
                         <td>
-                          {item.projectManager && item.projectManager !== "Unassigned" ? (
+                          {r.projectManager && r.projectManager !== "Unassigned" ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
                               <User size={14} color="#94a3b8" />
-                              {item.projectManager}
+                              {String(r.projectManager)}
                             </div>
                           ) : canCreateInstallations ? (
                             <button
                               className={styles.assignBtn}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openAssignModal("Project Manager", item);
+                                openAssignModal("Project Manager", r);
                               }}
                               style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
                             >
@@ -888,14 +618,14 @@ export default function WorkflowPage() {
                         </td>
                         <td>
                           <div className={styles.statusCell}>
-                            {item.status !== "-" && (
+                            {r.status !== "-" && (
                               <span
                                 className={styles.statusDotActive}
-                                style={{ backgroundColor: getStatusStyle(item.status).color }}
+                                style={{ backgroundColor: getStatusStyle(String(r.status || "")).color }}
                               ></span>
                             )}
                             <span style={{ color: "#1e293b", fontWeight: 600 }}>
-                              {item.status}
+                              {String(r.status || "—")}
                             </span>
                           </div>
                         </td>
@@ -903,37 +633,37 @@ export default function WorkflowPage() {
                     ) : activeTab === "Inspections" ? (
                       <>
                         <td style={{ fontWeight: 600, color: "#94a3b8" }}>
-                          {item.leadId || item.customerCode || "—"}
+                          {String(r.leadId || r.customerCode || "—")}
                         </td>
                         <td>
                           <span
                             className={workflowStyles.linkName}
                             onClick={() =>
                               router.push(
-                                `/workflow/view/${item.surveyId || item._id}?from=Inspections`
+                                `/workflow/view/${r.surveyId || r._id}?from=Inspections`
                               )
                             }
                           >
-                            {item.customerName}
+                            {String(r.customerName || "—")}
                           </span>
                         </td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.company}</td>
-                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{item.salesPerson}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.company || "—")}</td>
+                        <td style={{ color: "#1e293b", fontWeight: 500 }}>{String(r.salesPerson || "—")}</td>
                         <td>
-                          {item.contractor && item.contractor !== "Unassigned" ? (
+                          {r.contractor && r.contractor !== "Unassigned" ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
                               <User size={14} color="#94a3b8" />
-                              {item.contractor}
+                              {String(r.contractor)}
                             </div>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
                           )}
                         </td>
                         <td>
-                          {item.projectManager && item.projectManager !== "Unassigned" ? (
+                          {r.projectManager && r.projectManager !== "Unassigned" ? (
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#1e293b", fontWeight: 600 }}>
                               <User size={14} color="#94a3b8" />
-                              {item.projectManager}
+                              {String(r.projectManager)}
                             </div>
                           ) : (
                             <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Unassigned</span>
@@ -941,14 +671,14 @@ export default function WorkflowPage() {
                         </td>
                         <td>
                           <div className={styles.statusCell}>
-                            {item.status !== "-" && (
+                            {r.status !== "-" && (
                               <span
                                 className={styles.statusDotActive}
-                                style={{ backgroundColor: getStatusStyle(item.status).color }}
+                                style={{ backgroundColor: getStatusStyle(String(r.status || "")).color }}
                               ></span>
                             )}
                             <span style={{ color: "#1e293b", fontWeight: 600 }}>
-                              {item.status || "To Do"}
+                              {String(r.status || "To Do")}
                             </span>
                           </div>
                         </td>
@@ -956,14 +686,14 @@ export default function WorkflowPage() {
                           <span
                             style={{
                               color: getAdminInspectionApprovalColor(
-                                item.inspectionStatusRaw || ""
+                                String(r.inspectionStatusRaw || "")
                               ),
                               fontWeight: 700,
                               fontSize: "0.85rem",
                             }}
                           >
                             {formatAdminInspectionApprovalLabel(
-                              item.inspectionStatusRaw || ""
+                              String(r.inspectionStatusRaw || "")
                             )}
                           </span>
                         </td>
@@ -981,8 +711,8 @@ export default function WorkflowPage() {
                                 router.push(
                                   `/workflow/edit/${
                                     activeTab === "Installations" || activeTab === "Inspections"
-                                      ? item.surveyId || item._id
-                                      : item._id
+                                      ? r.surveyId || r._id
+                                      : r._id
                                   }?from=${activeTab}`
                                 )
                               }
@@ -993,7 +723,8 @@ export default function WorkflowPage() {
                       </td>
                     )}
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

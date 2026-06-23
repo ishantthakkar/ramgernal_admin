@@ -2,6 +2,10 @@
   margin-top: 0.5rem;
 }
 
+.viewSectionTitle {
+  margin-bottom: 2rem;
+}
+
 .subordinatesTitle {
   font-size: 1.15rem;
   font-weight: 700;
@@ -9,10 +13,8 @@
   margin-bottom: 0.35rem;
 }
 
-.subordinatesSubtitle {
-  font-size: 0.875rem;
-  color: #64748b;
-  margin-bottom: 1.25rem;
+.subordinatesTitleSpaced {
+  margin-bottom: 2rem;
 }
 
 .subordinatesTable {
@@ -54,28 +56,6 @@
   background: #f8fafc;
   border-radius: 12px;
   border: 1px dashed #e2e8f0;
-}
-
-.workingHoursSectionTitle {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 0.5rem;
-}
-
-.workingHoursIconCircle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #fff7ed;
-  color: #f39c12;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .scheduleEmpty {

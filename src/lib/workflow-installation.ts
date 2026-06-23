@@ -3,6 +3,7 @@ import {
   resolveSurveyProjectManagerName,
   resolveSurveySalesPersonName,
 } from "@/lib/workflow-installation-details";
+import { formatInstallationStatusLabel } from "@/lib/mappers/status-labels";
 
 export function resolveCustomerDba(
   customer: Record<string, unknown> | null | undefined
@@ -194,17 +195,26 @@ export function mapWorkflowSurveyRow(survey: Record<string, unknown>) {
     survey.surveyName || survey.areaName || "Survey"
   ).trim();
 
+  const salesPerson =
+    String(customerObj?.salesPersonName || "").trim() ||
+    resolveSurveySalesPersonName(survey, customerObj) ||
+    "Unassigned";
+  const salesManager =
+    String(customerObj?.salesManagerName || "").trim() ||
+    resolveSalesManagerName(customerObj) ||
+    "—";
+
   return {
     _id: customerId,
     rowId: String(survey._id || ""),
     surveyId: String(survey._id || ""),
     customerId,
-    leadId: String(lead?.lead_id || ""),
-    leadName: String(customerObj?.name || lead?.leadName || ""),
+    leadId: String(lead?.lead_id || customerObj?.lead_id || ""),
+    leadName: String(customerObj?.name || lead?.leadName || "—"),
     dba: resolveCustomerDba(customerObj) || "—",
     surveyName: surveyName || "Survey",
-    salesPerson: resolveSurveySalesPersonName(survey, customerObj) || "Unassigned",
-    salesManager: resolveSalesManagerName(customerObj),
+    salesPerson,
+    salesManager,
     surveyStatus: formatWorkflowSurveyStatusLabel(statusRaw),
     surveyStatusRaw: statusRaw,
     verifyStatus: isVerified ? "verified" : "pending",
@@ -239,14 +249,20 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
     customerCode: String(customerObj?.customerCode || ""),
     leadId: String(lead?.lead_id || ""),
     accountNumber: String(customerObj?.accountNumber || "N/A"),
-    customerName: String(customerObj?.name || "Unknown"),
+    customerName: String(customerObj?.name || lead?.leadName || "—"),
     company: dba,
-    salesPerson: resolveSurveySalesPersonName(survey, customerObj) || "Unassigned",
+    salesPerson:
+      String(customerObj?.salesPersonName || "").trim() ||
+      resolveSurveySalesPersonName(survey, customerObj) ||
+      "Unassigned",
     contractor: contractorName || "Unassigned",
     projectManager: projectManagerName || "Unassigned",
     assignedTo: survey.assignedTo,
-    status: String(
-      survey.installationStatus || survey.status || "not started"
+    installationStatusRaw: String(
+      survey.installationStatus || survey.status || "new"
+    ),
+    status: formatInstallationStatusLabel(
+      String(survey.installationStatus || survey.status || "new")
     ),
     quotationStatus: String(survey.quotationStatus || "approved"),
     survey,
@@ -299,9 +315,12 @@ export function mapInspectionCustomerRow(customer: Record<string, unknown>) {
     customerCode: String(customer.customerCode || ""),
     leadId: String(lead?.lead_id || ""),
     accountNumber: String(customer.accountNumber || "—"),
-    customerName: String(customer.name || "Unknown"),
+    customerName: String(customer.name || customer.leadName || "—"),
     company: resolveCustomerDba(customer) || "—",
-    salesPerson: String(user?.fullName || "Unassigned"),
+    salesPerson:
+      String(customer.salesPersonName || "").trim() ||
+      String(user?.fullName || "").trim() ||
+      "Unassigned",
     contractor:
       String(customer.contractorName || assignToContractor?.fullName || "").trim() ||
       "Unassigned",
