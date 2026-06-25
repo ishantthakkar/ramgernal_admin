@@ -26,6 +26,8 @@ import {
   mapSiteDetails,
   mapSurveyDetails,
   resolveSurveyId,
+  isSurveyVerified,
+  resolveSurveyWorkflowDisplayStatus,
   type NoteEntry,
   type SiteDetailRow,
   type SiteDetailSurveyGroup,
@@ -80,11 +82,12 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
 
 function getSurveyStatusColor(status: string): string {
   const s = (status || "").toLowerCase();
-  if (s === "completed") return "#64748b";
-  if (s === "verified") return "#10b981";
+  if (s === "verified" || s === "completed") return "#10b981";
+  if (s === "submitted") return "#3b82f6";
   if (s === "pending_edit_approval") return "#d97706";
   if (s === "reopened" || s === "reopen") return "#f59e0b";
   if (s === "pending" || s === "not started") return "#ef4444";
+  if (s === "in progress" || s === "in-process" || s === "in_progress") return "#f59e0b";
   return "#64748b";
 }
 
@@ -92,7 +95,7 @@ function formatSurveyStatusLabel(status: string): string {
   if (status === "pending_edit_approval") return "Pending Approval";
   if (status === "reopen" || status === "reopened") return "Reopened";
   if (!status) return "Pending";
-  return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
+  return status;
 }
 
 function EditableField({
@@ -635,8 +638,17 @@ export default function WorkflowEditPage() {
         ? `/workflow/view/${id}?from=${fromTab || "Surveys"}&surveyId=${surveyId}`
         : `/workflow/view/${id}?from=${fromTab || "Surveys"}`;
   const displayName = surveyInfo?.surveyName && surveyInfo.surveyName !== "N/A" ? surveyInfo.surveyName : "Survey";
-  const surveyStatus = customer.status || "Pending";
+  const focusedSurvey = focusedSurveyRecords[0] as Record<string, unknown> | undefined;
+  const surveyStatus = focusedSurvey
+    ? resolveSurveyWorkflowDisplayStatus(focusedSurvey)
+    : String(customer.status || "Pending");
   const statusColor = getSurveyStatusColor(surveyStatus);
+  const showVerifiedBadge =
+    (focusedSurvey && isSurveyVerified(focusedSurvey)) ||
+    String(customer.verifyStatus || "").toLowerCase() === "verified";
+  const verifiedDate =
+    (focusedSurvey?.confirmDate as string | number | Date | undefined) ||
+    customer.confirmDate;
   const inspectionStatusRaw = resolveInspectionStatusRaw(installationSurvey, customer);
   const inspectionStatusColor = getInspectionStatusColor(inspectionStatusRaw);
   const inspectionUpdatedLabel = isInspectionEdit
@@ -645,6 +657,7 @@ export default function WorkflowEditPage() {
 
   const canEditInspections = hasPermission("Inspection", "edit");
   const canCreateInspections = hasPermission("Inspection", "create");
+  const canManageExtraExpenses = hasPermission("Installation", "edit");
   const canApproveInspection =
     isInspectionEdit &&
     !isAdminInspectionVerified(inspectionStatusRaw) &&
@@ -767,7 +780,7 @@ export default function WorkflowEditPage() {
               >
                 {formatSurveyStatusLabel(surveyStatus)}
               </span>
-              {customer.verifyStatus === "verified" ? (
+              {showVerifiedBadge ? (
                 <span
                   style={{
                     backgroundColor: "rgba(16, 185, 129, 0.12)",
@@ -780,8 +793,8 @@ export default function WorkflowEditPage() {
                   }}
                 >
                   Verified
-                  {customer.confirmDate
-                    ? ` · ${formatDate(customer.confirmDate)}`
+                  {verifiedDate
+                    ? ` · ${formatDate(verifiedDate)}`
                     : ""}
                 </span>
               ) : null}
@@ -936,6 +949,7 @@ export default function WorkflowEditPage() {
             <InstallationWorkflowSections
               installationSurvey={installationSurvey}
               mode="edit"
+              canManageExtraExpenses={canManageExtraExpenses}
               onRefresh={refreshWorkflow}
               onViewImages={(images, title) => {
                 setSelectedImages(images);

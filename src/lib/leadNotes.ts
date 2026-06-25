@@ -11,6 +11,17 @@ export interface LeadNoteDisplay {
   writtenByName?: string;
   writtenByEmail?: string;
   writtenByRole?: string;
+  createdByName?: string;
+  createdBy?: {
+    fullName?: string;
+    email?: string;
+  };
+  user_id?:
+    | string
+    | {
+        fullName?: string;
+        email?: string;
+      };
 }
 
 export function getCurrentNoteAuthor(): LeadNoteAuthor | null {
@@ -34,6 +45,16 @@ export function getCurrentNoteAuthor(): LeadNoteAuthor | null {
 
 export function formatNoteAuthorLabel(note: LeadNoteDisplay): string {
   if (note.writtenByName?.trim()) return note.writtenByName.trim();
+  if (note.createdByName?.trim()) return note.createdByName.trim();
+  if (note.createdBy?.fullName?.trim()) return note.createdBy.fullName.trim();
+  if (note.createdBy?.email?.trim()) return note.createdBy.email.trim();
+
+  if (note.user_id && typeof note.user_id === "object") {
+    const user = note.user_id;
+    if (user.fullName?.trim()) return user.fullName.trim();
+    if (user.email?.trim()) return user.email.trim();
+  }
+
   if (note.writtenByRole === "admin") return "Admin";
   return "Unknown";
 }

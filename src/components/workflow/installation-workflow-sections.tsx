@@ -25,6 +25,7 @@ import {
   isMaterialsVerified,
   resolveMaterialImageUrl,
 } from "@/lib/workflow-installation-details";
+import { InstallationExtraExpensesSection } from "@/components/workflow/installation-extra-expenses-section";
 
 interface DeliveryItemForm {
   sku: string;
@@ -58,6 +59,7 @@ function getReturnItemName(item: Record<string, unknown>): string {
 interface InstallationWorkflowSectionsProps {
   installationSurvey: Record<string, unknown> | null;
   mode?: "view" | "edit";
+  canManageExtraExpenses?: boolean;
   onRefresh?: () => Promise<void>;
   onViewImages?: (images: string[], title: string) => void;
 }
@@ -82,6 +84,7 @@ const EMPTY_RETURN_FORM = {
 export function InstallationWorkflowSections({
   installationSurvey,
   mode = "view",
+  canManageExtraExpenses = false,
   onRefresh,
   onViewImages,
 }: InstallationWorkflowSectionsProps) {
@@ -521,6 +524,13 @@ export function InstallationWorkflowSections({
           <div className={addStyles.emptyState}>No summary available yet.</div>
         )}
       </section>
+
+      <InstallationExtraExpensesSection
+        installationSurvey={installationSurvey}
+        canManage={canManageExtraExpenses}
+        onRefresh={onRefresh}
+        onViewImages={onViewImages}
+      />
 
       {deliveryModalOpen ? (
         <div className={modalStyles.modalOverlay} onClick={() => setDeliveryModalOpen(false)}>

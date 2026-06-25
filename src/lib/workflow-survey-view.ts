@@ -353,10 +353,38 @@ function mapSurveyAreas(survey: SurveyRecord): SiteDetailRow[] {
   return rows;
 }
 
+export function normalizeSurveyStatus(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+}
+
 export function isSurveyVerified(survey: SurveyRecord): boolean {
-  if (!survey.confirmDate) return false;
-  const date = new Date(survey.confirmDate as string | number | Date);
-  return !Number.isNaN(date.getTime());
+  if (survey.confirmDate) {
+    const date = new Date(survey.confirmDate as string | number | Date);
+    if (!Number.isNaN(date.getTime())) {
+      return true;
+    }
+  }
+
+  const status = normalizeSurveyStatus(survey.status);
+  return status === "completed" || status === "verified";
+}
+
+export function resolveSurveyWorkflowDisplayStatus(survey: SurveyRecord): string {
+  if (isSurveyVerified(survey)) {
+    return "Verified";
+  }
+
+  const status = normalizeSurveyStatus(survey.status);
+  if (status === "submitted") return "Submitted";
+  if (status === "in progress") return "In Progress";
+  if (status === "reopen" || status === "reopened") return "Reopened";
+  if (status === "pending edit approval") return "Pending Approval";
+  if (!status || status === "draft" || status === "pending") return "Pending";
+
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 export interface SiteDetailSurveyGroup {

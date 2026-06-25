@@ -170,6 +170,22 @@ export const adminApi = {
     apiRequest(`/surveys/${surveyId}/installation-workflow`, {
       method: "GET",
     }),
+  getExtraExpenses: (surveyId: string) =>
+    apiRequest(`/surveys/${surveyId}/extra-expenses`, {
+      method: "GET",
+    }),
+  approveExtraExpenses: (
+    surveyId: string,
+    extraExpenses: Array<{
+      description: string;
+      price: number;
+      approvedAmount: number;
+    }>
+  ) =>
+    apiRequest("/surveys/extra-expenses/approve", {
+      method: "POST",
+      body: JSON.stringify({ surveyId, extraExpenses }),
+    }),
   getCustomerActivities: (id: string) =>
     apiRequest(`/customer/customers/${id}/activities`, {
       method: "GET",
@@ -245,6 +261,16 @@ export const adminApi = {
     apiRequest("/customer/survey-quotations-list", {
       method: "GET",
     }),
+  previewQuotation: (surveyId: string) =>
+    apiRequest("/customer/quotation/preview", {
+      method: "POST",
+      body: JSON.stringify({ surveyId }),
+    }),
+  createQuotation: (surveyId: string) =>
+    apiRequest("/customer/quotation", {
+      method: "POST",
+      body: JSON.stringify({ surveyId }),
+    }),
   uploadQuotation: (surveyId: string, formData: FormData) => {
     formData.append("surveyId", surveyId);
     return apiRequest("/customer/quotation/upload", {
@@ -256,6 +282,14 @@ export const adminApi = {
     apiRequest("/customer/quotation/approve", {
       method: "POST",
       body: JSON.stringify({ surveyId }),
+    }),
+  updateQuotationFixtureSkus: (
+    surveyId: string,
+    fixtures: Array<{ fixtureId: string; sku: string }>
+  ) =>
+    apiRequest("/customer/quotation/fixture-skus", {
+      method: "POST",
+      body: JSON.stringify({ surveyId, fixtures }),
     }),
   getInvoicesList: (params?: { invoiceStatus?: string; hasInvoices?: string }) => {
     const query = new URLSearchParams();
@@ -289,7 +323,7 @@ export const adminApi = {
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),
-  getPayableDetails: (id: string, params?: { surveyId?: string; for?: "contractor" | "sales-manager" }) => {
+  getPayableDetails: (id: string, params?: { surveyId?: string; for?: "contractor" | "sales-manager" | "extra-expenses" }) => {
     const query = new URLSearchParams();
     if (params?.surveyId) query.set("surveyId", params.surveyId);
     if (params?.for) query.set("for", params.for);
@@ -306,7 +340,7 @@ export const adminApi = {
       paymentMethod: string;
       paymentDate?: string;
       note?: string;
-      for?: "contractor" | "sales-manager";
+      for?: "contractor" | "sales-manager" | "extra-expenses";
     }
   ) =>
     apiRequest(`/customer/customers/${id}/commission-payments`, {

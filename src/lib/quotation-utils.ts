@@ -215,3 +215,94 @@ export function mapSurveyQuotationFiles(row: SurveyQuotationApiRow | undefined):
     signed: signedUrl ? { url: signedUrl, pdfName: "Signed Quotation" } : null,
   };
 }
+
+export interface QuotationFixtureRow {
+  id: string;
+  fixtureId: string;
+  areaName: string;
+  proposedFixture: string;
+  proposedQuantity: string;
+  sku: string;
+  skuEditable: boolean;
+}
+
+function readProductField(
+  fixture: Record<string, unknown>,
+  field: "name" | "sku"
+): string {
+  const product = fixture.product;
+  if (product && typeof product === "object") {
+    const value = String((product as Record<string, unknown>)[field] || "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+export function mapQuotationFixtureRows(
+  survey: Record<string, unknown> | null | undefined
+): QuotationFixtureRow[] {
+  if (!survey) return [];
+
+  const surveyId = String(survey._id || survey.id || "survey");
+  const areas = Array.isArray(survey.areas) ? survey.areas : [];
+  const rows: QuotationFixtureRow[] = [];
+  let index = 0;
+
+  for (const area of areas) {
+    if (!area || typeof area !== "object") continue;
+
+    const areaObj = area as Record<string, unknown>;
+    const areaName = String(areaObj.areaName || "General").trim() || "General";
+    const fixtures = Array.isArray(areaObj.fixtures) ? areaObj.fixtures : [];
+
+    const fixtureList =
+      fixtures.length > 0
+        ? fixtures
+        : areaObj.product_id
+          ? [areaObj]
+          : [];
+
+    for (const fixture of fixtureList) {
+      if (!fixture || typeof fixture !== "object") continue;
+
+      const fixtureObj = fixture as Record<string, unknown>;
+      const proposedFixture =
+        readProductField(fixtureObj, "name") ||
+        String(fixtureObj.existingFixtureType || "").trim() ||
+        "—";
+      const proposedQuantity = String(fixtureObj.proposedQty ?? "0").trim() || "0";
+      const sku = readProductField(fixtureObj, "sku") || "—";
+
+      rows.push({
+        id: `${surveyId}-${index}`,
+        fixtureId: String(fixtureObj._id || fixtureObj.id || ""),
+        areaName,
+        proposedFixture,
+        proposedQuantity,
+        sku,
+        skuEditable: false,
+      });
+      index += 1;
+    }
+  }
+
+  const nameCounts = new Map<string, number>();
+  for (const row of rows) {
+    const key = row.proposedFixture.toLowerCase();
+    nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
+  }
+
+  return rows.map((row) => {
+    const duplicateName = (nameCounts.get(row.proposedFixture.toLowerCase()) || 0) > 1;
+    const missingSku = !row.sku || row.sku === "—";
+    return {
+      ...row,
+      skuEditable: duplicateName || missingSku,
+    };
+  });
+}
+
+export function isQuotationFixtureSkuValid(sku: string): boolean {
+  const value = sku.trim();
+  return Boolean(value) && value !== "—";
+}

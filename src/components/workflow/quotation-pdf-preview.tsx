@@ -7,13 +7,17 @@ import docStyles from "@/app/(authenticated)/workflow/quotations/quotations-view
 import addStyles from "@/app/(authenticated)/leads/add/leads-add.module.css";
 import modalStyles from "@/app/(authenticated)/workflow/workflow-details.module.css";
 import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";
+import { QuotationFixtureTable, type QuotationProductOption } from "@/components/workflow/quotation-fixture-table";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import {
   findSurveyQuotationRow,
   formatQuotationCardDate,
   formatQuotationStatusLabel,
+  mapQuotationFixtureRows,
   mapSurveyQuotationFiles,
+  isQuotationFixtureSkuValid,
+  type QuotationFixtureRow,
   type QuotationFile,
   type SurveyQuotationApiRow,
 } from "@/lib/quotation-utils";
@@ -183,6 +187,7 @@ export function QuotationPdfPreview({
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [customerName, setCustomerName] = useState("Customer");
   const [company, setCompany] = useState("—");
@@ -191,10 +196,13 @@ export function QuotationPdfPreview({
   const [signedFile, setSignedFile] = useState<QuotationFile | null>(null);
   const [activePdf, setActivePdf] = useState<"generated" | "signed">("generated");
   const [resolvedSurveyId, setResolvedSurveyId] = useState(surveyId || "");
-  const [surveyName, setSurveyName] = useState("");
+  const [fixtureRows, setFixtureRows] = useState<QuotationFixtureRow[]>([]);
+  const [productOptions, setProductOptions] = useState<QuotationProductOption[]>([]);
+  const [savingSkus, setSavingSkus] = useState(false);
 
   const canUploadSign = hasPermission("Surveys", "create");
   const canVerify = hasPermission("Surveys", "edit");
+  const canGenerate = hasPermission("Surveys", "create");
 
   const backUrl = `/workflow?tab=${fromTab}`;
   const statusLabel = formatQuotationStatusLabel(quotationStatus);
@@ -207,6 +215,26 @@ export function QuotationPdfPreview({
     if (generatedFile) return generatedFile;
     return signedFile;
   }, [activePdf, generatedFile, signedFile]);
+
+  const fetchProductOptions = async () => {
+    try {
+      const response = await adminApi.getProducts("Proposed Fixture");
+      const products = (response.products || response.data || []) as Array<{
+        sku?: string;
+        name?: string;
+      }>;
+      setProductOptions(
+        products
+          .map((product) => ({
+            sku: String(product.sku || "").trim(),
+            name: String(product.name || "").trim(),
+          }))
+          .filter((product) => product.sku)
+      );
+    } catch {
+      setProductOptions([]);
+    }
+  };
 
   const fetchQuotationDetails = async () => {
     setLoading(true);
@@ -222,12 +250,19 @@ export function QuotationPdfPreview({
       }
 
       const files = mapSurveyQuotationFiles(quotation);
+      const activeSurveyId = String(quotation.survey_id || surveyId || "");
 
-      setResolvedSurveyId(String(quotation.survey_id || surveyId || ""));
+      const customerRes = await adminApi.getCustomerWorkflowDetails(customerId);
+      const surveys = (customerRes.surveys || []) as Record<string, unknown>[];
+      const surveyRecord = surveys.find(
+        (item) => String(item._id || item.id || "") === activeSurveyId
+      );
+
+      setResolvedSurveyId(activeSurveyId);
       setCustomerName(quotation.customerName || "Customer");
-      setSurveyName((quotation.surveyName || "").trim());
       setCompany("—");
       setQuotationStatus((quotation.quotationStatus as string) || "pending");
+      setFixtureRows(mapQuotationFixtureRows(surveyRecord));
       setGeneratedFile(files.generated);
       setSignedFile(files.signed);
       setActivePdf(files.generated ? "generated" : "signed");
@@ -243,8 +278,75 @@ export function QuotationPdfPreview({
   useEffect(() => {
     if (customerId) {
       fetchQuotationDetails();
+      fetchProductOptions();
     }
   }, [customerId, surveyId]);
+
+  const handleSkuChange = (rowId: string, sku: string) => {
+    setFixtureRows((current) =>
+      current.map((row) => (row.id === rowId ? { ...row, sku } : row))
+    );
+  };
+
+  const saveFixtureSkus = async (options?: { silent?: boolean }) => {
+    if (!resolvedSurveyId) {
+      toast.error("Survey ID is missing for this quotation.");
+      return false;
+    }
+
+    const updates = fixtureRows
+      .filter((row) => row.fixtureId && isQuotationFixtureSkuValid(row.sku))
+      .map((row) => ({
+        fixtureId: row.fixtureId,
+        sku: row.sku.trim(),
+      }));
+
+    if (!updates.length) {
+      toast.error("Set a valid SKU for each proposed fixture before verifying.");
+      return false;
+    }
+
+    if (updates.length !== fixtureRows.length) {
+      toast.error("Set a valid SKU for each proposed fixture before verifying.");
+      return false;
+    }
+
+    try {
+      setSavingSkus(true);
+      const response = await adminApi.updateQuotationFixtureSkus(resolvedSurveyId, updates);
+      if (!options?.silent) {
+        toast.success(response.message || "Fixture SKUs saved.");
+      }
+      await fetchQuotationDetails();
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save fixture SKUs.";
+      toast.error(message);
+      return false;
+    } finally {
+      setSavingSkus(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!resolvedSurveyId) {
+      toast.error("Survey ID is missing for this quotation.");
+      return;
+    }
+    if (!window.confirm(`Generate quotation for ${customerName}?`)) return;
+
+    try {
+      setGenerating(true);
+      const response = await adminApi.createQuotation(resolvedSurveyId);
+      toast.success(response.message || "Quotation generated successfully.");
+      await fetchQuotationDetails();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate quotation.";
+      toast.error(message);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleVerify = async () => {
     if (!signedFile) {
@@ -263,6 +365,9 @@ export function QuotationPdfPreview({
         toast.error("Survey ID is missing for this quotation.");
         return;
       }
+
+      const skusSaved = await saveFixtureSkus({ silent: true });
+      if (!skusSaved) return;
 
       const response = await adminApi.approveQuotation(resolvedSurveyId);
       toast.success(response.message || "Quotation verified successfully.");
@@ -311,6 +416,13 @@ export function QuotationPdfPreview({
             company={company}
           />
 
+          <QuotationFixtureTable
+            rows={fixtureRows}
+            editable={!isApproved}
+            productOptions={productOptions}
+            onSkuChange={handleSkuChange}
+          />
+
           <section className={styles.formSection}>
             <div className={styles.sectionTitle}>
               <FileText size={22} color="var(--admin-primary, #004d4d)" /> Quotation Documents
@@ -324,6 +436,24 @@ export function QuotationPdfPreview({
                 title="Generated Quotation"
                 file={generatedFile}
                 emptyLabel="No generated quotation PDF yet."
+                emptyAction={
+                  canGenerate && !generatedFile ? (
+                    <button
+                      type="button"
+                      className={styles.createBtn}
+                      onClick={handleGenerate}
+                      disabled={generating || !resolvedSurveyId}
+                      style={{ marginTop: "0.75rem" }}
+                    >
+                      {generating ? (
+                        <Loader2 size={18} className={styles.spinner} />
+                      ) : (
+                        <FileText size={18} />
+                      )}
+                      {generating ? "Generating..." : "Generate Quotation"}
+                    </button>
+                  ) : undefined
+                }
               />
 
               <QuotationDocumentCard
@@ -384,18 +514,18 @@ export function QuotationPdfPreview({
                 type="button"
                 className={styles.createBtn}
                 onClick={handleVerify}
-                disabled={verifying || isApproved || !signedFile}
+                disabled={verifying || savingSkus || isApproved || !signedFile}
                 style={{
                   padding: "0.875rem 3rem",
                   background: isApproved ? "#94a3b8" : "#10b981",
                 }}
               >
-                {verifying ? (
+                {verifying || savingSkus ? (
                   <Loader2 size={18} className={styles.spinner} />
                 ) : (
                   <CheckCircle2 size={18} />
                 )}
-                {verifying ? "Verifying..." : isApproved ? "Verified" : "Verify"}
+                {verifying || savingSkus ? "Verifying..." : isApproved ? "Verified" : "Verify"}
               </button>
             ) : null}
           </div>
@@ -407,6 +537,13 @@ export function QuotationPdfPreview({
             statusLabel={statusLabel}
             statusColor={statusColor}
             company={company}
+          />
+
+          <QuotationFixtureTable
+            rows={fixtureRows}
+            editable={!isApproved}
+            productOptions={productOptions}
+            onSkuChange={handleSkuChange}
           />
 
           {generatedFile && signedFile ? (
@@ -452,15 +589,15 @@ export function QuotationPdfPreview({
                 type="button"
                 className={styles.createBtn}
                 onClick={handleVerify}
-                disabled={verifying || isApproved || !signedFile}
+                disabled={verifying || savingSkus || isApproved || !signedFile}
                 style={{ background: isApproved ? "#94a3b8" : "#10b981" }}
               >
-                {verifying ? (
+                {verifying || savingSkus ? (
                   <Loader2 size={18} className={styles.spinner} />
                 ) : (
                   <CheckCircle2 size={18} />
                 )}
-                {verifying ? "Verifying..." : isApproved ? "Verified" : "Verify"}
+                {verifying || savingSkus ? "Verifying..." : isApproved ? "Verified" : "Verify"}
               </button>
             ) : null}
 

@@ -3,6 +3,11 @@ import {
   resolveSurveyProjectManagerName,
   resolveSurveySalesPersonName,
 } from "@/lib/workflow-installation-details";
+import {
+  isSurveyVerified,
+  resolveSurveyWorkflowDisplayStatus,
+  type SurveyRecord,
+} from "@/lib/workflow-survey-view";
 import { formatInstallationStatusLabel } from "@/lib/mappers/status-labels";
 
 export function resolveCustomerDba(
@@ -85,12 +90,7 @@ const WORKFLOW_SURVEY_STATUSES = [
 ];
 
 function isSurveyRecordVerified(survey: Record<string, unknown>): boolean {
-  const confirmDate = survey.confirmDate;
-  return (
-    confirmDate != null &&
-    confirmDate !== "" &&
-    !Number.isNaN(new Date(String(confirmDate)).getTime())
-  );
+  return isSurveyVerified(survey as SurveyRecord);
 }
 
 export function isWorkflowCustomerRow(customer: Record<string, unknown>): boolean {
@@ -182,11 +182,8 @@ export function mapWorkflowSurveyRow(survey: Record<string, unknown>) {
       ? (customerObj.leadId as Record<string, unknown>)
       : null;
 
-  const confirmDate = survey.confirmDate;
-  const isVerified =
-    confirmDate != null &&
-    confirmDate !== "" &&
-    !Number.isNaN(new Date(String(confirmDate)).getTime());
+  const workflowStatusFromApi = String(survey.workflowStatus || "").trim();
+  const isVerified = isSurveyRecordVerified(survey);
   const statusRaw = isVerified
     ? "verified"
     : String(survey.status || "Pending");
@@ -215,11 +212,34 @@ export function mapWorkflowSurveyRow(survey: Record<string, unknown>) {
     surveyName: surveyName || "Survey",
     salesPerson,
     salesManager,
-    surveyStatus: formatWorkflowSurveyStatusLabel(statusRaw),
+    surveyStatus:
+      workflowStatusFromApi ||
+      resolveSurveyWorkflowDisplayStatus(survey as SurveyRecord),
     surveyStatusRaw: statusRaw,
     verifyStatus: isVerified ? "verified" : "pending",
     date: survey.surveyDate || survey.updatedAt || survey.createdAt,
   };
+}
+
+export function resolveInstallationStatusRaw(
+  survey: Record<string, unknown>
+): string {
+  const surveyStatus = String(survey.installationStatus ?? "").trim();
+  if (surveyStatus) {
+    return surveyStatus;
+  }
+
+  const customer = survey.customer_id;
+  const customerObj =
+    customer && typeof customer === "object"
+      ? (customer as Record<string, unknown>)
+      : null;
+  const customerStatus = String(customerObj?.installationStatus ?? "").trim();
+  if (customerStatus) {
+    return customerStatus;
+  }
+
+  return "new";
 }
 
 export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
@@ -239,6 +259,7 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
   const projectManagerName = resolveSurveyProjectManagerName(survey);
 
   const dba = resolveCustomerDba(customerObj) || "-";
+  const installationStatusRaw = resolveInstallationStatusRaw(survey);
 
   return {
     _id: customerId,
@@ -258,12 +279,9 @@ export function mapInstallationSurveyRow(survey: Record<string, unknown>) {
     contractor: contractorName || "Unassigned",
     projectManager: projectManagerName || "Unassigned",
     assignedTo: survey.assignedTo,
-    installationStatusRaw: String(
-      survey.installationStatus || survey.status || "new"
-    ),
-    status: formatInstallationStatusLabel(
-      String(survey.installationStatus || survey.status || "new")
-    ),
+    installationStatusRaw,
+    // status: formatInstallationStatusLabel(installationStatusRaw),
+    status: survey.installationStatus,
     quotationStatus: String(survey.quotationStatus || "approved"),
     survey,
   };

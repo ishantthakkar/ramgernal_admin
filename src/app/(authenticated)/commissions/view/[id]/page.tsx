@@ -16,7 +16,6 @@ import {
   Hash,
   Briefcase,
   FileText,
-  Clock,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -59,6 +58,13 @@ interface PayableDetails {
   leadSource: string;
   quotationNumber: string;
   quotationAmount: number;
+  surveyName?: string;
+  jobNo?: string;
+  extraExpenses?: Array<{
+    description: string;
+    price: number;
+    approvedAmount: number;
+  }>;
   payments: PaymentEntry[];
 }
 
@@ -97,7 +103,11 @@ export default function ViewCommissionPage() {
       ? ("contractor" as const)
       : searchParams.get("for") === "sales-manager"
         ? ("sales-manager" as const)
-        : undefined;
+        : searchParams.get("for") === "extra-expenses"
+          ? ("extra-expenses" as const)
+          : undefined;
+
+  const isExtraExpenses = payableFor === "extra-expenses";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -208,11 +218,15 @@ export default function ViewCommissionPage() {
           PAYABLES
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
-        <span className={styles.breadcrumbCurrent}>VIEW PAYABLE</span>
+        <span className={styles.breadcrumbCurrent}>
+          {isExtraExpenses ? "VIEW EXTRA EXPENSES" : "VIEW PAYABLE"}
+        </span>
       </div>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.welcomeText}>View Payable Details</h1>
+        <h1 className={styles.welcomeText}>
+          {isExtraExpenses ? "View Extra Expenses" : "View Payable Details"}
+        </h1>
       </div>
 
       <div className={styles.formSection}>
@@ -223,60 +237,84 @@ export default function ViewCommissionPage() {
           <ReadOnlyField label="Legal Name" icon={<User size={16} color={MUTED_ICON} />}>
             {details.legalName || "—"}
           </ReadOnlyField>
+          {isExtraExpenses ? (
+            <>
+              <ReadOnlyField label="Survey Name" icon={<FileText size={16} color={MUTED_ICON} />}>
+                {details.surveyName || "—"}
+              </ReadOnlyField>
+              <ReadOnlyField label="Job No" icon={<Hash size={16} color={MUTED_ICON} />}>
+                {details.jobNo || "—"}
+              </ReadOnlyField>
+            </>
+          ) : null}
+          {!isExtraExpenses ? (
+            <>
+              <ReadOnlyField label="Lead ID" icon={<Hash size={16} color={MUTED_ICON} />}>
+                {details.leadId || "—"}
+              </ReadOnlyField>
+              <ReadOnlyField label="Lead Source" icon={<Briefcase size={16} color={MUTED_ICON} />}>
+                {details.leadSource || "—"}
+              </ReadOnlyField>
+              <ReadOnlyField label="Quotation Number" icon={<FileText size={16} color={MUTED_ICON} />}>
+                {details.quotationNumber || "—"}
+              </ReadOnlyField>
+              <ReadOnlyField
+                label="Quotation Amount"
+                icon={<DollarSign size={16} color={MUTED_ICON} />}
+                valueClassName={viewStyles.readonlyFieldPrimary}
+              >
+                {formatMoney(details.quotationAmount)}
+              </ReadOnlyField>
+            </>
+          ) : null}
           <ReadOnlyField
-            label="Commission"
+            label="Total Amount"
             icon={<DollarSign size={16} color={MUTED_ICON} />}
             valueClassName={viewStyles.readonlyFieldPrimary}
           >
             {formatMoney(details.commission)}
           </ReadOnlyField>
-          <ReadOnlyField label="Lead ID" icon={<Hash size={16} color={MUTED_ICON} />}>
-            {details.leadId || "—"}
-          </ReadOnlyField>
-          <ReadOnlyField label="Lead Source" icon={<Briefcase size={16} color={MUTED_ICON} />}>
-            {details.leadSource || "—"}
-          </ReadOnlyField>
-          <ReadOnlyField label="Quotation Number" icon={<FileText size={16} color={MUTED_ICON} />}>
-            {details.quotationNumber || "—"}
-          </ReadOnlyField>
           <ReadOnlyField
-            label="Quotation Amount"
-            icon={<DollarSign size={16} color={MUTED_ICON} />}
-            valueClassName={viewStyles.readonlyFieldPrimary}
-          >
-            {formatMoney(details.quotationAmount)}
-          </ReadOnlyField>
-          <ReadOnlyField
-            label="Eligible / Payable Now"
-            icon={<DollarSign size={16} color={MUTED_ICON} />}
-            valueClassName={viewStyles.readonlyFieldPrimary}
-          >
-            {formatMoney(details.eligible ?? details.pending)}
-          </ReadOnlyField>
-          <ReadOnlyField
-            label="Paid Amount"
-            icon={<CheckCircle2 size={16} color="#059669" />}
-            valueClassName={viewStyles.readonlyFieldSuccess}
-          >
-            {formatMoney(details.paid)}
-          </ReadOnlyField>
-          <ReadOnlyField
-            label="Payable Balance"
-            icon={<Clock size={16} color="#d97706" />}
+            label="Payable Amount"
+            icon={<DollarSign size={16} color="#d97706" />}
             valueClassName={viewStyles.readonlyFieldWarning}
           >
-            {formatMoney(details.pending)}
-          </ReadOnlyField>
-          <ReadOnlyField
-            label="Locked (Milestones Pending)"
-            icon={<Clock size={16} color="#94a3b8" />}
-          >
-            {formatMoney(details.locked ?? 0)}
+            {formatMoney(details.eligible ?? 0)}
           </ReadOnlyField>
         </div>
       </div>
 
-      {details.milestones?.schedule?.length ? (
+      {isExtraExpenses && (details.extraExpenses?.length ?? 0) > 0 ? (
+        <div className={styles.formSection}>
+          <div className={styles.sectionTitle}>
+            <FileText size={22} color={PRIMARY_ICON} /> Extra Expense Items
+          </div>
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.paymentTable}>
+              <thead>
+                <tr>
+                  <th>S.No</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Admin Approved Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.extraExpenses?.map((item, idx) => (
+                  <tr key={`${item.description}-${idx}`}>
+                    <td className={viewStyles.indexCell}>{idx + 1}</td>
+                    <td className={viewStyles.methodCell}>{item.description || "—"}</td>
+                    <td className={viewStyles.amountCell}>{formatMoney(item.price)}</td>
+                    <td className={viewStyles.amountCell}>{formatMoney(item.approvedAmount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {!isExtraExpenses && details.milestones?.schedule?.length ? (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
             <CheckCircle2 size={22} color={PRIMARY_ICON} /> Commission Milestones

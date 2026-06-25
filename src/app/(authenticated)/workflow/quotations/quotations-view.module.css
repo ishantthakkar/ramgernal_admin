@@ -123,3 +123,147 @@
   border-color: var(--admin-primary, #004d4d);
   color: #ffffff;
 }
+
+.fixtureTableCard {
+  margin-top: 1rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.fixtureTableWrap {
+  overflow-x: auto;
+}
+
+.fixtureTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.fixtureTable thead tr {
+  background: #f8fafc;
+}
+
+.fixtureTable th {
+  padding: 0.9rem 1.25rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.fixtureTable td {
+  padding: 1rem 1.25rem;
+  font-size: 0.9rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.fixtureTable tbody tr:hover {
+  background: #fafbfc;
+}
+
+.fixtureRowLast td {
+  border-bottom: none;
+}
+
+.fixtureColName {
+  width: 46%;
+  text-align: left;
+}
+
+.fixtureColQty {
+  width: 22%;
+  text-align: center;
+}
+
+.fixtureColSku {
+  width: 32%;
+  text-align: left;
+}
+
+.fixtureTable th.fixtureColQty,
+.fixtureTable td.fixtureColQty {
+  text-align: center;
+}
+
+.fixtureName {
+  display: block;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.fixtureQtyText {
+  display: block;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.45;
+}
+
+.skuBadge {
+  display: inline-block;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+.fixtureEmptyState {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.skuInput {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #334155;
+  background: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.skuInput::placeholder {
+  color: #94a3b8;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.skuInput:focus {
+  outline: none;
+  border-color: var(--admin-primary, #004d4d);
+  box-shadow: 0 0 0 3px rgba(0, 77, 77, 0.12);
+}
+
+@media (max-width: 768px) {
+  .fixtureTable {
+    table-layout: auto;
+    min-width: 520px;
+  }
+
+  .fixtureColName,
+  .fixtureColQty,
+  .fixtureColSku {
+    width: auto;
+  }
+}

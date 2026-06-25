@@ -3,7 +3,7 @@
 export function formatInstallationStatusLabel(value: string): string {
   const status = String(value || "").trim().toLowerCase();
   if (!status || status === "not started") return "Not Started";
-  if (status === "new") return "Not Started";
+  if (status === "new" || status === "to-do" || status === "to do") return "Not Started";
   if (status === "start") return "Started";
   if (status === "in_progress") return "In Progress";
   if (status === "continue") return "In Progress";

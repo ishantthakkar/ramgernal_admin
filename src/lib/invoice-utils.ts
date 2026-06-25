@@ -1,20 +1,22 @@
 import { adminApi } from "@/lib/api";
-import { mapInstallationSurveyRow } from "@/lib/workflow-installation";
 import { sanitizePdfUrl } from "@/lib/quotation-utils";
 
 export interface InvoiceApiRow {
   customerId?: string;
   customerName?: string;
+  lead_id?: string;
   survey_id?: string;
   surveyName?: string;
   invoiceNumber?: string;
   invoiceStatus?: string;
+  invoiceDate?: string | null;
   generateInvoice?: string;
 }
 
 export interface InvoiceRow {
   id: string;
   surveyId: string;
+  recordId: string;
   invoiceNo: string;
   invoiceDate: string | null;
   customer: string;
@@ -24,12 +26,6 @@ export interface InvoiceRow {
   statusLabel: string;
   pdfUrl: string;
   hasPdf: boolean;
-}
-
-function parseApiDate(value: unknown): string | null {
-  if (value == null || value === "") return null;
-  const date = new Date(value as string | number | Date);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 export function formatInvoiceStatusLabel(value: string): string {
@@ -54,26 +50,26 @@ export function getInvoiceStatusColor(status: string): string {
   }
 }
 
-export function mapInvoiceRow(
-  survey: Record<string, unknown>,
-  invoiceMeta?: InvoiceApiRow | null
-): InvoiceRow {
-  const base = mapInstallationSurveyRow(survey);
-  const pdfUrl = sanitizePdfUrl(String(invoiceMeta?.generateInvoice || ""));
-  const status = String(invoiceMeta?.invoiceStatus || "pending");
-  const invoiceNumber = String(invoiceMeta?.invoiceNumber || "").trim();
-  const updatedAt =
-    parseApiDate(survey.updatedAt) ||
-    parseApiDate(invoiceMeta?.generateInvoice ? survey.updatedAt : null);
+export function mapInvoiceRow(apiRow: InvoiceApiRow): InvoiceRow {
+  const surveyId = String(apiRow.survey_id || "").trim();
+  const pdfUrl = sanitizePdfUrl(String(apiRow.generateInvoice || ""));
+  const status = String(apiRow.invoiceStatus || "pending").trim();
+  const invoiceNumber = String(apiRow.invoiceNumber || "").trim();
+  const customerId = String(apiRow.customerId || "").trim();
+  const customerName = String(apiRow.customerName || "").trim();
+  const surveyName = String(apiRow.surveyName || "").trim();
+  const recordId = String(apiRow.lead_id || "").trim();
+  const invoiceDate = apiRow.invoiceDate ? String(apiRow.invoiceDate) : null;
 
   return {
-    id: base.surveyId || base.rowId,
-    surveyId: base.surveyId,
+    id: surveyId || invoiceNumber || customerId || `${customerName}-${surveyName}` || "invoice-row",
+    surveyId,
+    recordId: recordId || "—",
     invoiceNo: invoiceNumber || "—",
-    invoiceDate: pdfUrl ? updatedAt : null,
-    customer: String(invoiceMeta?.customerName || base.customerName || "Unknown"),
-    customerId: base.leadId || base.customerCode || base.accountNumber || "—",
-    surveyName: String(invoiceMeta?.surveyName || base.surveyName || "Survey"),
+    invoiceDate,
+    customer: customerName || "Unknown",
+    customerId: customerId || "—",
+    surveyName: surveyName || "Survey",
     status,
     statusLabel: formatInvoiceStatusLabel(status),
     pdfUrl,
@@ -82,31 +78,41 @@ export function mapInvoiceRow(
 }
 
 export async function fetchInvoiceRows(): Promise<InvoiceRow[]> {
-  const [invoicesRes, installationsRes] = await Promise.all([
-    adminApi.getInvoicesList({ hasInvoices: "all" }),
-    adminApi.getInstallations(),
-  ]);
+  const invoicesRes = await adminApi.getInvoicesList({ hasInvoices: "all" });
+  const rows = (invoicesRes.invoices || []) as InvoiceApiRow[];
+  return rows.map(mapInvoiceRow);
+}
 
-  const invoiceBySurvey = new Map<string, InvoiceApiRow>();
-  for (const row of (invoicesRes.invoices || []) as InvoiceApiRow[]) {
-    const surveyId = String(row.survey_id || "");
-    if (surveyId) {
-      invoiceBySurvey.set(surveyId, row);
-    }
-  }
+export interface InvoiceDetail {
+  surveyId: string;
+  customerId: string;
+  customerName: string;
+  recordId: string;
+  surveyName: string;
+  invoiceNo: string;
+  invoiceDate: string | null;
+  status: string;
+  statusLabel: string;
+  pdfUrl: string;
+  hasPdf: boolean;
+}
 
-  const surveys = (installationsRes.surveys ||
-    installationsRes.installations ||
-    installationsRes.data ||
-    []) as Record<string, unknown>[];
+export async function fetchInvoiceDetail(surveyId: string): Promise<InvoiceDetail> {
+  const response = await adminApi.getInvoiceDetails(surveyId);
+  const pdfUrl = sanitizePdfUrl(String(response.generateInvoice || ""));
+  const status = String(response.invoiceStatus || "pending").trim();
 
-  const verifiedSurveys = surveys.filter((survey) => {
-    const inspectionStatus = String(survey.inspectionStatus || "").trim().toLowerCase();
-    return inspectionStatus === "verified";
-  });
-
-  return verifiedSurveys.map((survey) => {
-    const surveyId = String(survey._id || "");
-    return mapInvoiceRow(survey, invoiceBySurvey.get(surveyId) || null);
-  });
+  return {
+    surveyId: String(response.survey_id || surveyId),
+    customerId: String(response.customerId || ""),
+    customerName: String(response.customerName || "Customer"),
+    recordId: String(response.lead_id || "").trim() || "—",
+    surveyName: String(response.surveyName || "Survey"),
+    invoiceNo: String(response.invoiceNumber || "—").trim() || "—",
+    invoiceDate: response.invoiceDate ? String(response.invoiceDate) : null,
+    status,
+    statusLabel: formatInvoiceStatusLabel(status),
+    pdfUrl,
+    hasPdf: Boolean(pdfUrl),
+  };
 }

@@ -8,6 +8,7 @@ import {
   isSurveyVerified,
   resolveSurveyId,
   resolveSurveyName,
+  resolveSurveyWorkflowDisplayStatus,
   type SurveyRecord,
 } from "@/lib/workflow-survey-view";
 import modalStyles from "@/app/(authenticated)/workflow/assign-modal.module.css";
@@ -32,7 +33,9 @@ interface SurveyRow {
 function formatSurveyStatus(status: string): string {
   if (status === "pending_edit_approval") return "Pending Approval";
   if (status === "reopen" || status === "reopened") return "Reopened";
-  if (status?.toLowerCase() === "completed") return "Completed";
+  if (status === "Verified") return "Verified";
+  if (status === "Submitted") return "Submitted";
+  if (status?.toLowerCase() === "completed") return "Verified";
   if (!status) return "N/A";
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
 }
@@ -69,7 +72,7 @@ function mapSurveyRows(surveys: SurveyRecord[]): SurveyRow[] {
   return surveys.map((survey, index) => ({
     id: resolveSurveyId(survey),
     name: resolveSurveyName(survey, index),
-    status: survey.status || "Pending",
+    status: resolveSurveyWorkflowDisplayStatus(survey),
     isVerified: isSurveyVerified(survey),
   }));
 }

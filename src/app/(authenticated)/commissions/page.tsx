@@ -19,10 +19,11 @@ import type {
   SalesPersonPayableRow,
   SalesManagerPayableRow,
   ContractorPayableRow,
+  ExtraExpensePayableRow,
   PayablesListResponse,
 } from "@/lib/payables-types";
 
-const PAYABLES_TABS = ["Sales Persons", "Sales Manager", "Contractors"] as const;
+const PAYABLES_TABS = ["Sales Persons", "Sales Manager", "Contractors", "Extra Expenses"] as const;
 type PayablesTab = (typeof PAYABLES_TABS)[number];
 
 const ITEMS_PER_PAGE = 10;
@@ -65,6 +66,16 @@ function getHeaders(tab: PayablesTab): string[] {
       "Payable",
     ];
   }
+  if (tab === "Extra Expenses") {
+    return [
+      "Legal Name",
+      "Survey Name",
+      "Job No",
+      "Admin Approved",
+      "Paid",
+      "Pending",
+    ];
+  }
   return [
     "Legal Name",
     "DBA",
@@ -94,6 +105,7 @@ export default function PayablesPage() {
   const [salesRows, setSalesRows] = useState<SalesPersonPayableRow[]>([]);
   const [salesManagerRows, setSalesManagerRows] = useState<SalesManagerPayableRow[]>([]);
   const [contractorRows, setContractorRows] = useState<ContractorPayableRow[]>([]);
+  const [extraExpenseRows, setExtraExpenseRows] = useState<ExtraExpensePayableRow[]>([]);
 
   useEffect(() => {
     if (!canViewModule("Payables")) {
@@ -109,6 +121,7 @@ export default function PayablesPage() {
       setSalesRows(response.salesPersons || []);
       setSalesManagerRows(response.salesManagers || []);
       setContractorRows(response.contractors || []);
+      setExtraExpenseRows(response.extraExpenses || []);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load payables.";
       console.error("Failed to fetch payables:", err);
@@ -151,6 +164,17 @@ export default function PayablesPage() {
       );
     }
 
+    if (activeTab === "Extra Expenses") {
+      if (!term) return extraExpenseRows;
+      return extraExpenseRows.filter(
+        (row) =>
+          row.leadId?.toLowerCase().includes(term) ||
+          row.legalName?.toLowerCase().includes(term) ||
+          row.surveyName?.toLowerCase().includes(term) ||
+          row.jobNo?.toLowerCase().includes(term)
+      );
+    }
+
     if (!term) return contractorRows;
     return contractorRows.filter(
       (row) =>
@@ -160,7 +184,7 @@ export default function PayablesPage() {
         row.jobNo?.toLowerCase().includes(term) ||
         row.surveyName?.toLowerCase().includes(term)
     );
-  }, [activeTab, salesRows, salesManagerRows, contractorRows, searchTerm]);
+  }, [activeTab, salesRows, salesManagerRows, contractorRows, extraExpenseRows, searchTerm]);
 
   const tableColSpan = getHeaders(activeTab).length;
   const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
@@ -188,7 +212,9 @@ export default function PayablesPage() {
       ? "No sales person payables found."
       : activeTab === "Sales Manager"
         ? "No sales manager payables found."
-        : "No contractor payables found.";
+        : activeTab === "Extra Expenses"
+          ? "No admin-approved extra expenses found."
+          : "No contractor payables found.";
 
   return (
     <div className={styles.usersPage}>
@@ -280,6 +306,18 @@ export default function PayablesPage() {
                       onView={() =>
                         router.push(
                           `/commissions/view/${row.customerId}?surveyId=${row.surveyId}&for=sales-manager`
+                        )
+                      }
+                    />
+                  ))
+                ) : activeTab === "Extra Expenses" ? (
+                  (currentItems as ExtraExpensePayableRow[]).map((row) => (
+                    <ExtraExpenseRow
+                      key={row.id}
+                      row={row}
+                      onView={() =>
+                        router.push(
+                          `/commissions/view/${row.customerId}?surveyId=${row.surveyId}&for=extra-expenses`
                         )
                       }
                     />
@@ -418,6 +456,28 @@ function ContractorRow({ row, onView }: ContractorRowProps) {
       </td>
       <td className={payablesStyles.priceCell}>{formatMoney(row.totalCharges)}</td>
       <td className={payablesStyles.priceCell}>{formatMoney(row.commission)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.paid)}</td>
+      <td className={payablesStyles.moneyCell}>{formatMoney(row.pending)}</td>
+    </tr>
+  );
+}
+
+interface ExtraExpenseRowProps {
+  row: ExtraExpensePayableRow;
+  onView: () => void;
+}
+
+function ExtraExpenseRow({ row, onView }: ExtraExpenseRowProps) {
+  return (
+    <tr>
+      <td>
+        <span className={payablesStyles.nameCell} onClick={onView}>
+          {row.legalName || "—"}
+        </span>
+      </td>
+      <td className={payablesStyles.moneyCell}>{row.surveyName || "—"}</td>
+      <td className={payablesStyles.monoCell}>{row.jobNo || "—"}</td>
+      <td className={payablesStyles.priceCell}>{formatMoney(row.approvedAmount)}</td>
       <td className={payablesStyles.moneyCell}>{formatMoney(row.paid)}</td>
       <td className={payablesStyles.moneyCell}>{formatMoney(row.pending)}</td>
     </tr>
