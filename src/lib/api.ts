@@ -180,11 +180,12 @@ export const adminApi = {
       description: string;
       price: number;
       approvedAmount: number;
-    }>
+    }>,
+    expenseId?: string
   ) =>
     apiRequest("/surveys/extra-expenses/approve", {
       method: "POST",
-      body: JSON.stringify({ surveyId, extraExpenses }),
+      body: JSON.stringify({ surveyId, extraExpenses, expenseId }),
     }),
   getCustomerActivities: (id: string) =>
     apiRequest(`/customer/customers/${id}/activities`, {
@@ -323,7 +324,7 @@ export const adminApi = {
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),
-  getPayableDetails: (id: string, params?: { surveyId?: string; for?: "contractor" | "sales-manager" | "extra-expenses" }) => {
+  getPayableDetails: (id: string, params?: { surveyId?: string; for?: "contractor" | "sales-manager" }) => {
     const query = new URLSearchParams();
     if (params?.surveyId) query.set("surveyId", params.surveyId);
     if (params?.for) query.set("for", params.for);
@@ -340,7 +341,7 @@ export const adminApi = {
       paymentMethod: string;
       paymentDate?: string;
       note?: string;
-      for?: "contractor" | "sales-manager" | "extra-expenses";
+      for?: "contractor" | "sales-manager";
     }
   ) =>
     apiRequest(`/customer/customers/${id}/commission-payments`, {

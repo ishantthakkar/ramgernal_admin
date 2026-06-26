@@ -30,12 +30,17 @@ interface PaymentEntry {
   createdAt?: string;
 }
 
-interface CommissionMilestone {
-  key: string;
-  label: string;
-  share: string;
-  amount: number;
-  unlocked: boolean;
+interface ExtraExpenseItem {
+  itemName: string;
+  price: number;
+  approvedAmount: number;
+}
+
+interface ApprovedExtraExpenseEntry {
+  id: string;
+  notes: string;
+  adminApprovalAmount: number;
+  items: ExtraExpenseItem[];
 }
 
 interface PayableDetails {
@@ -49,6 +54,12 @@ interface PayableDetails {
   pending: number;
   locked: number;
   balance: number;
+  installationCommission?: number;
+  installationPaid?: number;
+  installationPending?: number;
+  extraExpensesTotal?: number;
+  extraExpensesPaid?: number;
+  extraExpensesPending?: number;
   milestones?: {
     projectApproved: boolean;
     invoiceFullyPaid: boolean;
@@ -60,12 +71,17 @@ interface PayableDetails {
   quotationAmount: number;
   surveyName?: string;
   jobNo?: string;
-  extraExpenses?: Array<{
-    description: string;
-    price: number;
-    approvedAmount: number;
-  }>;
+  extraExpenses?: ExtraExpenseItem[];
+  approvedExtraExpenseEntries?: ApprovedExtraExpenseEntry[];
   payments: PaymentEntry[];
+}
+
+interface CommissionMilestone {
+  key: string;
+  label: string;
+  share: string;
+  amount: number;
+  unlocked: boolean;
 }
 
 const PAYMENT_METHODS = [
@@ -103,11 +119,9 @@ export default function ViewCommissionPage() {
       ? ("contractor" as const)
       : searchParams.get("for") === "sales-manager"
         ? ("sales-manager" as const)
-        : searchParams.get("for") === "extra-expenses"
-          ? ("extra-expenses" as const)
-          : undefined;
+        : undefined;
 
-  const isExtraExpenses = payableFor === "extra-expenses";
+  const isContractor = payableFor === "contractor";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -210,6 +224,12 @@ export default function ViewCommissionPage() {
     );
   }
 
+  const approvedExtraExpenseEntries = (details.approvedExtraExpenseEntries ?? []).filter(
+    (entry) => entry.adminApprovalAmount > 0 && entry.items.length > 0
+  );
+  const hasApprovedExtraExpenses =
+    approvedExtraExpenseEntries.length > 0 || (details.extraExpensesTotal ?? 0) > 0;
+
   return (
     <div className={styles.addUserPage}>
       <div className={styles.breadcrumb}>
@@ -219,13 +239,13 @@ export default function ViewCommissionPage() {
         </span>
         <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span className={styles.breadcrumbCurrent}>
-          {isExtraExpenses ? "VIEW EXTRA EXPENSES" : "VIEW PAYABLE"}
+          {isContractor ? "VIEW CONTRACTOR PAYABLE" : "VIEW PAYABLE"}
         </span>
       </div>
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>
-          {isExtraExpenses ? "View Extra Expenses" : "View Payable Details"}
+          {isContractor ? "View Contractor Payable" : "View Payable Details"}
         </h1>
       </div>
 
@@ -237,7 +257,7 @@ export default function ViewCommissionPage() {
           <ReadOnlyField label="Legal Name" icon={<User size={16} color={MUTED_ICON} />}>
             {details.legalName || "—"}
           </ReadOnlyField>
-          {isExtraExpenses ? (
+          {isContractor ? (
             <>
               <ReadOnlyField label="Survey Name" icon={<FileText size={16} color={MUTED_ICON} />}>
                 {details.surveyName || "—"}
@@ -247,7 +267,7 @@ export default function ViewCommissionPage() {
               </ReadOnlyField>
             </>
           ) : null}
-          {!isExtraExpenses ? (
+          {!isContractor ? (
             <>
               <ReadOnlyField label="Lead ID" icon={<Hash size={16} color={MUTED_ICON} />}>
                 {details.leadId || "—"}
@@ -264,6 +284,24 @@ export default function ViewCommissionPage() {
                 valueClassName={viewStyles.readonlyFieldPrimary}
               >
                 {formatMoney(details.quotationAmount)}
+              </ReadOnlyField>
+            </>
+          ) : null}
+          {isContractor ? (
+            <>
+              <ReadOnlyField
+                label="Installation Payable"
+                icon={<DollarSign size={16} color={MUTED_ICON} />}
+                valueClassName={viewStyles.readonlyFieldPrimary}
+              >
+                {formatMoney(details.installationCommission ?? 0)}
+              </ReadOnlyField>
+              <ReadOnlyField
+                label="Extra Expenses"
+                icon={<DollarSign size={16} color={MUTED_ICON} />}
+                valueClassName={viewStyles.readonlyFieldPrimary}
+              >
+                {formatMoney(details.extraExpensesTotal ?? 0)}
               </ReadOnlyField>
             </>
           ) : null}
@@ -284,37 +322,54 @@ export default function ViewCommissionPage() {
         </div>
       </div>
 
-      {isExtraExpenses && (details.extraExpenses?.length ?? 0) > 0 ? (
+      {isContractor && hasApprovedExtraExpenses ? (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
-            <FileText size={22} color={PRIMARY_ICON} /> Extra Expense Items
+            <FileText size={22} color={PRIMARY_ICON} /> Extra Expenses (Admin Approved)
           </div>
-          <div className={styles.userTableContainer}>
-            <table className={viewStyles.paymentTable}>
-              <thead>
-                <tr>
-                  <th>S.No</th>
-                  <th>Description</th>
-                  <th>Amount</th>
-                  <th>Admin Approved Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {details.extraExpenses?.map((item, idx) => (
-                  <tr key={`${item.description}-${idx}`}>
-                    <td className={viewStyles.indexCell}>{idx + 1}</td>
-                    <td className={viewStyles.methodCell}>{item.description || "—"}</td>
-                    <td className={viewStyles.amountCell}>{formatMoney(item.price)}</td>
-                    <td className={viewStyles.amountCell}>{formatMoney(item.approvedAmount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className={viewStyles.extraExpenseEntryList}>
+            {approvedExtraExpenseEntries.map((entry, entryIndex) => (
+              <div key={entry.id || `extra-expense-${entryIndex}`} className={viewStyles.extraExpenseEntryCard}>
+                <div className={viewStyles.extraExpenseEntryHeader}>
+                  <h4 className={viewStyles.extraExpenseEntryTitle}>
+                    Expense Entry {entryIndex + 1}
+                  </h4>
+                  <span className={viewStyles.extraExpenseApprovedBadge}>
+                    Admin Approved: {formatMoney(entry.adminApprovalAmount)}
+                  </span>
+                </div>
+                {entry.notes ? (
+                  <p className={viewStyles.extraExpenseEntryNotes}>{entry.notes}</p>
+                ) : null}
+                <div className={styles.userTableContainer}>
+                  <table className={viewStyles.paymentTable}>
+                    <thead>
+                      <tr>
+                        <th>S.No</th>
+                        <th>Description</th>
+                        <th>Submitted Amount</th>
+                        <th>Admin Approved Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entry.items.map((item, idx) => (
+                        <tr key={`${entry.id}-${item.itemName}-${idx}`}>
+                          <td className={viewStyles.indexCell}>{idx + 1}</td>
+                          <td className={viewStyles.methodCell}>{item.itemName || "—"}</td>
+                          <td className={viewStyles.amountCell}>{formatMoney(item.price)}</td>
+                          <td className={viewStyles.amountCell}>{formatMoney(item.approvedAmount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
 
-      {!isExtraExpenses && details.milestones?.schedule?.length ? (
+      {!isContractor && details.milestones?.schedule?.length ? (
         <div className={styles.formSection}>
           <div className={styles.sectionTitle}>
             <CheckCircle2 size={22} color={PRIMARY_ICON} /> Commission Milestones

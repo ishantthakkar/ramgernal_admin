@@ -87,3 +87,47 @@
   align-items: center;
   gap: 0.5rem;
 }
+
+.extraExpenseEntryList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.extraExpenseEntryCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: #f8fafc;
+}
+
+.extraExpenseEntryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.extraExpenseEntryTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.extraExpenseApprovedBadge {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+}
+
+.extraExpenseEntryNotes {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}

@@ -40,21 +40,9 @@ export interface ContractorPayableRow {
   jobNo: string;
   surveyName: string;
   installDate: string;
-  totalCharges: number;
+  installationCommission: number;
+  extraExpenses: number;
   commission: number;
-  paid: number;
-  pending: number;
-}
-
-export interface ExtraExpensePayableRow {
-  id: string;
-  customerId: string;
-  surveyId: string;
-  leadId: string;
-  legalName: string;
-  surveyName: string;
-  jobNo: string;
-  approvedAmount: number;
   paid: number;
   pending: number;
 }
@@ -65,21 +53,13 @@ export interface PayablesSummary {
   totalPending: number;
 }
 
-export interface ExtraExpensesSummary {
-  totalApproved: number;
-  totalPaid: number;
-  totalPending: number;
-}
-
 export interface PayablesListResponse {
   salesPersons: SalesPersonPayableRow[];
   salesManagers: SalesManagerPayableRow[];
   contractors: ContractorPayableRow[];
-  extraExpenses: ExtraExpensePayableRow[];
   overallSummary: {
     salesPersons: PayablesSummary;
     salesManagers: PayablesSummary;
     contractors: PayablesSummary;
-    extraExpenses: ExtraExpensesSummary;
   };
 }
