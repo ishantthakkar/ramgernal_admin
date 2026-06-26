@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import styles from "../../../dashboard.module.css";
 import modalStyles from "../../workflow-details.module.css";
@@ -18,8 +18,15 @@ import {
   User,
   Briefcase,
   UserPlus,
+  UserCircle,
+  Building,
+  Phone,
+  MapPin,
+  Hash,
+  Calendar,
+  Activity,
+  CheckCircle2,
 } from "lucide-react";
-import addStyles from "../../../leads/add/leads-add.module.css";
 import assignModalStyles from "../../assign-modal.module.css";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
@@ -59,26 +66,47 @@ import {
   resolveUpdatedAt,
 } from "@/lib/workflow-inspection-view";
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  const display = value?.trim() || "—";
+const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
+const MUTED_ICON = "#64748b";
+
+interface ReadOnlyFieldProps {
+  label: string;
+  icon?: ReactNode;
+  valueClassName?: string;
+  children: ReactNode;
+}
+
+function ReadOnlyField({ label, icon, valueClassName, children }: ReadOnlyFieldProps) {
   return (
     <div className={styles.formGroup}>
       <label>{label}</label>
-      <div
-        className={styles.formInput}
-        style={{
-          background: "#f8fafc",
-          color: display === "—" ? "#94a3b8" : "#1e293b",
-          fontWeight: 600,
-          border: "1px solid #e2e8f0",
-          minHeight: "2.75rem",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {display}
+      <div className={`${styles.formInput} ${modalStyles.readonlyField} ${valueClassName || ""}`}>
+        {icon ? <div className={modalStyles.fieldRow}>{icon}{children}</div> : children}
       </div>
     </div>
+  );
+}
+
+function ReadOnlyValue({
+  label,
+  value,
+  icon,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+  valueClassName?: string;
+}) {
+  const display = value?.trim() || "—";
+  return (
+    <ReadOnlyField
+      label={label}
+      icon={icon}
+      valueClassName={display === "—" ? modalStyles.readonlyFieldMuted : valueClassName}
+    >
+      {display}
+    </ReadOnlyField>
   );
 }
 
@@ -88,12 +116,14 @@ function AssignableField({
   canAssign,
   onAssign,
   changeLabel = "Change",
+  icon,
 }: {
   label: string;
   assignedName: string;
   canAssign: boolean;
   onAssign: () => void;
   changeLabel?: string;
+  icon?: ReactNode;
 }) {
   const name = assignedName.trim();
 
@@ -102,21 +132,11 @@ function AssignableField({
       <label>{label}</label>
       {name ? (
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-          <div
-            className={styles.formInput}
-            style={{
-              background: "#f8fafc",
-              color: "#1e293b",
-              fontWeight: 600,
-              border: "1px solid #e2e8f0",
-              minHeight: "2.75rem",
-              display: "flex",
-              alignItems: "center",
-              flex: 1,
-              minWidth: "12rem",
-            }}
-          >
-            {name}
+          <div className={`${styles.formInput} ${modalStyles.readonlyField}`} style={{ flex: 1, minWidth: "12rem" }}>
+            <div className={modalStyles.fieldRow}>
+              {icon}
+              {name}
+            </div>
           </div>
           {canAssign ? (
             <button
@@ -125,7 +145,7 @@ function AssignableField({
               onClick={onAssign}
               style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
             >
-              {changeLabel}
+              <UserPlus size={14} /> {changeLabel}
             </button>
           ) : null}
         </div>
@@ -139,19 +159,11 @@ function AssignableField({
           <UserPlus size={14} /> Assign
         </button>
       ) : (
-        <div
-          className={styles.formInput}
-          style={{
-            background: "#f8fafc",
-            color: "#94a3b8",
-            fontWeight: 600,
-            border: "1px solid #e2e8f0",
-            minHeight: "2.75rem",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          Unassigned
+        <div className={`${styles.formInput} ${modalStyles.readonlyField} ${modalStyles.readonlyFieldMuted}`}>
+          <div className={modalStyles.fieldRow}>
+            {icon}
+            Unassigned
+          </div>
         </div>
       )}
     </div>
@@ -237,10 +249,10 @@ function SiteAreaDetailContent({
     <article className={modalStyles.siteRoomCard}>
       <h4 className={modalStyles.siteRoomTitle}>{roomLabel}</h4>
       <div className={styles.formGrid}>
-        <ReadOnlyField label="Existing Fixture Type" value={row.existingFixtureType} />
+        <ReadOnlyValue label="Existing Fixture Type" value={row.existingFixtureType} icon={<Hammer size={16} color={MUTED_ICON} />} />
         <HeightReadOnlyField heightFt={row.heightFt} heightIn={row.heightIn} />
-        <ReadOnlyField label="Existing Bulb" value={row.existingBulbs} />
-        <ReadOnlyField label="Existing Quantity" value={row.existingQuantity} />
+        <ReadOnlyValue label="Existing Bulb" value={row.existingBulbs} icon={<Info size={16} color={MUTED_ICON} />} />
+        <ReadOnlyValue label="Existing Quantity" value={row.existingQuantity} icon={<Hash size={16} color={MUTED_ICON} />} />
       </div>
 
       <div className={`${styles.formGroup} ${modalStyles.siteMediaBlock}`}>
@@ -287,12 +299,12 @@ function SiteAreaDetailContent({
       </div>
 
       <div className={styles.formGrid}>
-        <ReadOnlyField label="Proposed Fixture" value={row.proposedFixture} />
-        <ReadOnlyField label="Proposed Quantity" value={row.proposedQuantity} />
-        <ReadOnlyField label="Price Per Unit" value={formatPriceDisplay(row.pricePerUnit)} />
-        <ReadOnlyField label="Total Price" value={formatPriceDisplay(row.totalPrice)} />
+        <ReadOnlyValue label="Proposed Fixture" value={row.proposedFixture} icon={<Hammer size={16} color={MUTED_ICON} />} />
+        <ReadOnlyValue label="Proposed Quantity" value={row.proposedQuantity} icon={<Hash size={16} color={MUTED_ICON} />} />
+        <ReadOnlyValue label="Price Per Unit" value={formatPriceDisplay(row.pricePerUnit)} icon={<Briefcase size={16} color={MUTED_ICON} />} />
+        <ReadOnlyValue label="Total Price" value={formatPriceDisplay(row.totalPrice)} icon={<Briefcase size={16} color={MUTED_ICON} />} />
         <div style={{ gridColumn: "1 / -1" }}>
-          <ReadOnlyField label="Note" value={row.note} />
+          <ReadOnlyValue label="Note" value={row.note} icon={<FileText size={16} color={MUTED_ICON} />} />
         </div>
       </div>
     </article>
@@ -674,7 +686,7 @@ function SiteDetailsAreaList({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   if (!groups.length || !hasAreas) {
-    return <div className={addStyles.emptyState}>No site survey details found.</div>;
+    return <div className={modalStyles.viewEmptyState}>No site survey details found.</div>;
   }
 
   return (
@@ -745,41 +757,42 @@ function SiteDetailsAreaList({
   );
 }
 
-function formatNoteMeta(authorName: string | undefined, timestamp: string | null): string {
-  const parts: string[] = [];
-  if (authorName?.trim()) {
-    parts.push(authorName.trim().toUpperCase());
-  }
-  if (timestamp) {
-    const formatted = formatNoteListDateTime(timestamp);
-    if (formatted) parts.push(formatted);
-  }
-  return parts.join(", ");
-}
-
 function NotesList({ entries }: { entries: NoteEntry[] }) {
   if (!entries.length) {
-    return <div className={addStyles.emptyState}>No notes on file.</div>;
+    return <div className={modalStyles.viewEmptyState}>No notes on file.</div>;
   }
 
   return (
-    <div className={modalStyles.notesList}>
-      {entries.map((entry, index) => {
-        const title = (entry.title || (entry.source === "survey" ? "Survey Note" : "Note")).trim();
-        const meta = formatNoteMeta(entry.authorName, entry.timestamp);
+    <div className={styles.userTableContainer}>
+      <table className={modalStyles.detailTable}>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Date</th>
+            <th>Author</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry, index) => {
+            const title = (entry.title || (entry.source === "survey" ? "Survey Note" : "Note")).trim();
+            const timestamp = entry.timestamp ? formatNoteListDateTime(entry.timestamp) : "—";
 
-        return (
-          <article key={entry.id} className={modalStyles.noteListItem}>
-            <div className={modalStyles.noteListHeader}>
-              <h4 className={modalStyles.noteListTitle}>
-                {index + 1}. {title.toUpperCase()}
-              </h4>
-              {meta ? <span className={modalStyles.noteListMeta}>{meta}</span> : null}
-            </div>
-            <p className={modalStyles.noteListBody}>{entry.text}</p>
-          </article>
-        );
-      })}
+            return (
+              <tr key={entry.id}>
+                <td className={modalStyles.detailTableName}>
+                  {index + 1}. {title}
+                </td>
+                <td className={modalStyles.detailTableMuted}>{timestamp}</td>
+                <td>{entry.authorName?.trim() || "—"}</td>
+                <td>
+                  <div className={modalStyles.noteContent}>{entry.text}</div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -787,7 +800,6 @@ function NotesList({ entries }: { entries: NoteEntry[] }) {
 
 function SurveyViewSections({
   surveyName,
-  salesPerson,
   surveyDate,
   siteDetailGroups,
   noteEntries,
@@ -800,9 +812,12 @@ function SurveyViewSections({
   onSaveSiteRow,
   onReorderSiteRows,
   reorderingAreas,
+  surveyStatus,
+  statusColor,
+  showVerifiedBadge,
+  verifiedDate,
 }: {
   surveyName: string;
-  salesPerson: string;
   surveyDate: string | null;
   siteDetailGroups: SiteDetailSurveyGroup[];
   noteEntries: NoteEntry[];
@@ -815,6 +830,10 @@ function SurveyViewSections({
   onSaveSiteRow: (row: SiteDetailRow) => Promise<void>;
   onReorderSiteRows: (surveyId: string, fromIndex: number, toIndex: number) => Promise<void>;
   reorderingAreas: boolean;
+  surveyStatus?: string;
+  statusColor?: string;
+  showVerifiedBadge?: boolean;
+  verifiedDate?: string | number | Date;
 }) {
   const singleGroup = siteDetailGroups.length === 1 ? siteDetailGroups[0] : null;
   const [selectedArea, setSelectedArea] = useState<{
@@ -834,15 +853,34 @@ function SurveyViewSections({
   return (
     <>
       <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <Info size={22} color="var(--admin-primary, #004d4d)" /> Survey Details
+        <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+          <ClipboardCheck size={22} color={PRIMARY_ICON} /> Survey Details
         </div>
         <div className={styles.formGrid}>
-          <ReadOnlyField label="Survey Name" value={surveyName} />
-          <ReadOnlyField
+          <ReadOnlyValue
+            label="Survey Name"
+            value={surveyName}
+            icon={<ClipboardCheck size={16} color={MUTED_ICON} />}
+          />
+          <ReadOnlyValue
             label="Survey Date"
             value={surveyDate ? formatDate(surveyDate) : "—"}
+            icon={<Calendar size={16} color={MUTED_ICON} />}
           />
+          {surveyStatus ? (
+            <ReadOnlyField label="Status" icon={<Activity size={16} color={statusColor || MUTED_ICON} />}>
+              <span style={{ color: statusColor || MUTED_ICON, fontWeight: 700, textTransform: "capitalize" }}>
+                {formatSurveyStatusLabel(surveyStatus).replace(/_/g, " ")}
+              </span>
+            </ReadOnlyField>
+          ) : null}
+          {showVerifiedBadge ? (
+            <ReadOnlyValue
+              label="Verified Date"
+              value={verifiedDate ? formatDate(verifiedDate) : "—"}
+              icon={<Calendar size={16} color="#10b981" />}
+            />
+          ) : null}
         </div>
       </section>
 
@@ -857,8 +895,8 @@ function SurveyViewSections({
             marginBottom: "1.25rem",
           }}
         >
-          <div className={styles.sectionTitle} style={{ marginBottom: 0 }}>
-            <Info size={22} color="#ea580c" strokeWidth={2} /> Site Details
+          <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`} style={{ marginBottom: 0 }}>
+            <MapPin size={22} color={PRIMARY_ICON} /> Site Details
           </div>
           {singleGroup ? (
             <SiteSurveyVerifyControl
@@ -895,11 +933,8 @@ function SurveyViewSections({
       </section>
 
       <section className={styles.formSection}>
-        <div className={modalStyles.notesSectionTitle}>
-          <span className={modalStyles.notesSectionIcon} aria-hidden>
-            <FileText size={22} color="#ea580c" strokeWidth={2} />
-          </span>
-          Notes
+        <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+          <FileText size={22} color={PRIMARY_ICON} /> Notes
         </div>
         <NotesList entries={noteEntries} />
       </section>
@@ -1261,89 +1296,16 @@ export default function WorkflowViewPage() {
         </span>
       </div>
 
-      <div className={styles.pageHeader} style={{ marginBottom: isSurveyView ? "2rem" : undefined }}>
-        <div>
-          <h1 className={styles.welcomeText}>
-            {isSurveyView
-              ? `Survey Profile: ${displayName}`
-              : isInspectionView
-                ? `Inspection: ${displayName}`
-                : isInstallationView
-                  ? `Installation: ${displayName}`
-                  : "Workflow Details"}
-          </h1>
-          {isInspectionView && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  backgroundColor: `${inspectionStatusColor}15`,
-                  color: inspectionStatusColor,
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "99px",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                }}
-              >
-                {formatInspectionStatusLabel(inspectionStatusRaw)}
-              </span>
-              {inspectionUpdatedLabel ? (
-                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#94a3b8" }}>
-                  {inspectionUpdatedLabel}
-                </span>
-              ) : null}
-              <span
-                style={{
-                  backgroundColor: `${getAdminInspectionApprovalColor(inspectionStatusRaw)}15`,
-                  color: getAdminInspectionApprovalColor(inspectionStatusRaw),
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "99px",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                }}
-              >
-                Admin: {formatAdminInspectionApprovalLabel(inspectionStatusRaw)}
-              </span>
-            </div>
-          )}
-          {isSurveyView && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  backgroundColor: `${statusColor}15`,
-                  color: statusColor,
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "99px",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                }}
-              >
-                {formatSurveyStatusLabel(surveyStatus)}
-              </span>
-              {showVerifiedBadge ? (
-                <span
-                  style={{
-                    backgroundColor: "rgba(16, 185, 129, 0.12)",
-                    color: "#10b981",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "99px",
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Verified
-                  {verifiedDate
-                    ? ` · ${formatDate(verifiedDate)}`
-                    : ""}
-                </span>
-              ) : null}
-            </div>
-          )}
-        </div>
-
+      <div className={styles.pageHeader}>
+        <h1 className={styles.welcomeText}>
+          {isSurveyView
+            ? "View Survey Profile"
+            : isInspectionView
+              ? "View Inspection Profile"
+              : isInstallationView
+                ? "View Installation Profile"
+                : "View Workflow Profile"}
+        </h1>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           {isSurveyView && canEditSurveys && (
             <button
@@ -1369,18 +1331,6 @@ export default function WorkflowViewPage() {
               <Edit2 size={20} /> Edit
             </button>
           )}
-          {isInspectionView && canApproveInspection ? (
-            <button
-              type="button"
-              className={styles.addBtn}
-              disabled={approvingInspection}
-              onClick={handleApproveInspection}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              {approvingInspection ? <Loader2 size={20} className={styles.spinner} /> : null}
-              Approve Inspection
-            </button>
-          ) : null}
           {isInspectionView && canEditInspections && (
             <button
               type="button"
@@ -1395,77 +1345,117 @@ export default function WorkflowViewPage() {
 
       {isInstallationView ? (
         <section className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Project Information
+          <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+            <Briefcase size={22} color={PRIMARY_ICON} /> Project Information
           </div>
           <div className={styles.formGrid}>
-            <ReadOnlyField label="Legal Name" value={legalName} />
-            <ReadOnlyField label="Company" value={dba} />
-            <ReadOnlyField label="Sales Person" value={salesPerson} />
+            <ReadOnlyValue label="Legal Name" value={legalName} icon={<User size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="Company" value={dba} icon={<Building size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="Sales Person" value={salesPerson} icon={<UserCircle size={16} color={MUTED_ICON} />} />
             <AssignableField
               label="Contractor"
               assignedName={contractorName}
               canAssign={canCreateInstallations}
               onAssign={() => openAssignModal("Contractor")}
+              icon={<Hammer size={16} color={MUTED_ICON} />}
             />
             <AssignableField
               label="Project Manager"
               assignedName={projectManagerName}
               canAssign={canCreateInstallations}
               onAssign={() => openAssignModal("Project Manager")}
+              icon={<UserCircle size={16} color={MUTED_ICON} />}
             />
-            <ReadOnlyField label="Job ID" value={jobId} />
+            <ReadOnlyValue label="Job ID" value={jobId} icon={<Hash size={16} color={MUTED_ICON} />} />
           </div>
         </section>
       ) : isInspectionView ? (
         <section className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <Briefcase size={22} color="var(--admin-primary, #004d4d)" /> Project Information
+          <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+            <Briefcase size={22} color={PRIMARY_ICON} /> Project Information
           </div>
           <div className={styles.formGrid}>
-            <ReadOnlyField label="Service Address" value={resolveServiceAddress(customer)} />
-            <ReadOnlyField label="Name" value={resolveCustomerDisplayName(customer)} />
-            <ReadOnlyField label="Mobile" value={resolveCustomerMobile(customer)} />
+            <ReadOnlyValue
+              label="Service Address"
+              value={resolveServiceAddress(customer)}
+              icon={<MapPin size={16} color={MUTED_ICON} />}
+            />
+            <ReadOnlyValue
+              label="Name"
+              value={resolveCustomerDisplayName(customer)}
+              icon={<User size={16} color={MUTED_ICON} />}
+            />
+            <ReadOnlyValue
+              label="Mobile"
+              value={resolveCustomerMobile(customer)}
+              icon={<Phone size={16} color={MUTED_ICON} />}
+            />
+            <ReadOnlyField label="Status" icon={<Activity size={16} color={inspectionStatusColor} />}>
+              <span style={{ color: inspectionStatusColor, fontWeight: 700, textTransform: "uppercase" }}>
+                {formatInspectionStatusLabel(inspectionStatusRaw)}
+              </span>
+            </ReadOnlyField>
+            <ReadOnlyField
+              label="Admin Approval"
+              icon={<CheckCircle2 size={16} color={getAdminInspectionApprovalColor(inspectionStatusRaw)} />}
+            >
+              <span
+                style={{
+                  color: getAdminInspectionApprovalColor(inspectionStatusRaw),
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                }}
+              >
+                {formatAdminInspectionApprovalLabel(inspectionStatusRaw)}
+              </span>
+            </ReadOnlyField>
+            {inspectionUpdatedLabel ? (
+              <ReadOnlyValue
+                label="Last Updated"
+                value={inspectionUpdatedLabel}
+                icon={<Calendar size={16} color={MUTED_ICON} />}
+              />
+            ) : null}
           </div>
         </section>
       ) : (
         <section className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <User size={22} color="var(--admin-primary, #004d4d)" /> Customer Information
+          <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+            <User size={22} color={PRIMARY_ICON} /> Customer Information
           </div>
           <div className={styles.formGrid}>
-            <ReadOnlyField label="Legal Name" value={legalName} />
-            <ReadOnlyField label="Company (DBA)" value={companyOrDba} />
-            <ReadOnlyField label="Sales Person" value={salesPerson} />
+            <ReadOnlyValue label="Legal Name" value={legalName} icon={<User size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="Company (DBA)" value={companyOrDba} icon={<Building size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="Sales Person" value={salesPerson} icon={<UserCircle size={16} color={MUTED_ICON} />} />
           </div>
         </section>
       )}
 
       {!isSurveyView && !usesInstallationWorkflowApi && (
         <section className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation
+          <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+            <Hammer size={22} color={PRIMARY_ICON} /> Installation
           </div>
           <div className={styles.formGrid}>
-            <ReadOnlyField label="Company" value={companyOrDba} />
-            <ReadOnlyField label="Street" value={installStreet} />
-            <ReadOnlyField label="City" value={installCity} />
-            <ReadOnlyField label="State" value={installState} />
-            <ReadOnlyField label="Zip" value={installZip} />
+            <ReadOnlyValue label="Company" value={companyOrDba} icon={<Building size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="Street" value={installStreet} icon={<MapPin size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="City" value={installCity} icon={<MapPin size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="State" value={installState} icon={<MapPin size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="Zip" value={installZip} icon={<Hash size={16} color={MUTED_ICON} />} />
           </div>
         </section>
       )}
 
       {isInstallationView && (
         <section className={styles.formSection}>
-          <div className={styles.sectionTitle}>
-            <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Installation Address
+          <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+            <MapPin size={22} color={PRIMARY_ICON} /> Installation Address
           </div>
           <div className={styles.formGrid}>
-            <ReadOnlyField label="Street" value={installStreet} />
-            <ReadOnlyField label="City" value={installCity} />
-            <ReadOnlyField label="State" value={installState} />
-            <ReadOnlyField label="Zip" value={installZip} />
+            <ReadOnlyValue label="Street" value={installStreet} icon={<MapPin size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="City" value={installCity} icon={<MapPin size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="State" value={installState} icon={<MapPin size={16} color={MUTED_ICON} />} />
+            <ReadOnlyValue label="Zip" value={installZip} icon={<Hash size={16} color={MUTED_ICON} />} />
           </div>
         </section>
       )}
@@ -1511,7 +1501,6 @@ export default function WorkflowViewPage() {
       ) : isSurveyView || activeTab === "survey" ? (
         <SurveyViewSections
           surveyName={surveyDetails.surveyName}
-          salesPerson={surveyDetails.salesPerson}
           surveyDate={surveyDetails.surveyDate}
           siteDetailGroups={siteDetailGroups}
           noteEntries={noteEntries}
@@ -1524,6 +1513,10 @@ export default function WorkflowViewPage() {
           onSaveSiteRow={handleSaveSiteRow}
           onReorderSiteRows={handleReorderSiteRows}
           reorderingAreas={reorderingAreas}
+          surveyStatus={isSurveyView ? surveyStatus : undefined}
+          statusColor={isSurveyView ? statusColor : undefined}
+          showVerifiedBadge={isSurveyView ? showVerifiedBadge : undefined}
+          verifiedDate={isSurveyView ? verifiedDate : undefined}
         />
       ) : (
         <InstallationWorkflowSections
@@ -1595,6 +1588,28 @@ export default function WorkflowViewPage() {
         >
           <X size={20} /> Close
         </button>
+        {isInspectionView && canApproveInspection ? (
+          <button
+            type="button"
+            className={styles.createBtn}
+            disabled={approvingInspection}
+            onClick={handleApproveInspection}
+            style={{
+              padding: "0.875rem 3rem",
+              background: "#10b981",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            {approvingInspection ? (
+              <Loader2 size={18} className={styles.spinner} />
+            ) : (
+              <CheckCircle2 size={18} />
+            )}
+            {approvingInspection ? "Approving..." : "Approve Inspection"}
+          </button>
+        ) : null}
       </div>
 
       {selectedImages && (

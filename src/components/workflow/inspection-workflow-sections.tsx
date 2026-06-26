@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import styles from "../../app/(authenticated)/dashboard.module.css";
 import modalStyles from "../../app/(authenticated)/workflow/workflow-details.module.css";
-import addStyles from "../../app/(authenticated)/leads/add/leads-add.module.css";
-import { ClipboardCheck, FileText, Loader2, Plus } from "lucide-react";
+import {
+  ClipboardCheck,
+  FileText,
+  Loader2,
+  Plus,
+  Hammer,
+  Info,
+  Hash,
+  MapPin,
+  CheckCircle2,
+} from "lucide-react";
 import { formatNoteListDateTime } from "@/lib/dateUtils";
 import {
   mapInspectionAreas,
@@ -13,6 +22,9 @@ import {
   type InspectionFixtureRow,
 } from "@/lib/workflow-inspection-view";
 import type { NoteEntry } from "@/lib/workflow-survey-view";
+
+const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
+const MUTED_ICON = "#64748b";
 
 export interface InspectionVerificationEdit {
   verifiedQty: string;
@@ -35,26 +47,37 @@ interface InspectionWorkflowSectionsProps {
   addingNote?: boolean;
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  const display = value?.trim() || "—";
+interface ReadOnlyFieldProps {
+  label: string;
+  icon?: ReactNode;
+  children: ReactNode;
+}
+
+function ReadOnlyField({ label, icon, children }: ReadOnlyFieldProps) {
   return (
     <div className={styles.formGroup}>
       <label>{label}</label>
-      <div
-        className={styles.formInput}
-        style={{
-          background: "#f8fafc",
-          color: display === "—" ? "#94a3b8" : "#1e293b",
-          fontWeight: 600,
-          border: "1px solid #e2e8f0",
-          minHeight: "2.75rem",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {display}
+      <div className={`${styles.formInput} ${modalStyles.readonlyField}`}>
+        {icon ? <div className={modalStyles.fieldRow}>{icon}{children}</div> : children}
       </div>
     </div>
+  );
+}
+
+function ReadOnlyValue({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: ReactNode;
+}) {
+  const display = value?.trim() || "—";
+  return (
+    <ReadOnlyField label={label} icon={icon}>
+      <span style={{ color: display === "—" ? "#94a3b8" : "#1e293b" }}>{display}</span>
+    </ReadOnlyField>
   );
 }
 
@@ -111,18 +134,7 @@ function ImageThumbnails({
 
   if (!images.length) {
     return (
-      <div
-        className={styles.formInput}
-        style={{
-          background: "#f8fafc",
-          color: "#94a3b8",
-          fontWeight: 600,
-          border: "1px solid #e2e8f0",
-          minHeight: "2.75rem",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
+      <div className={`${styles.formInput} ${modalStyles.readonlyField}`} style={{ color: "#94a3b8" }}>
         No images
       </div>
     );
@@ -174,10 +186,22 @@ function VerificationFields({
   if (!isEdit) {
     return (
       <div className={styles.formGrid}>
-        <ReadOnlyField label="Verified Quantity" value={fixture.verification.verifiedQty} />
-        <ReadOnlyField label="Issue Found" value={fixture.verification.issueFound} />
+        <ReadOnlyValue
+          label="Verified Quantity"
+          value={fixture.verification.verifiedQty}
+          icon={<Hash size={16} color={MUTED_ICON} />}
+        />
+        <ReadOnlyValue
+          label="Issue Found"
+          value={fixture.verification.issueFound}
+          icon={<CheckCircle2 size={16} color={MUTED_ICON} />}
+        />
         <div style={{ gridColumn: "1 / -1" }}>
-          <ReadOnlyField label="Comments" value={fixture.verification.comments} />
+          <ReadOnlyValue
+            label="Comments"
+            value={fixture.verification.comments}
+            icon={<FileText size={16} color={MUTED_ICON} />}
+          />
         </div>
       </div>
     );
@@ -249,10 +273,22 @@ function InspectionFixtureCard({
       <h4 className={modalStyles.siteRoomTitle}>{fixtureLabel}</h4>
 
       <div className={styles.formGrid}>
-        <ReadOnlyField label="Existing Fixture Type" value={fixture.existingFixtureType} />
+        <ReadOnlyValue
+          label="Existing Fixture Type"
+          value={fixture.existingFixtureType}
+          icon={<Hammer size={16} color={MUTED_ICON} />}
+        />
         <HeightReadOnlyField heightFt={fixture.heightFt} heightIn={fixture.heightIn} />
-        <ReadOnlyField label="Existing Bulb" value={fixture.existingBulbs} />
-        <ReadOnlyField label="Existing Quantity" value={fixture.existingQuantity} />
+        <ReadOnlyValue
+          label="Existing Bulb"
+          value={fixture.existingBulbs}
+          icon={<Info size={16} color={MUTED_ICON} />}
+        />
+        <ReadOnlyValue
+          label="Existing Quantity"
+          value={fixture.existingQuantity}
+          icon={<Hash size={16} color={MUTED_ICON} />}
+        />
       </div>
 
       <div className={`${styles.formGroup} ${modalStyles.siteMediaBlock}`}>
@@ -261,10 +297,18 @@ function InspectionFixtureCard({
       </div>
 
       <div className={styles.formGrid}>
-        <ReadOnlyField label="Proposed Fixture" value={fixture.proposedFixture} />
-        <ReadOnlyField label="Proposed Quantity" value={fixture.proposedQuantity} />
+        <ReadOnlyValue
+          label="Proposed Fixture"
+          value={fixture.proposedFixture}
+          icon={<Hammer size={16} color={MUTED_ICON} />}
+        />
+        <ReadOnlyValue
+          label="Proposed Quantity"
+          value={fixture.proposedQuantity}
+          icon={<Hash size={16} color={MUTED_ICON} />}
+        />
         <div style={{ gridColumn: "1 / -1" }}>
-          <ReadOnlyField label="Note" value={fixture.note} />
+          <ReadOnlyValue label="Note" value={fixture.note} icon={<FileText size={16} color={MUTED_ICON} />} />
         </div>
       </div>
 
@@ -313,8 +357,8 @@ function InspectionAreaBlock({
         <span className={modalStyles.siteSurveyBoxHeaderTitle}>Note</span>
       </div>
       <div className={styles.formGrid} style={{ marginBottom: "1.25rem" }}>
-        <ReadOnlyField label="Area Name" value={group.areaName} />
-        <ReadOnlyField label="Area Note" value={group.note} />
+        <ReadOnlyValue label="Area Name" value={group.areaName} icon={<MapPin size={16} color={MUTED_ICON} />} />
+        <ReadOnlyValue label="Area Note" value={group.note} icon={<FileText size={16} color={MUTED_ICON} />} />
       </div>
 
       {group.fixtures.length ? (
@@ -332,47 +376,48 @@ function InspectionAreaBlock({
           ))}
         </div>
       ) : (
-        <div className={addStyles.emptyState}>No fixture details for this area.</div>
+        <div className={modalStyles.viewEmptyState}>No fixture details for this area.</div>
       )}
     </div>
   );
 }
 
-function formatNoteMeta(authorName: string | undefined, timestamp: string | null): string {
-  const parts: string[] = [];
-  if (authorName?.trim()) {
-    parts.push(authorName.trim().toUpperCase());
-  }
-  if (timestamp) {
-    const formatted = formatNoteListDateTime(timestamp);
-    if (formatted) parts.push(formatted);
-  }
-  return parts.join(", ");
-}
-
 function NotesList({ entries }: { entries: NoteEntry[] }) {
   if (!entries.length) {
-    return <div className={addStyles.emptyState}>No notes on file.</div>;
+    return <div className={modalStyles.viewEmptyState}>No notes on file.</div>;
   }
 
   return (
-    <div className={modalStyles.notesList}>
-      {entries.map((entry, index) => {
-        const title = (entry.title || (entry.source === "survey" ? "Survey Note" : "Note")).trim();
-        const meta = formatNoteMeta(entry.authorName, entry.timestamp);
+    <div className={styles.userTableContainer}>
+      <table className={modalStyles.detailTable}>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Date</th>
+            <th>Author</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry, index) => {
+            const title = (entry.title || (entry.source === "survey" ? "Survey Note" : "Note")).trim();
+            const timestamp = entry.timestamp ? formatNoteListDateTime(entry.timestamp) : "—";
 
-        return (
-          <article key={entry.id} className={modalStyles.noteListItem}>
-            <div className={modalStyles.noteListHeader}>
-              <h4 className={modalStyles.noteListTitle}>
-                {index + 1}. {title.toUpperCase()}
-              </h4>
-              {meta ? <span className={modalStyles.noteListMeta}>{meta}</span> : null}
-            </div>
-            <p className={modalStyles.noteListBody}>{entry.text}</p>
-          </article>
-        );
-      })}
+            return (
+              <tr key={entry.id}>
+                <td className={modalStyles.detailTableName}>
+                  {index + 1}. {title}
+                </td>
+                <td className={modalStyles.detailTableMuted}>{timestamp}</td>
+                <td>{entry.authorName?.trim() || "—"}</td>
+                <td>
+                  <div className={modalStyles.noteContent}>{entry.text}</div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -436,12 +481,9 @@ export function InspectionWorkflowSections({
   return (
     <>
       <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Site Details
+        <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+          <ClipboardCheck size={22} color={PRIMARY_ICON} /> Site Details
         </div>
-        <p className={styles.sectionSubtitle}>
-          Fixture details and verification inputs recorded during inspection.
-        </p>
 
         {areaGroups.length ? (
           <div className={modalStyles.siteDetailsStack}>
@@ -457,16 +499,13 @@ export function InspectionWorkflowSections({
             ))}
           </div>
         ) : (
-          <div className={addStyles.emptyState}>No site details found for this inspection.</div>
+          <div className={modalStyles.viewEmptyState}>No site details found for this inspection.</div>
         )}
       </section>
 
       <section className={styles.formSection}>
-        <div className={modalStyles.notesSectionTitle}>
-          <span className={modalStyles.notesSectionIcon} aria-hidden>
-            <FileText size={22} color="#ea580c" strokeWidth={2} />
-          </span>
-          Notes
+        <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+          <FileText size={22} color={PRIMARY_ICON} /> Notes
         </div>
         <NotesList entries={noteEntries} />
 
@@ -485,10 +524,10 @@ export function InspectionWorkflowSections({
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.75rem" }}>
               <button
                 type="button"
-                className={addStyles.modalSaveBtn}
+                className={styles.addBtn}
                 onClick={handleAddNoteClick}
                 disabled={addingNote || !newNoteText.trim()}
-                style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
               >
                 {addingNote ? <Loader2 size={16} className={styles.spinner} /> : <Plus size={16} />}
                 {addingNote ? "Adding..." : "Add Note"}

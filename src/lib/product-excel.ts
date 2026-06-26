@@ -4,6 +4,7 @@ import {
   isExistingFixtureType,
   type ProductFixtureType,
 } from "@/lib/product-fixture-types";
+import { validateUniqueProposedNamesInFile } from "@/lib/product-proposed-validation";
 
 export const PROPOSED_PRODUCT_EXCEL_HEADERS = [
   "SKU",
@@ -268,11 +269,14 @@ function parseProposedRows(
   });
 
   const duplicateSkuErrors = validateUniqueSkusInFile(rows);
-  if (duplicateSkuErrors.length > 0) {
-    const duplicateRowNumbers = new Set(duplicateSkuErrors.map((error) => error.rowNumber));
+  const duplicateNamePriceErrors = validateUniqueProposedNamesInFile(rows);
+  const blockingErrors = [...duplicateSkuErrors, ...duplicateNamePriceErrors];
+
+  if (blockingErrors.length > 0) {
+    const blockedRowNumbers = new Set(blockingErrors.map((error) => error.rowNumber));
     return {
-      rows: rows.filter((row) => !duplicateRowNumbers.has(row.rowNumber)),
-      errors: [...errors, ...duplicateSkuErrors],
+      rows: rows.filter((row) => !blockedRowNumbers.has(row.rowNumber)),
+      errors: [...errors, ...blockingErrors],
     };
   }
 

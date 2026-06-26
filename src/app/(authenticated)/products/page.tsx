@@ -43,6 +43,10 @@ import {
   parseProductTabFromParam,
   type ProductFixtureType,
 } from "@/lib/product-fixture-types";
+import {
+  validateProposedNamePriceAgainstCatalog,
+  type ProposedProductPrices,
+} from "@/lib/product-proposed-validation";
 
 interface Product {
   id: string;
@@ -196,6 +200,31 @@ function buildProductLookup(
   }
 
   return new Map(products.map((product) => [product.sku.trim().toLowerCase(), product]));
+}
+
+function getProposedPrices(product: ProposedProductPrices): ProposedProductPrices {
+  return {
+    utilityPrice: product.utilityPrice,
+    directPrice: product.directPrice,
+    agentCommission: product.agentCommission,
+    managerCommission: product.managerCommission,
+    installationCost: product.installationCost,
+  };
+}
+
+function validateProposedRowNamePrice(
+  name: string,
+  prices: ProposedProductPrices,
+  catalog: Product[],
+  excludeId?: string
+): string | null {
+  const result = validateProposedNamePriceAgainstCatalog(
+    name,
+    prices,
+    catalog,
+    excludeId
+  );
+  return result.valid ? null : result.message;
 }
 
 export default function ProductsPage() {
@@ -474,6 +503,54 @@ export default function ProductsPage() {
       }
     }
 
+    const duplicateNamePriceErrors: { rowNumber: number; message: string }[] = [];
+    if (!isExistingFixtureType(activeTab)) {
+      for (const item of addAlsoDuplicates) {
+        const namePriceError = validateProposedRowNamePrice(
+          item.uploadedName,
+          getProposedPrices(item),
+          serverProducts
+        );
+        if (namePriceError) {
+          duplicateNamePriceErrors.push({
+            rowNumber: item.rowNumber,
+            message: `Name "${item.uploadedName}": ${namePriceError}`,
+          });
+        }
+      }
+
+      for (const item of overwriteDuplicates) {
+        const namePriceError = validateProposedRowNamePrice(
+          item.uploadedName,
+          getProposedPrices(item),
+          serverProducts,
+          item.existingId
+        );
+        if (namePriceError) {
+          duplicateNamePriceErrors.push({
+            rowNumber: item.rowNumber,
+            message: `Name "${item.uploadedName}": ${namePriceError}`,
+          });
+        }
+      }
+
+      if (duplicateNamePriceErrors.length > 0) {
+        const blockedRows = new Set(duplicateNamePriceErrors.map((error) => error.rowNumber));
+        applyUploadedProducts(
+          pendingUpload.newRows,
+          addAlsoDuplicates.filter((item) => !blockedRows.has(item.rowNumber)),
+          overwriteDuplicates.filter((item) => !blockedRows.has(item.rowNumber)),
+          [
+            ...skippedDuplicates,
+            ...addAlsoDuplicates.filter((item) => blockedRows.has(item.rowNumber)),
+            ...overwriteDuplicates.filter((item) => blockedRows.has(item.rowNumber)),
+          ],
+          [...pendingUpload.errors, ...duplicateNamePriceErrors]
+        );
+        return;
+      }
+    }
+
     applyUploadedProducts(
       pendingUpload.newRows,
       addAlsoDuplicates,
@@ -550,8 +627,24 @@ export default function ProductsPage() {
       const serverLookup = buildProductLookup(serverProducts, activeTab);
       const duplicates: DuplicateUploadItem[] = [];
       const newRows: ParsedProductExcelRow[] = [];
+      const namePriceErrors: { rowNumber: number; message: string }[] = [];
 
       for (const row of rows) {
+        if (!isExistingFixtureType(activeTab) && isProposedExcelRow(row)) {
+          const namePriceError = validateProposedRowNamePrice(
+            row.name,
+            getProposedPrices(row),
+            serverProducts
+          );
+          if (namePriceError) {
+            namePriceErrors.push({
+              rowNumber: row.rowNumber,
+              message: `Name "${row.name}": ${namePriceError}`,
+            });
+            continue;
+          }
+        }
+
         const rowName = isProposedExcelRow(row) ? row.name : row.name;
         const rowKey = isExistingFixtureType(activeTab)
           ? rowName.trim().toLowerCase()
@@ -579,14 +672,14 @@ export default function ProductsPage() {
       }
 
       if (duplicates.length > 0) {
-        setPendingUpload({ rows, errors, duplicates, newRows });
+        setPendingUpload({ rows, errors: [...errors, ...namePriceErrors], duplicates, newRows });
         setDuplicateQueueIndex(0);
         setDuplicateResolutions(new Map());
         setDuplicateModalOpen(true);
         return;
       }
 
-      applyUploadedProducts(newRows, [], [], [], errors);
+      applyUploadedProducts(newRows, [], [], [], [...errors, ...namePriceErrors]);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to read Excel file.";
@@ -634,6 +727,19 @@ export default function ProductsPage() {
             installationCost: product.installationCost,
             productType: activeTab,
           };
+
+          const namePriceError = validateProposedRowNamePrice(
+            product.name,
+            getProposedPrices(product),
+            [...serverProducts, ...toSave.slice(0, i)],
+            product.pendingUpload === "overwrite" ? product.id : undefined
+          );
+          if (namePriceError) {
+            failed += 1;
+            failDetails.push(`${product.sku}: ${namePriceError}`);
+            continue;
+          }
+
           if (product.pendingUpload === "overwrite") {
             await adminApi.updateProduct(product.id, proposedPayload);
             updated += 1;
@@ -702,6 +808,16 @@ export default function ProductsPage() {
           return;
         }
 
+        const namePriceError = validateProposedRowNamePrice(
+          proposedData.name,
+          getProposedPrices(proposedData),
+          serverProducts
+        );
+        if (namePriceError) {
+          toast.error(namePriceError);
+          return;
+        }
+
         await adminApi.createProduct({ ...proposedData, productType: activeTab });
       }
       closeModal();
@@ -728,6 +844,18 @@ export default function ProductsPage() {
           productType: editingProduct.productType,
         });
       } else {
+        const proposedData = data as ProposedProductFormData;
+        const namePriceError = validateProposedRowNamePrice(
+          proposedData.name,
+          getProposedPrices(proposedData),
+          serverProducts,
+          editingProduct.id
+        );
+        if (namePriceError) {
+          toast.error(namePriceError);
+          return;
+        }
+
         await adminApi.updateProduct(editingProduct.id, {
           ...(data as ProposedProductFormData),
           productType: editingProduct.productType,

@@ -1,40 +1,55 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
-import addStyles from "../../leads/add/leads-add.module.css";
-import { Info, Loader2, MapPin, X, XCircle, FileText, Edit2, Calendar, Users } from "lucide-react";
+import viewStyles from "./customer-details.module.css";
+import {
+  UserPlus,
+  Loader2,
+  MapPin,
+  X,
+  XCircle,
+  FileText,
+  Edit2,
+  Calendar,
+  Users,
+  Phone,
+  Mail,
+  Building,
+  Hash,
+  Briefcase,
+  Zap,
+  Activity,
+  User,
+} from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/dateUtils";
-
-const SECTION_ICON_COLOR = "var(--admin-primary, #004d4d)";
 import { formatNoteAuthorLabel } from "@/lib/leadNotes";
 import { hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
+
+const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
+const MUTED_ICON = "#64748b";
 
 function displayValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   return String(value);
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
+interface ReadOnlyFieldProps {
+  label: string;
+  icon?: ReactNode;
+  valueClassName?: string;
+  children: ReactNode;
+}
+
+function ReadOnlyField({ label, icon, valueClassName, children }: ReadOnlyFieldProps) {
   return (
     <div className={styles.formGroup}>
       <label>{label}</label>
-      <div
-        className={styles.formInput}
-        style={{
-          background: "#f8fafc",
-          color: value === "—" ? "#94a3b8" : "#1e293b",
-          fontWeight: 600,
-          border: "1px solid #e2e8f0",
-          minHeight: "2.75rem",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {value}
+      <div className={`${styles.formInput} ${viewStyles.readonlyField} ${valueClassName || ""}`}>
+        {icon ? <div className={viewStyles.fieldRow}>{icon}{children}</div> : children}
       </div>
     </div>
   );
@@ -66,6 +81,13 @@ function getStatusColor(status: string): string {
     default:
       return "#64748b";
   }
+}
+
+function formatAddressLine(address: Record<string, unknown>): string {
+  const parts = [address.city, address.state, address.zip]
+    .filter((part) => part != null && String(part).trim() !== "")
+    .map(String);
+  return parts.length > 0 ? parts.join(", ") : "—";
 }
 
 export default function CustomerDetailsPage() {
@@ -165,6 +187,15 @@ export default function CustomerDetailsPage() {
     ? leadSourceMap[leadSourceCode] || leadSourceCode
     : "—";
 
+  const leadIdDisplay = useMemo(() => {
+    if (leadRecord?.lead_id) return String(leadRecord.lead_id);
+    if (customer?.lead_id != null && typeof customer.lead_id !== "object") {
+      return String(customer.lead_id);
+    }
+    if (typeof customer?.leadId === "string") return customer.leadId;
+    return "—";
+  }, [customer?.leadId, customer?.lead_id, leadRecord?.lead_id]);
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
@@ -192,11 +223,10 @@ export default function CustomerDetailsPage() {
     );
   }
 
-  const displayName = String(customer.leadName || customer.name || "Customer");
   const statusLabel = String(customer.status || "New");
-  const leadIdLabel = customer.lead_id ?? customer.leadId;
-  const hasLeadId =
-    leadIdLabel !== null && leadIdLabel !== undefined && String(leadIdLabel).trim() !== "";
+  const statusColor = getStatusColor(statusLabel);
+  const emailDisplay = displayValue(customer.email);
+  const mobileDisplay = displayValue(customer.mobileNumber);
 
   return (
     <div className={styles.addUserPage}>
@@ -209,222 +239,217 @@ export default function CustomerDetailsPage() {
         <span className={styles.breadcrumbCurrent}>VIEW CUSTOMER</span>
       </div>
 
-      <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
-        <div>
-          <h1 className={styles.welcomeText}>Customer Profile: {displayName}</h1>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-            <span
-              style={{
-                backgroundColor: `${getStatusColor(statusLabel)}15`,
-                color: getStatusColor(statusLabel),
-                padding: "0.25rem 0.75rem",
-                borderRadius: "99px",
-                fontSize: "0.75rem",
-                fontWeight: 700,
-                textTransform: "uppercase",
-              }}
-            >
-              {statusLabel}
-            </span>
-            {hasLeadId && (
-              <span
-                style={{
-                  backgroundColor: "#f1f5f9",
-                  color: "#334155",
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "99px",
-                  fontSize: "0.75rem",
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em",
-                }}
-              >
-                {String(leadIdLabel)}
-              </span>
-            )}
-          </div>
-        </div>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.welcomeText}>View Customer Profile</h1>
+        {canEdit && (
+          <button type="button" className={styles.addBtn} onClick={() => router.push(`/customers/${id}/edit`)}>
+            <Edit2 size={20} /> Edit
+          </button>
+        )}
+      </div>
 
-        <div style={{ display: "flex", gap: "1rem" }}>
-          {canEdit && (
-            <button type="button" className={styles.addBtn} onClick={() => router.push(`/customers/${id}/edit`)}>
-              <Edit2 size={20} /> Edit
-            </button>
-          )}
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <UserPlus size={22} color={PRIMARY_ICON} /> Customer Information
+        </div>
+        <div className={styles.formGrid}>
+          <ReadOnlyField label="Lead Source" icon={<Briefcase size={16} color={MUTED_ICON} />}>
+            {leadSourceDisplay}
+          </ReadOnlyField>
+          <ReadOnlyField label="Lead Name" icon={<User size={16} color={MUTED_ICON} />}>
+            {displayValue(leadNameDisplay)}
+          </ReadOnlyField>
+          <ReadOnlyField label="DBA" icon={<Building size={16} color={MUTED_ICON} />}>
+            {displayValue(dbaDisplay)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Utility / Electric Company" icon={<Zap size={16} color={MUTED_ICON} />}>
+            {displayValue(electricCompanyDisplay)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Account Number" icon={<Hash size={16} color={MUTED_ICON} />}>
+            {displayValue(customer.accountNumber)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Legal Name" icon={<User size={16} color={MUTED_ICON} />}>
+            {displayValue(customer.legalName)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Mobile" icon={<Phone size={16} color={MUTED_ICON} />}>
+            {mobileDisplay}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Email"
+            icon={<Mail size={16} color={MUTED_ICON} />}
+            valueClassName={emailDisplay !== "—" ? viewStyles.readonlyFieldLink : viewStyles.readonlyFieldMuted}
+          >
+            {emailDisplay}
+          </ReadOnlyField>
+          <ReadOnlyField label="Lead ID" icon={<Hash size={16} color={MUTED_ICON} />}>
+            {leadIdDisplay}
+          </ReadOnlyField>
+          <ReadOnlyField
+            label="Status"
+            icon={<Activity size={16} color={statusColor} />}
+            valueClassName=""
+          >
+            <span style={{ color: statusColor, fontWeight: 700, textTransform: "capitalize" }}>
+              {statusLabel.replace(/_/g, " ")}
+            </span>
+          </ReadOnlyField>
         </div>
       </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <Info size={22} color={SECTION_ICON_COLOR} /> Customer Information
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <MapPin size={22} color={PRIMARY_ICON} /> Address Information
         </div>
-        <div className={styles.formGrid}>
-          <ReadOnlyField label="Lead Source" value={leadSourceDisplay} />
-          <ReadOnlyField label="Lead Name" value={displayValue(leadNameDisplay)} />
-          <ReadOnlyField label="DBA" value={displayValue(dbaDisplay)} />
-          <ReadOnlyField label="Utility / Electric Company" value={displayValue(electricCompanyDisplay)} />
-          <ReadOnlyField label="Account Number" value={displayValue(customer.accountNumber)} />
-          <ReadOnlyField label="Legal Name" value={displayValue(customer.legalName)} />
-          <ReadOnlyField label="Mobile" value={displayValue(customer.mobileNumber)} />
-          <ReadOnlyField label="Email" value={displayValue(customer.email)} />
-        </div>
-      </section>
-
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <MapPin size={22} color={SECTION_ICON_COLOR} /> Address Information
-        </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {addresses.length === 0 ? (
-              <div className={addStyles.emptyState}>No addresses on file.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
-                {addresses.map((a, idx) => (
-                  <div key={(a._id as string) || idx} className={addStyles.itemCard}>
-                    <div className={addStyles.itemHeader}>
-                      <span className={addStyles.itemTitle}>{displayValue(a.title) !== "—" ? String(a.title) : `Address ${idx + 1}`}</span>
-                    </div>
-                    <div className={addStyles.itemContent}>
-                      {a.street ? <div>{String(a.street)}</div> : null}
-                      {Boolean(a.city || a.state || a.zip) && (
-                        <div>
-                          {[a.city, a.state, a.zip]
-                            .filter((part) => part != null && String(part).trim() !== "")
-                            .map(String)
-                            .join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+        {addresses.length === 0 ? (
+          <div className={viewStyles.emptyState}>No addresses on file.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Street</th>
+                  <th>City / State / Zip</th>
+                </tr>
+              </thead>
+              <tbody>
+                {addresses.map((address, idx) => (
+                  <tr key={(address._id as string) || idx}>
+                    <td className={viewStyles.detailTableName}>
+                      {displayValue(address.title) !== "—" ? String(address.title) : `Address ${idx + 1}`}
+                    </td>
+                    <td>{displayValue(address.street)}</td>
+                    <td>{formatAddressLine(address)}</td>
+                  </tr>
                 ))}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <Users size={22} color={SECTION_ICON_COLOR} /> Contact Information
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <Users size={22} color={PRIMARY_ICON} /> Contact Information
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {contacts.length === 0 ? (
-              <div className={addStyles.emptyState}>No contacts on file.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
+        {contacts.length === 0 ? (
+          <div className={viewStyles.emptyState}>No contacts on file.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Department</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Mobile</th>
+                </tr>
+              </thead>
+              <tbody>
                 {contacts.map((contact, idx) => (
-                  <div key={(contact._id as string) || idx} className={addStyles.itemCard}>
-                    <div className={addStyles.itemHeader}>
-                      <span className={addStyles.itemTitle}>
-                        {displayValue(contact.name) !== "—" ? String(contact.name) : "Contact"}
-                        {contact.position ? ` (${String(contact.position)})` : ""}
-                      </span>
-                    </div>
-                    <div className={addStyles.itemContent}>
-                      {contact.department ? (
-                        <div>Department: {displayValue(contact.department)}</div>
+                  <tr key={(contact._id as string) || idx}>
+                    <td className={viewStyles.detailTableName}>
+                      {displayValue(contact.name) !== "—" ? String(contact.name) : "Contact"}
+                      {contact.position ? (
+                        <span className={viewStyles.detailTableMuted}> ({String(contact.position)})</span>
                       ) : null}
-                      {contact.email ? <div>Email: {displayValue(contact.email)}</div> : null}
-                      {contact.phone ? <div>Phone: {displayValue(contact.phone)}</div> : null}
-                      {contact.mobile ? <div>Mobile: {displayValue(contact.mobile)}</div> : null}
-                    </div>
-                  </div>
+                    </td>
+                    <td>{displayValue(contact.department)}</td>
+                    <td>{displayValue(contact.email)}</td>
+                    <td>{displayValue(contact.phone)}</td>
+                    <td>{displayValue(contact.mobile)}</td>
+                  </tr>
                 ))}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <FileText size={22} color={SECTION_ICON_COLOR} /> Notes
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <FileText size={22} color={PRIMARY_ICON} /> Notes
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {notes.length === 0 ? (
-              <div className={addStyles.emptyState}>No notes on file.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
-                {notes.map((n, idx) => (
-                  <div key={(n._id as string) || idx} className={addStyles.itemCard}>
-                    <div className={addStyles.itemHeader}>
-                      <span className={addStyles.itemTitle}>
-                        {displayValue(n.title) !== "—" ? String(n.title) : `Note ${idx + 1}`}
-                      </span>
-                      {n.createdAt ? (
-                        <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
-                          {formatDateTime(n.createdAt)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className={addStyles.itemContent}>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
-                        By {formatNoteAuthorLabel(n)}
-                      </div>
-                      {displayValue(n.note)}
-                    </div>
-                  </div>
+        {notes.length === 0 ? (
+          <div className={viewStyles.emptyState}>No notes on file.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Date</th>
+                  <th>Author</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notes.map((note, idx) => (
+                  <tr key={(note._id as string) || idx}>
+                    <td className={viewStyles.detailTableName}>
+                      {displayValue(note.title) !== "—" ? String(note.title) : `Note ${idx + 1}`}
+                    </td>
+                    <td className={viewStyles.detailTableMuted}>
+                      {note.createdAt ? formatDateTime(note.createdAt) : "—"}
+                    </td>
+                    <td>{formatNoteAuthorLabel(note)}</td>
+                    <td>
+                      <div className={viewStyles.noteContent}>{displayValue(note.note)}</div>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <Calendar size={22} color={SECTION_ICON_COLOR} /> Activities
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <Calendar size={22} color={PRIMARY_ICON} /> Activities
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {activities.length === 0 ? (
-              <div className={addStyles.emptyState}>No activities recorded.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
+        {activities.length === 0 ? (
+          <div className={viewStyles.emptyState}>No activities recorded.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>User</th>
+                  <th>Outcome</th>
+                  <th>Notes</th>
+                  <th>Location</th>
+                </tr>
+              </thead>
+              <tbody>
                 {activities.map((activity, idx) => (
-                  <div key={(activity._id as string) || idx} className={addStyles.itemCard}>
-                    <div className={addStyles.itemHeader}>
-                      <span className={addStyles.itemTitle}>
-                        {displayValue(activity.activityType) !== "—"
-                          ? String(activity.activityType)
-                          : "Activity"}
-                      </span>
-                      {activity.date || activity.createdAt ? (
-                        <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
-                          {formatDateTime(activity.date || activity.createdAt)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className={addStyles.itemContent}>
-                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
-                        By {formatActivityUser(activity)}
-                      </div>
-                      {displayValue(activity.outcome) !== "—" ? (
-                        <div>
-                          <strong>Outcome:</strong> {displayValue(activity.outcome)}
-                        </div>
-                      ) : null}
-                      {displayValue(activity.notes) !== "—" ? (
-                        <div style={{ marginTop: "0.25rem", whiteSpace: "pre-wrap" }}>
-                          {displayValue(activity.notes)}
-                        </div>
-                      ) : null}
-                      {displayValue(activity.location) !== "—" ? (
-                        <div style={{ marginTop: "0.25rem", fontSize: "0.85rem", color: "#64748b" }}>
-                          Location: {displayValue(activity.location)}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
+                  <tr key={(activity._id as string) || idx}>
+                    <td className={viewStyles.detailTableName}>
+                      {displayValue(activity.activityType) !== "—"
+                        ? String(activity.activityType)
+                        : "Activity"}
+                    </td>
+                    <td className={viewStyles.detailTableMuted}>
+                      {activity.date || activity.createdAt
+                        ? formatDateTime(activity.date || activity.createdAt)
+                        : "—"}
+                    </td>
+                    <td>{formatActivityUser(activity)}</td>
+                    <td>{displayValue(activity.outcome)}</td>
+                    <td>
+                      <div className={viewStyles.noteContent}>{displayValue(activity.notes)}</div>
+                    </td>
+                    <td>{displayValue(activity.location)}</td>
+                  </tr>
                 ))}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
       <div
         className={styles.actionFooter}

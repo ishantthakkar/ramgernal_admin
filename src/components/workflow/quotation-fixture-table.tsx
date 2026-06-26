@@ -2,6 +2,7 @@
 
 import styles from "@/app/(authenticated)/dashboard.module.css";
 import docStyles from "@/app/(authenticated)/workflow/quotations/quotations-view.module.css";
+import modalStyles from "@/app/(authenticated)/workflow/workflow-details.module.css";
 import type { QuotationFixtureRow } from "@/lib/quotation-utils";
 import { ClipboardList } from "lucide-react";
 
@@ -39,7 +40,7 @@ export function QuotationFixtureTable({
 }: QuotationFixtureTableProps) {
   return (
     <section className={styles.formSection}>
-      <div className={styles.sectionTitle}>
+      <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
         <ClipboardList size={22} color="var(--admin-primary, #004d4d)" />
         Proposed Fixtures
       </div>

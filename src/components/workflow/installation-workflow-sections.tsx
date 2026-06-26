@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import styles from "../../app/(authenticated)/dashboard.module.css";
 import modalStyles from "../../app/(authenticated)/commissions/commissions-modal.module.css";
 import detailStyles from "../../app/(authenticated)/workflow/workflow-details.module.css";
-import addStyles from "../../app/(authenticated)/leads/add/leads-add.module.css";
 import {
   Hammer,
   ClipboardCheck,
@@ -13,6 +12,8 @@ import {
   Pencil,
   Loader2,
   X,
+  Image as ImageIcon,
+  Eye,
 } from "lucide-react";
 import { formatDate } from "@/lib/dateUtils";
 import { adminApi } from "@/lib/api";
@@ -22,7 +23,6 @@ import {
   extractSkuOptions,
   formatDeliveryStatusLabel,
   getDeliveryStatusStyle,
-  isMaterialsVerified,
   resolveMaterialImageUrl,
 } from "@/lib/workflow-installation-details";
 import { InstallationExtraExpensesSection } from "@/components/workflow/installation-extra-expenses-section";
@@ -54,6 +54,30 @@ function getReturnItemName(item: Record<string, unknown>): string {
   const itemName = String(item?.item_name ?? item?.itemName ?? "").trim();
   const sku = String(item?.sku || "").trim();
   return productName || itemName || sku || "—";
+}
+
+const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
+
+function ViewActionButton({
+  label,
+  onClick,
+  icon,
+}: {
+  label: string;
+  onClick: () => void;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={styles.assignBtn}
+      onClick={onClick}
+      style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
 }
 
 interface InstallationWorkflowSectionsProps {
@@ -108,7 +132,6 @@ export function InstallationWorkflowSections({
     ? installationSurvey.materialDeliveryReturn
     : [];
   const summary = buildMaterialSummaryFromSurvey(installationSurvey);
-  const materialsVerified = isMaterialsVerified(installationSurvey);
 
   function renderItemsCell(
     items: Record<string, unknown>[],
@@ -120,13 +143,11 @@ export function InstallationWorkflowSections({
     }
 
     return (
-      <button
-        type="button"
-        className={detailStyles.viewImgBtn}
+      <ViewActionButton
+        label={`View (${items.length})`}
+        icon={<Eye size={14} />}
         onClick={() => setItemsPopup({ title: popupTitle, type, items })}
-      >
-        View ({items.length})
-      </button>
+      />
     );
   }
 
@@ -272,52 +293,38 @@ export function InstallationWorkflowSections({
     <>
       <section className={styles.formSection}>
         <div
-          className={styles.sectionTitle}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
+            marginBottom: "2rem",
+          }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <Hammer size={22} color="var(--admin-primary, #004d4d)" /> Delivery Details
+          <div className={`${styles.sectionTitle} ${detailStyles.viewSectionTitle}`} style={{ marginBottom: 0 }}>
+            <Hammer size={22} color={PRIMARY_ICON} /> Delivery Details
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            {/* {materialsVerified ? (
-              <span
-                style={{
-                  backgroundColor: "rgba(16, 185, 129, 0.12)",
-                  color: "#10b981",
-                  padding: "0.35rem 0.75rem",
-                  borderRadius: "999px",
-                  fontSize: "0.75rem",
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                
-              </span>
-            ) : null} */}
             {isEdit ? (
               <button
                 type="button"
-                className={addStyles.modalSaveBtn}
+                className={styles.addBtn}
                 onClick={openAddDelivery}
-                style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 1rem", fontSize: "0.85rem" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 1rem", fontSize: "0.85rem" }}
               >
                 <Plus size={16} /> Add Delivery
               </button>
             ) : null}
           </div>
         </div>
-        <p className={styles.sectionSubtitle}>
-          Scheduled and delivered materials for this installation.
-        </p>
 
         {deliveries.length > 0 ? (
-          <div className={styles.userTableContainer} style={{ marginTop: "0.5rem" }}>
-            <table className={styles.userTable}>
+          <div className={styles.userTableContainer}>
+            <table className={detailStyles.detailTable}>
               <thead>
                 <tr>
-                  <th style={{ width: "80px" }}>Sr. No</th>
+                  <th>Sr. No</th>
                   <th>Date</th>
                   <th>Time</th>
                   <th>Status</th>
@@ -338,11 +345,11 @@ export function InstallationWorkflowSections({
 
                   return (
                     <tr key={String(delivery?._id || `${delivery?.date}-${index}`)}>
-                      <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
-                      <td style={{ fontWeight: 600, color: "#1e293b" }}>
+                      <td className={detailStyles.detailTableMuted}>{index + 1}</td>
+                      <td className={detailStyles.detailTableName}>
                         {delivery?.date ? formatDate(String(delivery.date)) : "—"}
                       </td>
-                      <td style={{ fontWeight: 600, color: "#64748b" }}>
+                      <td className={detailStyles.detailTableMuted}>
                         {String(delivery?.time || "").trim() || "—"}
                       </td>
                       <td>
@@ -360,40 +367,34 @@ export function InstallationWorkflowSections({
                           {formatDeliveryStatusLabel(String(delivery?.deliveryStatus || ""))}
                         </span>
                       </td>
-                      <td style={{ color: "#1e293b", fontWeight: 600 }}>
+                      <td>
                         {renderItemsCell(
                           items,
                           "delivery",
                           `Delivery #${index + 1}${delivery?.date ? ` · ${formatDate(String(delivery.date))}` : ""}`
                         )}
                       </td>
-                      <td style={{ color: "#64748b", fontWeight: 500 }}>
+                      <td className={detailStyles.detailTableMuted}>
                         {String(delivery?.note || "").trim() || "—"}
                       </td>
                       <td>
                         {resolvedImages.length > 0 ? (
-                          <button
-                            type="button"
-                            className={detailStyles.viewImgBtn}
+                          <ViewActionButton
+                            label={`View (${resolvedImages.length})`}
+                            icon={<ImageIcon size={14} />}
                             onClick={() => onViewImages?.(resolvedImages, "Material Delivery")}
-                          >
-                            View ({resolvedImages.length})
-                          </button>
+                          />
                         ) : (
-                          <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>No image</span>
+                          <span className={detailStyles.detailTableMuted}>No image</span>
                         )}
                       </td>
                       {isEdit ? (
                         <td>
-                          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                            <button
-                              type="button"
-                              className={detailStyles.viewImgBtn}
-                              onClick={() => openEditDelivery(delivery)}
-                            >
-                              <Pencil size={14} /> Edit
-                            </button>
-                          </div>
+                          <ViewActionButton
+                            label="Edit"
+                            icon={<Pencil size={14} />}
+                            onClick={() => openEditDelivery(delivery)}
+                          />
                         </td>
                       ) : null}
                     </tr>
@@ -403,37 +404,42 @@ export function InstallationWorkflowSections({
             </table>
           </div>
         ) : (
-          <div className={addStyles.emptyState}>No material delivery records found.</div>
+          <div className={detailStyles.viewEmptyState}>No material delivery records found.</div>
         )}
       </section>
 
       <section className={styles.formSection}>
         <div
-          className={styles.sectionTitle}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
+            marginBottom: "2rem",
+          }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <ClipboardCheck size={22} color="var(--admin-primary, #004d4d)" /> Material Return
+          <div className={`${styles.sectionTitle} ${detailStyles.viewSectionTitle}`} style={{ marginBottom: 0 }}>
+            <ClipboardCheck size={22} color={PRIMARY_ICON} /> Material Return
           </div>
           {isEdit ? (
             <button
               type="button"
-              className={addStyles.modalSaveBtn}
+              className={styles.addBtn}
               onClick={openAddReturn}
-              style={{ display: "flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 1rem", fontSize: "0.85rem" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.5rem 1rem", fontSize: "0.85rem" }}
             >
               <Plus size={16} /> Add Return
             </button>
           ) : null}
         </div>
-        <p className={styles.sectionSubtitle}>Items returned from site.</p>
 
         {returns.length > 0 ? (
-          <div className={styles.userTableContainer} style={{ marginTop: "0.5rem" }}>
-            <table className={styles.userTable}>
+          <div className={styles.userTableContainer}>
+            <table className={detailStyles.detailTable}>
               <thead>
                 <tr>
-                  <th style={{ width: "80px" }}>Sr. No</th>
+                  <th>Sr. No</th>
                   <th>Date</th>
                   <th>Time</th>
                   <th>Items</th>
@@ -446,32 +452,30 @@ export function InstallationWorkflowSections({
                   const items = Array.isArray(entry?.items) ? entry.items : [];
                   return (
                     <tr key={String(entry?._id || `${entry?.date}-${index}`)}>
-                      <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
-                      <td style={{ fontWeight: 600, color: "#1e293b" }}>
+                      <td className={detailStyles.detailTableMuted}>{index + 1}</td>
+                      <td className={detailStyles.detailTableName}>
                         {entry?.date ? formatDate(String(entry.date)) : "—"}
                       </td>
-                      <td style={{ fontWeight: 600, color: "#64748b" }}>
+                      <td className={detailStyles.detailTableMuted}>
                         {String(entry?.time || "").trim() || "—"}
                       </td>
-                      <td style={{ color: "#1e293b", fontWeight: 600 }}>
+                      <td>
                         {renderItemsCell(
                           items,
                           "return",
                           `Return #${index + 1}${entry?.date ? ` · ${formatDate(String(entry.date))}` : ""}`
                         )}
                       </td>
-                      <td style={{ color: "#64748b", fontWeight: 500 }}>
+                      <td className={detailStyles.detailTableMuted}>
                         {String(entry?.note || "").trim() || "—"}
                       </td>
                       {isEdit ? (
                         <td>
-                          <button
-                            type="button"
-                            className={detailStyles.viewImgBtn}
+                          <ViewActionButton
+                            label="Edit"
+                            icon={<Pencil size={14} />}
                             onClick={() => openEditReturn(entry)}
-                          >
-                            <Pencil size={14} /> Edit
-                          </button>
+                          />
                         </td>
                       ) : null}
                     </tr>
@@ -481,22 +485,21 @@ export function InstallationWorkflowSections({
             </table>
           </div>
         ) : (
-          <div className={addStyles.emptyState}>No material returns recorded.</div>
+          <div className={detailStyles.viewEmptyState}>No material returns recorded.</div>
         )}
       </section>
 
       <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <FileText size={22} color="var(--admin-primary, #004d4d)" /> Delivery Summary
+        <div className={`${styles.sectionTitle} ${detailStyles.viewSectionTitle}`}>
+          <FileText size={22} color={PRIMARY_ICON} /> Delivery Summary
         </div>
-        <p className={styles.sectionSubtitle}>Issued vs installed vs remaining.</p>
 
         {summary.length > 0 ? (
-          <div className={styles.userTableContainer} style={{ marginTop: "0.5rem" }}>
-            <table className={styles.userTable}>
+          <div className={styles.userTableContainer}>
+            <table className={detailStyles.detailTable}>
               <thead>
                 <tr>
-                  <th style={{ width: "80px" }}>Sr. No</th>
+                  <th>Sr. No</th>
                   <th>SKU / Item</th>
                   <th>Issued</th>
                   <th>Installed</th>
@@ -506,13 +509,13 @@ export function InstallationWorkflowSections({
               <tbody>
                 {summary.map((row, index) => (
                   <tr key={`${row.sku}-${index}`}>
-                    <td style={{ fontWeight: 600, color: "#94a3b8" }}>{index + 1}</td>
-                    <td style={{ fontWeight: 700, color: "#1e293b", fontFamily: "ui-monospace, monospace" }}>
+                    <td className={detailStyles.detailTableMuted}>{index + 1}</td>
+                    <td className={detailStyles.detailTableName} style={{ fontFamily: "ui-monospace, monospace" }}>
                       {row.sku}
                     </td>
-                    <td style={{ fontWeight: 800, color: "#0f172a" }}>{row.issued}</td>
-                    <td style={{ fontWeight: 800, color: "#0f172a" }}>{row.used}</td>
-                    <td style={{ fontWeight: 800, color: row.remaining > 0 ? "#d97706" : "#16a34a" }}>
+                    <td className={detailStyles.detailTableName}>{row.issued}</td>
+                    <td className={detailStyles.detailTableName}>{row.used}</td>
+                    <td style={{ fontWeight: 700, color: row.remaining > 0 ? "#d97706" : "#16a34a" }}>
                       {row.remaining}
                     </td>
                   </tr>
@@ -521,7 +524,7 @@ export function InstallationWorkflowSections({
             </table>
           </div>
         ) : (
-          <div className={addStyles.emptyState}>No summary available yet.</div>
+          <div className={detailStyles.viewEmptyState}>No summary available yet.</div>
         )}
       </section>
 

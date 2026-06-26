@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "@/app/(authenticated)/dashboard.module.css";
 import docStyles from "@/app/(authenticated)/workflow/quotations/quotations-view.module.css";
-import addStyles from "@/app/(authenticated)/leads/add/leads-add.module.css";
 import modalStyles from "@/app/(authenticated)/workflow/workflow-details.module.css";
 import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";
 import { QuotationFixtureTable, type QuotationProductOption } from "@/components/workflow/quotation-fixture-table";
@@ -23,6 +22,8 @@ import {
 } from "@/lib/quotation-utils";
 import { CheckCircle2, Download, FileText, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
+
+const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
 
 function getQuotationStatusColor(status: string): string {
   const normalized = status?.toLowerCase();
@@ -99,8 +100,8 @@ function QuotationDocumentCard({
                 <FileText size={18} color="#dc2626" />
               </button>
             </div>
-            <button type="button" className={modalStyles.viewImgBtn} onClick={handleView}>
-              VIEW
+            <button type="button" className={styles.assignBtn} onClick={handleView}>
+              <FileText size={16} /> View
             </button>
             {trailingAction}
           </>
@@ -112,23 +113,17 @@ function QuotationDocumentCard({
   );
 }
 
-interface QuotationProfileHeaderProps {
-  customerName: string;
+interface QuotationPageHeaderProps {
   statusLabel: string;
   statusColor: string;
   company: string;
 }
 
-function QuotationProfileHeader({
-  customerName,
-  statusLabel,
-  statusColor,
-  company,
-}: QuotationProfileHeaderProps) {
+function QuotationPageHeader({ statusLabel, statusColor, company }: QuotationPageHeaderProps) {
   return (
     <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
       <div>
-        <h1 className={styles.welcomeText}>Quotation Profile: {customerName}</h1>
+        <h1 className={styles.welcomeText}>View Quotation Profile</h1>
         <div
           style={{
             display: "flex",
@@ -208,7 +203,7 @@ export function QuotationPdfPreview({
   const statusLabel = formatQuotationStatusLabel(quotationStatus);
   const statusColor = getQuotationStatusColor(quotationStatus);
   const isApproved = quotationStatus.toLowerCase() === "approved";
-  const breadcrumbLabel = variant === "edit" ? "EDIT QUOTATION" : "VIEW QUOTATION";
+  const breadcrumbLabel = "VIEW QUOTATION";
 
   const displayFile = useMemo(() => {
     if (activePdf === "signed" && signedFile) return signedFile;
@@ -260,7 +255,7 @@ export function QuotationPdfPreview({
 
       setResolvedSurveyId(activeSurveyId);
       setCustomerName(quotation.customerName || "Customer");
-      setCompany("—");
+      setCompany(String((customerRes.customer as Record<string, unknown> | undefined)?.company || "").trim() || "—");
       setQuotationStatus((quotation.quotationStatus as string) || "pending");
       setFixtureRows(mapQuotationFixtureRows(surveyRecord));
       setGeneratedFile(files.generated);
@@ -409,8 +404,7 @@ export function QuotationPdfPreview({
 
       {variant === "edit" ? (
         <>
-          <QuotationProfileHeader
-            customerName={customerName}
+          <QuotationPageHeader
             statusLabel={statusLabel}
             statusColor={statusColor}
             company={company}
@@ -424,12 +418,9 @@ export function QuotationPdfPreview({
           />
 
           <section className={styles.formSection}>
-            <div className={styles.sectionTitle}>
-              <FileText size={22} color="var(--admin-primary, #004d4d)" /> Quotation Documents
+            <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+              <FileText size={22} color={PRIMARY_ICON} /> Quotation Documents
             </div>
-            <p className={styles.sectionSubtitle}>
-              Generated quotation PDF and customer-signed copy.
-            </p>
 
             <div className={docStyles.documentList}>
               <QuotationDocumentCard
@@ -484,7 +475,7 @@ export function QuotationPdfPreview({
             </div>
 
             {!generatedFile && !signedFile ? (
-              <div className={addStyles.emptyState} style={{ marginTop: "1rem" }}>
+              <div className={modalStyles.viewEmptyState} style={{ marginTop: "1rem" }}>
                 No quotation documents available for this customer.
               </div>
             ) : null}
@@ -532,8 +523,7 @@ export function QuotationPdfPreview({
         </>
       ) : (
         <>
-          <QuotationProfileHeader
-            customerName={customerName}
+          <QuotationPageHeader
             statusLabel={statusLabel}
             statusColor={statusColor}
             company={company}
@@ -573,15 +563,29 @@ export function QuotationPdfPreview({
                 className={docStyles.pdfFrame}
               />
             ) : (
-              <div className={addStyles.emptyState}>
-                <p>No quotation PDF available for this customer.</p>
+              <div className={modalStyles.viewEmptyState}>
+                <p style={{ margin: 0 }}>No quotation PDF available for this customer.</p>
               </div>
             )}
           </section>
 
-          <div className={styles.actionFooter}>
-            <button type="button" className={styles.cancelBtn} onClick={() => router.push(backUrl)}>
-              <X size={20} /> Cancel
+          <div
+            className={styles.actionFooter}
+            style={{
+              background: "#f1f5f9",
+              padding: "2.5rem",
+              borderRadius: "16px",
+              marginTop: "3rem",
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              type="button"
+              className={styles.cancelBtn}
+              onClick={() => router.push(backUrl)}
+              style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
+            >
+              <X size={20} /> Close
             </button>
 
             {canVerify ? (
