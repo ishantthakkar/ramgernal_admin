@@ -321,6 +321,19 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ survey_id: surveyId }),
     }),
+  addInvoicePayment: (
+    surveyId: string,
+    payload: {
+      amount: number;
+      paymentMethod: string;
+      paymentDate?: string;
+      note?: string;
+    }
+  ) =>
+    apiRequest("/customer/invoice/payment", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId, ...payload }),
+    }),
   getCommissionList: () => apiRequest("/customer/customers/commission-list", {
     method: "GET",
   }),
@@ -404,6 +417,10 @@ export const adminApi = {
       method: "GET",
     });
   },
+  getOtherFixtures: () =>
+    apiRequest("/products/other-fixtures", {
+      method: "GET",
+    }),
   getProductById: (id: string) =>
     apiRequest(`/products/${id}`, {
       method: "GET",
@@ -450,5 +467,9 @@ export const adminApi = {
     apiRequest(`/products/${id}`, {
       method: "PUT",
       body: JSON.stringify(productData),
+    }),
+  deleteProduct: (id: string) =>
+    apiRequest(`/products/${id}`, {
+      method: "DELETE",
     }),
 };

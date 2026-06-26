@@ -15,6 +15,7 @@ import {
   FileSpreadsheet,
   RefreshCw,
   Save,
+  Hammer,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { canViewModule, hasPermission } from "@/lib/permissions";
@@ -47,6 +48,7 @@ import {
   validateProposedNamePriceAgainstCatalog,
   type ProposedProductPrices,
 } from "@/lib/product-proposed-validation";
+import { OtherFixtureDrawer } from "@/components/products/OtherFixtureDrawer";
 
 interface Product {
   id: string;
@@ -263,6 +265,7 @@ export default function ProductsPage() {
   const [bulkSaveProgress, setBulkSaveProgress] = useState("");
   const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [otherFixtureDrawerOpen, setOtherFixtureDrawerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
 
@@ -932,6 +935,15 @@ export default function ProductsPage() {
           >
             <FileSpreadsheet size={18} /> Export
           </button>
+          {isExistingFixtureType(activeTab) && (
+            <button
+              type="button"
+              className={productStyles.secondaryBtn}
+              onClick={() => setOtherFixtureDrawerOpen(true)}
+            >
+              <Hammer size={18} /> Other Fixture
+            </button>
+          )}
           {hasUnsavedUpload && unsavedCount > 0 && canCreateProducts && (
             <button
               type="button"
@@ -1179,6 +1191,11 @@ export default function ProductsPage() {
         onAddAlso={handleDuplicateAddAlso}
         onOverwrite={handleDuplicateOverwrite}
         onCancel={handleDuplicateUploadCancel}
+      />
+
+      <OtherFixtureDrawer
+        isOpen={otherFixtureDrawerOpen}
+        onClose={() => setOtherFixtureDrawerOpen(false)}
       />
     </div>
   );

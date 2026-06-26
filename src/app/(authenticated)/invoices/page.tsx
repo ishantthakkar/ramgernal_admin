@@ -201,16 +201,26 @@ export default function InvoicesPage() {
                         <span
                           className={dashboardStyles.statusDotActive}
                           style={{
-                            backgroundColor: getInvoiceStatusColor(invoice.status),
+                            backgroundColor: getInvoiceStatusColor(invoice.status, {
+                              hasPdf: invoice.hasPdf,
+                              paidAmount: invoice.paidAmount,
+                              pendingAmount: invoice.pendingAmount,
+                              invoiceAmount: invoice.invoiceAmount,
+                            }),
                           }}
                         />
                         <span
                           style={{
-                            color: getInvoiceStatusColor(invoice.status),
+                            color: getInvoiceStatusColor(invoice.status, {
+                              hasPdf: invoice.hasPdf,
+                              paidAmount: invoice.paidAmount,
+                              pendingAmount: invoice.pendingAmount,
+                              invoiceAmount: invoice.invoiceAmount,
+                            }),
                             fontWeight: 600,
                           }}
                         >
-                          {invoice.hasPdf ? invoice.statusLabel : "Ready to Generate"}
+                          {invoice.statusLabel}
                         </span>
                       </div>
                     </td>
