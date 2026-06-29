@@ -6,7 +6,7 @@ import styles from "../../../dashboard.module.css";
 import { X, Loader2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { adminApi } from "@/lib/api";
-import { PermissionMatrix } from "@/components/roles/permission-matrix";
+import { PermissionAllMatrix } from "@/components/roles/permission-all-matrix";
 import { useRequireSuperAdmin } from "@/hooks/use-require-super-admin";
 import {
   buildEmptyPermissionsState,
@@ -53,14 +53,14 @@ export default function EditRolePage() {
     }
   };
 
-  const togglePermission = (moduleId: string, action: PermissionAction) => {
+  const togglePermission = (key: string, action: PermissionAction) => {
     if (isAdminRole) return;
 
     setPermissions((prev) => ({
       ...prev,
-      [moduleId]: {
-        ...prev[moduleId],
-        [action]: !prev[moduleId][action],
+      [key]: {
+        ...prev[key],
+        [action]: !prev[key][action],
       },
     }));
   };
@@ -102,22 +102,17 @@ export default function EditRolePage() {
 
   return (
     <div className={styles.usersPage}>
-      <div className={styles.breadcrumb} style={{ color: "#94a3b8", fontWeight: 600 }}>
-        <span style={{ cursor: "pointer" }} onClick={() => router.push("/dashboard")}>
-          DASHBOARD
-        </span>
-        <span style={{ margin: "0 0.5rem" }}>&gt;</span>
+      <div className={styles.breadcrumb}>
+        ADMIN <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
         <span style={{ cursor: "pointer" }} onClick={() => router.push("/roles")}>
           ROLES & PERMISSIONS
         </span>
-        <span style={{ margin: "0 0.5rem" }}>&gt;</span>
-        <span style={{ color: "#0076ce" }}>EDIT ROLE</span>
+        <span style={{ color: "#cbd5e1", margin: "0 0.5rem" }}>&gt;</span>
+        <span className={styles.breadcrumbCurrent}>EDIT ROLE</span>
       </div>
 
-      <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
-        <h1 className={styles.welcomeText} style={{ fontSize: "1.875rem" }}>
-          Edit Role
-        </h1>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.welcomeText}>Edit Role</h1>
         {isSystemRole && (
           <span
             style={{
@@ -134,76 +129,55 @@ export default function EditRolePage() {
         )}
       </div>
 
-      <div className={styles.formSection} style={{ padding: "2.5rem", borderRadius: "20px" }}>
-        <h2 className={styles.sectionTitle} style={{ fontSize: "1.25rem", marginBottom: "2rem" }}>
-          Role Information
-        </h2>
+      <div className={styles.formSection}>
+        <h2 className={styles.sectionTitle}>Role Information</h2>
 
-        <div className={styles.formGroup} style={{ maxWidth: "400px", marginBottom: "2.5rem" }}>
-          <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", marginBottom: "0.5rem", display: "block" }}>
-            ROLE
-          </label>
-          <input
-            type="text"
-            className={styles.formInput}
-            style={{ background: "#f1f5f9", border: "none" }}
-            value={roleName}
-            onChange={(e) => setRoleName(e.target.value)}
-            placeholder="Enter Role Name"
-            disabled={isSystemRole}
-            readOnly={isSystemRole}
-          />
-          {isAdminRole && (
-            <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#64748b" }}>
-              Admin has full access to all modules. Permissions cannot be changed.
-            </p>
-          )}
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup}>
+            <label>Role</label>
+            <input
+              type="text"
+              className={styles.formInput}
+              value={roleName}
+              onChange={(e) => setRoleName(e.target.value)}
+              placeholder="Enter Role Name"
+              disabled={isSystemRole}
+              readOnly={isSystemRole}
+            />
+            {isAdminRole && (
+              <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#64748b" }}>
+                Admin has full access to all modules. Permissions cannot be changed.
+              </p>
+            )}
+          </div>
+
+          <div className={styles.formGroup}>
+            <label>Note</label>
+            <input
+              type="text"
+              className={styles.formInput}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Optional description for this role"
+            />
+          </div>
         </div>
 
-        <PermissionMatrix
-          permissions={permissions}
-          onToggle={togglePermission}
-          readOnly={isAdminRole}
-        />
-      </div>
-
-      <div className={styles.formSection} style={{ padding: "2.5rem", borderRadius: "20px", marginTop: "2rem" }}>
-        <h2 className={styles.sectionTitle} style={{ fontSize: "1.25rem", marginBottom: "2rem" }}>
-          Notes
-        </h2>
-
-        <div className={styles.formGroup}>
-          <label style={{ fontSize: "0.75rem", fontWeight: 700, color: "#94a3b8", marginBottom: "0.5rem", display: "block" }}>
-            NOTE
-          </label>
-          <input
-            type="text"
-            className={styles.formInput}
-            style={{ background: "#f1f5f9", border: "none" }}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Optional description for this role"
+        <div style={{ marginTop: "2rem" }}>
+          <h2 className={styles.sectionTitle}>Permissions</h2>
+          <PermissionAllMatrix
+            permissions={permissions}
+            onToggle={togglePermission}
+            readOnly={isAdminRole}
           />
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "3rem", padding: "1.5rem 0" }}>
-        <button
-          onClick={() => router.push("/roles")}
-          className={styles.cancelBtn}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.75rem 2.5rem",
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            color: "#64748b",
-          }}
-        >
+      <div className={styles.actionFooter}>
+        <button onClick={() => router.push("/roles")} className={styles.cancelBtn}>
           <X size={18} /> Cancel
         </button>
-        <button onClick={handleSave} className={styles.addBtn} style={{ padding: "0.75rem 3.5rem" }} disabled={saving}>
+        <button onClick={handleSave} className={styles.addBtn} disabled={saving}>
           {saving ? "Saving..." : "Save"}
         </button>
       </div>

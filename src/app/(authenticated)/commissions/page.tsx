@@ -14,7 +14,7 @@ import {
 import { formatDate } from "@/lib/dateUtils";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
-import { canViewModule } from "@/lib/permissions";
+import { canViewModule, canViewPayablesTab } from "@/lib/permissions";
 import type {
   SalesPersonPayableRow,
   SalesManagerPayableRow,
@@ -24,6 +24,21 @@ import type {
 
 const PAYABLES_TABS = ["Sales Persons", "Sales Manager", "Contractors"] as const;
 type PayablesTab = (typeof PAYABLES_TABS)[number];
+
+function getVisiblePayablesTabs(): PayablesTab[] {
+  return PAYABLES_TABS.filter((tab) => canViewPayablesTab(tab));
+}
+
+function getDefaultPayablesTab(tabParam: string | null): PayablesTab {
+  const visibleTabs = getVisiblePayablesTabs();
+  if (visibleTabs.length === 0) {
+    return PAYABLES_TABS[0];
+  }
+  if (tabParam && visibleTabs.includes(tabParam as PayablesTab)) {
+    return tabParam as PayablesTab;
+  }
+  return visibleTabs[0];
+}
 
 const ITEMS_PER_PAGE = 10;
 
@@ -84,9 +99,7 @@ export default function PayablesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab = PAYABLES_TABS.includes(tabParam as PayablesTab)
-    ? (tabParam as PayablesTab)
-    : PAYABLES_TABS[0];
+  const initialTab = getDefaultPayablesTab(tabParam);
 
   const [activeTab, setActiveTab] = useState<PayablesTab>(initialTab);
   const [searchTerm, setSearchTerm] = useState("");
@@ -96,12 +109,20 @@ export default function PayablesPage() {
   const [salesManagerRows, setSalesManagerRows] = useState<SalesManagerPayableRow[]>([]);
   const [contractorRows, setContractorRows] = useState<ContractorPayableRow[]>([]);
 
+  const visibleTabs = useMemo(() => getVisiblePayablesTabs(), []);
+
   useEffect(() => {
-    if (!canViewModule("Payables")) {
+    if (!canViewModule("Payables") || visibleTabs.length === 0) {
       toast.error("You do not have permission to view payables.");
       router.push("/dashboard");
     }
-  }, [router]);
+  }, [router, visibleTabs.length]);
+
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab) && visibleTabs.length > 0) {
+      setActiveTab(visibleTabs[0]);
+    }
+  }, [activeTab, visibleTabs]);
 
   const fetchPayables = useCallback(async () => {
     try {
@@ -175,6 +196,10 @@ export default function PayablesPage() {
   }
 
   function handleTabChange(tab: PayablesTab) {
+    if (!canViewPayablesTab(tab)) {
+      toast.error("You do not have permission to view this payables tab.");
+      return;
+    }
     setActiveTab(tab);
     setSearchTerm("");
     const params = new URLSearchParams(searchParams.toString());
@@ -205,7 +230,7 @@ export default function PayablesPage() {
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <div className={workflowStyles.workflowTabs}>
-            {PAYABLES_TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <div
                 key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}

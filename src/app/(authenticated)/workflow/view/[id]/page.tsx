@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import assignModalStyles from "../../assign-modal.module.css";
 import { adminApi } from "@/lib/api";
-import { hasPermission } from "@/lib/permissions";
+import { canReorderSiteDetails, hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
 import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
 import { SiteSurveyVerifyControl } from "@/components/workflow/site-survey-verify-control";
@@ -805,6 +805,7 @@ function SurveyViewSections({
   noteEntries,
   canVerify,
   canEdit,
+  canReorder,
   savingSiteRow,
   verifyingSurveyId,
   onVerifySurvey,
@@ -823,6 +824,7 @@ function SurveyViewSections({
   noteEntries: NoteEntry[];
   canVerify: boolean;
   canEdit: boolean;
+  canReorder: boolean;
   savingSiteRow: boolean;
   verifyingSurveyId: string | null;
   onVerifySurvey: (surveyId: string, surveyName: string) => void;
@@ -914,7 +916,7 @@ function SurveyViewSections({
         <SiteDetailsAreaList
           groups={siteDetailGroups}
           onViewArea={(row, roomIndex) => setSelectedArea({ row, roomIndex })}
-          canReorder={canEdit}
+          canReorder={canReorder}
           reordering={reorderingAreas || savingSiteRow}
           onReorder={onReorderSiteRows}
           canVerify={canVerify}
@@ -1506,6 +1508,7 @@ export default function WorkflowViewPage() {
           noteEntries={noteEntries}
           canVerify={isSurveyView && canVerifySurveys}
           canEdit={isSurveyView && canEditSurveys}
+          canReorder={isSurveyView && canReorderSiteDetails()}
           savingSiteRow={savingSiteRow}
           verifyingSurveyId={verifyingSurveyId}
           onVerifySurvey={handleVerifySurvey}

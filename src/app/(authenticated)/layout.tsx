@@ -34,7 +34,22 @@ function getCustomAvatarUrl(userInfo: Record<string, unknown> | null): string | 
     (userInfo?.profileImage as string) ||
     (userInfo?.avatar as string) ||
     (userInfo?.avatarUrl as string);
-  return custom || null;
+  const raw = typeof custom === "string" ? custom.trim() : "";
+  if (!raw) return null;
+  if (raw === "null" || raw === "undefined") return null;
+
+  // next/image requires a valid absolute URL, /path, or supported scheme
+  if (
+    raw.startsWith("/") ||
+    raw.startsWith("http://") ||
+    raw.startsWith("https://") ||
+    raw.startsWith("data:") ||
+    raw.startsWith("blob:")
+  ) {
+    return raw;
+  }
+
+  return null;
 }
 
 export default function DashboardLayout({
@@ -74,7 +89,7 @@ export default function DashboardLayout({
       name: "Workflow", 
       icon: Workflow, 
       path: "/workflow", 
-      isVisible: canViewModule("Surveys") || canViewModule("Installation") || canViewModule("Inspection") 
+      isVisible: canViewModule("Workflow"),
     },
     { name: "Services", icon: Settings, path: "/services", module: "Services" },
     { name: "Payables", icon: Wallet, path: "/commissions", module: "Payables" },

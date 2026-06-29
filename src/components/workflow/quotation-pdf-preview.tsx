@@ -195,9 +195,9 @@ export function QuotationPdfPreview({
   const [productOptions, setProductOptions] = useState<QuotationProductOption[]>([]);
   const [savingSkus, setSavingSkus] = useState(false);
 
-  const canUploadSign = hasPermission("Surveys", "create");
-  const canVerify = hasPermission("Surveys", "edit");
-  const canGenerate = hasPermission("Surveys", "create");
+  const canUploadSign = hasPermission("Quotations", "edit");
+  const canVerify = hasPermission("Quotations", "edit");
+  const canGenerate = hasPermission("Quotations", "edit");
 
   const backUrl = `/workflow?tab=${fromTab}`;
   const statusLabel = formatQuotationStatusLabel(quotationStatus);

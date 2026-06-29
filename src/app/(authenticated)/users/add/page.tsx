@@ -20,6 +20,7 @@ import { canViewModule, hasPermission } from "@/lib/permissions";
 import { normalizeRoleName, getSupervisorTargetRole, getSupervisorLabel, createDefaultSchedule, scheduleToApiPayload, validateWorkingSchedule } from "../user-form-utils";
 import type { DayScheduleEntry } from "../user-form-utils";
 import { WorkingScheduleEditor } from "../components/WorkingScheduleEditor";
+import { formatUsPhone } from "@/lib/format-us-phone";
 
 interface RoleOption {
   _id: string;
@@ -62,8 +63,8 @@ export default function AddUserPage() {
     ? selectedRoleObj.roleName?.toLowerCase()
     : formData.userRole?.toLowerCase();
 
-  const isPasswordRequired =
-    selectedRoleName !== "sales person" && selectedRoleName !== "contractor";
+  const isPasswordRequired = selectedRoleName !== "contractor";
+  const isEmailRequired = selectedRoleName === "sales person";
 
   const supervisorTarget = getSupervisorTargetRole(selectedRoleName);
   const supervisorLabel = getSupervisorLabel(supervisorTarget);
@@ -150,11 +151,13 @@ export default function AddUserPage() {
       const selectedRole = roles.find((r) => r._id === value);
       const roleName = selectedRole?.roleName?.toLowerCase() || "";
       setReportsToId("");
-      if (roleName === "sales person" || roleName === "contractor") {
+      if (roleName === "contractor") {
         setFormData((prev) => ({ ...prev, [name]: value, password: "" }));
       } else {
         setFormData((prev) => ({ ...prev, [name]: value }));
       }
+    } else if (name === "mobileNumber") {
+      setFormData((prev) => ({ ...prev, mobileNumber: formatUsPhone(value) }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -198,6 +201,16 @@ export default function AddUserPage() {
 
     if (needsSupervisor && !reportsToId) {
       toast.error(`Please select an ${supervisorLabel.toLowerCase()}.`);
+      return;
+    }
+
+    if (isEmailRequired && !formData.email.trim()) {
+      toast.error("Email is required for sales person admin panel login.");
+      return;
+    }
+
+    if (isPasswordRequired && !formData.password.trim()) {
+      toast.error("Please enter a password.");
       return;
     }
 
@@ -453,7 +466,10 @@ export default function AddUserPage() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Email Address</label>
+              <label>
+                Email Address
+                {isEmailRequired && <span style={{ color: "#ef4444" }}> *</span>}
+              </label>
               <input
                 name="email"
                 type="email"
@@ -461,6 +477,7 @@ export default function AddUserPage() {
                 className={styles.formInput}
                 value={formData.email}
                 onChange={handleChange}
+                required={isEmailRequired}
               />
             </div>
             <div className={styles.formGroup}>
@@ -469,11 +486,13 @@ export default function AddUserPage() {
               </label>
               <input
                 name="mobileNumber"
-                type="text"
-                placeholder="+1 (555) 000-0000"
+                type="tel"
+                placeholder="(555) 555-1234"
                 className={styles.formInput}
                 value={formData.mobileNumber}
                 onChange={handleChange}
+                inputMode="numeric"
+                maxLength={14}
                 required
               />
             </div>

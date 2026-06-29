@@ -86,8 +86,7 @@ export default function EditUserPage() {
     ? selectedRoleObj.roleName?.toLowerCase()
     : "";
 
-  const isPasswordRequired =
-    selectedRoleName !== "sales person" && selectedRoleName !== "contractor";
+  const isPasswordRequired = selectedRoleName !== "contractor";
 
   const supervisorTarget = getSupervisorTargetRole(selectedRoleName);
   const supervisorLabel = getSupervisorLabel(supervisorTarget);
@@ -212,7 +211,7 @@ export default function EditUserPage() {
       const roleName = selectedRole?.roleName?.toLowerCase() || "";
       preserveSupervisorRef.current = false;
       setReportsToId("");
-      if (roleName === "sales person" || roleName === "contractor") {
+      if (roleName === "contractor") {
         setFormData((prev) => ({ ...prev, [name]: value, password: "" }));
       } else {
         setFormData((prev) => ({ ...prev, [name]: value }));

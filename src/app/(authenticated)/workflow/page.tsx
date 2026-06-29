@@ -20,7 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";
 import { adminApi } from "@/lib/api";
-import { canViewModule, hasPermission } from "@/lib/permissions";
+import { hasWorkflowScopePermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
 import {
   fetchWorkflowTabData,
@@ -72,13 +72,15 @@ export default function WorkflowPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const canViewSurveys = canViewModule("Surveys");
-  const canViewInstallations = canViewModule("Installation");
-  const canViewInspections = canViewModule("Inspection");
+  const canViewSurveys = hasWorkflowScopePermission("Surveys", "view");
+  const canViewQuotations = hasWorkflowScopePermission("Quotations", "view");
+  const canViewInstallations = hasWorkflowScopePermission("Installation", "view");
+  const canViewInspections = hasWorkflowScopePermission("Inspection", "view");
 
   const tabParam = searchParams.get("tab");
-  const validTabs = ["Surveys", "Quotations", "Installations", "Inspections"].filter(t => {
-    if (t === "Surveys" || t === "Quotations") return canViewSurveys;
+  const validTabs = ["Surveys", "Quotations", "Installations", "Inspections"].filter((t) => {
+    if (t === "Surveys") return canViewSurveys;
+    if (t === "Quotations") return canViewQuotations;
     if (t === "Installations") return canViewInstallations;
     if (t === "Inspections") return canViewInspections;
     return false;
@@ -92,13 +94,13 @@ export default function WorkflowPage() {
     Map<string, WorkflowCustomerMeta>
   >(new Map());
 
-  // Permissions for actions
-  const canEditSurveys = hasPermission("Surveys", "edit");
-  const canEditInstallations = hasPermission("Installation", "edit");
-  const canEditInspections = hasPermission("Inspection", "edit");
+  const canEditSurveys = hasWorkflowScopePermission("Surveys", "edit");
+  const canEditInstallations = hasWorkflowScopePermission("Installation", "edit");
+  const canEditInspections = hasWorkflowScopePermission("Inspection", "edit");
+  const canEditQuotations = hasWorkflowScopePermission("Quotations", "edit");
 
-  const canCreateSurveys = hasPermission("Surveys", "create");
-  const canCreateInstallations = hasPermission("Installation", "create");
+  const canCreateSurveys = hasWorkflowScopePermission("Surveys", "edit");
+  const canCreateInstallations = hasWorkflowScopePermission("Installation", "edit");
 
   // Assignment Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -116,6 +118,14 @@ export default function WorkflowPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  useEffect(() => {
+    if (validTabs.length === 0) {
+      toast.error("You do not have permission to view workflow.");
+      router.push("/dashboard");
+    }
+  }, [router, validTabs.length]);
+
   const fetchWorkflowData = async () => {
     setLoading(true);
     setData([]);
@@ -518,7 +528,7 @@ export default function WorkflowPage() {
                               label="PDF"
                               title={String(r.signedPdfName || "")}
                             />
-                          ) : canCreateSurveys ? (
+                          ) : canEditQuotations ? (
                             <SignedQuotationUpload
                               customerId={String(r.customerId || "")}
                               surveyId={String(r.surveyId || "")}
@@ -542,17 +552,21 @@ export default function WorkflowPage() {
                           </div>
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className={styles.assignBtn}
-                            onClick={() =>
-                              router.push(
-                                `/workflow/edit/${r.customerId}?surveyId=${r.surveyId}&from=Quotations`
-                              )
-                            }
-                          >
-                            Edit
-                          </button>
+                          {canEditQuotations ? (
+                            <button
+                              type="button"
+                              className={styles.assignBtn}
+                              onClick={() =>
+                                router.push(
+                                  `/workflow/edit/${r.customerId}?surveyId=${r.surveyId}&from=Quotations`
+                                )
+                              }
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <span style={{ color: "#94a3b8", fontSize: "0.875rem" }}>—</span>
+                          )}
                         </td>
                       </>
                     ) : activeTab === "Installations" ? (

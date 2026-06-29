@@ -95,8 +95,214 @@
   cursor: not-allowed;
 }
 
+.permTabsMatrix {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.permTabList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 1rem 1rem 0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.permTabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.permTabBtn:hover {
+  color: #0076ce;
+  background: #f8fafc;
+}
+
+.permTabBtnActive {
+  color: #0076ce;
+  background: #f8fafc;
+  box-shadow: inset 0 -2px 0 #0076ce;
+}
+
+.permTabPanel {
+  padding: 1.5rem;
+}
+
+.permTabPanelHeader {
+  margin-bottom: 1.25rem;
+}
+
+.permTabPanelTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.permTabPanelTitle h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.permTabPanelTitle p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.permGridHeader {
+  display: grid;
+  grid-template-columns: 2fr repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0 1rem 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.permGridHeader > div:not(:first-child) {
+  text-align: center;
+}
+
+.permRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.permAllMatrix {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 1.25rem;
+}
+
+.permAllSections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.permSection {
+  padding-top: 0.25rem;
+}
+
+.permSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+  font-weight: 800;
+  color: #1e293b;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.permRow {
+  display: grid;
+  grid-template-columns: 2fr repeat(2, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+  border: 1px solid #d7dee8;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.permRow:hover {
+  border-color: #c3cfde;
+}
+
+.permRowLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.permRowIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #0076ce;
+  flex-shrink: 0;
+}
+
+.permRowAction {
+  display: flex;
+  justify-content: center;
+}
+
+.permCheckbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid #e2e8f0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.permCheckboxChecked {
+  border: none;
+  background: #0076ce;
+}
+
+.permCheckboxDisabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.permDash {
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
 @media (max-width: 900px) {
   .rolesStatsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .permTabList {
+    gap: 0.35rem;
+  }
+
+  .permTabBtn {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .permGridHeader,
+  .permRow {
+    grid-template-columns: 1.5fr repeat(2, 0.75fr);
+    gap: 0.5rem;
   }
 }
