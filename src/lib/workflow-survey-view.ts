@@ -269,13 +269,14 @@ export function mapSurveyDetails(
   },
   surveys: SurveyRecord[]
 ): SurveyDetailsFields {
-  const lead =
-    customer.leadId && typeof customer.leadId === "object" ? customer.leadId : null;
-  const customerName =
-    customer.name?.trim() ||
-    lead?.leadName ||
-    lead?.name ||
-    "N/A";
+  if (!surveys.length) {
+    return {
+      surveyName: "N/A",
+      salesPerson:
+        customer.user_id?.fullName || customer.user_id?.name || "N/A",
+      surveyDate: null,
+    };
+  }
 
   const latest = [...surveys].sort((a, b) => {
     const timeA = new Date(resolveSurveyDate(a, customer) || 0).getTime();
@@ -283,11 +284,15 @@ export function mapSurveyDetails(
     return timeB - timeA;
   })[0];
 
+  const surveyIndex = surveys.findIndex(
+    (survey) => resolveSurveyId(survey) === resolveSurveyId(latest)
+  );
+
   return {
-    surveyName: customerName,
+    surveyName: resolveSurveyName(latest, surveyIndex >= 0 ? surveyIndex : 0),
     salesPerson:
       customer.user_id?.fullName || customer.user_id?.name || "N/A",
-    surveyDate: latest ? resolveSurveyDate(latest, customer) : null,
+    surveyDate: resolveSurveyDate(latest, customer),
   };
 }
 

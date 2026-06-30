@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styles from "../../dashboard.module.css";
-import addStyles from "../add/leads-add.module.css";
+import viewStyles from "../../customers/[id]/customer-details.module.css";
 import {
   Info,
   FileText,
@@ -16,6 +16,14 @@ import {
   X,
   Edit2,
   ShieldAlert,
+  Briefcase,
+  User,
+  Building,
+  Zap,
+  Hash,
+  Phone,
+  Mail,
+  UserCheck,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -39,29 +47,34 @@ function resolveBusinessCardImageUrl(value: string): string {
   return `${base}/uploads/leads/business-cards/${value.replace(/^\//, "")}`;
 }
 
-function ReadOnlyField({
-  label,
-  value,
-}: {
+const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
+const MUTED_ICON = "#64748b";
+
+function displayValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
+}
+
+function formatAddressLine(address: Record<string, unknown>): string {
+  const parts = [address.city, address.state, address.zip]
+    .filter((part) => part != null && String(part).trim() !== "")
+    .map(String);
+  return parts.length > 0 ? parts.join(", ") : "—";
+}
+
+interface ReadOnlyFieldProps {
   label: string;
-  value: string;
-}) {
+  icon?: ReactNode;
+  valueClassName?: string;
+  children: ReactNode;
+}
+
+function ReadOnlyField({ label, icon, valueClassName, children }: ReadOnlyFieldProps) {
   return (
     <div className={styles.formGroup}>
       <label>{label}</label>
-      <div
-        className={styles.formInput}
-        style={{
-          background: "#f8fafc",
-          color: value === "—" ? "#94a3b8" : "#1e293b",
-          fontWeight: 600,
-          border: "1px solid #e2e8f0",
-          minHeight: "2.75rem",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {value}
+      <div className={`${styles.formInput} ${viewStyles.readonlyField} ${valueClassName || ""}`}>
+        {icon ? <div className={viewStyles.fieldRow}>{icon}{children}</div> : children}
       </div>
     </div>
   );
@@ -237,6 +250,8 @@ export default function LeadDetailsPage() {
   const contacts = Array.isArray(lead.contactInfo) ? lead.contactInfo : [];
   const notes = Array.isArray(lead.notes) ? lead.notes : [];
   const activityLog = Array.isArray(lead.activityLog) ? lead.activityLog : [];
+  const emailDisplay = displayValue(lead.email);
+  const statusColor = getStatusColor(lead.status || "New");
 
   return (
     <div className={styles.addUserPage}>
@@ -249,39 +264,43 @@ export default function LeadDetailsPage() {
         <span className={styles.breadcrumbCurrent}>VIEW LEAD</span>
       </div>
 
-      <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.welcomeText}>Lead Profile: {displayName}</h1>
+          <h1 className={styles.welcomeText}>View Lead Profile</h1>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem" }}>
-            <span style={{
-              backgroundColor: `${getStatusColor(lead.status)}15`,
-              color: getStatusColor(lead.status),
-              padding: "0.25rem 0.75rem",
-              borderRadius: "99px",
-              fontSize: "0.75rem",
-              fontWeight: 700,
-              textTransform: "uppercase"
-            }}>
-              {lead.status || "New"}
-            </span>
-            {lead.lead_id && (
-              <span style={{
-                backgroundColor: "#f1f5f9",
-                color: "#334155",
+            <span
+              style={{
+                backgroundColor: `${statusColor}15`,
+                color: statusColor,
                 padding: "0.25rem 0.75rem",
                 borderRadius: "99px",
                 fontSize: "0.75rem",
-                fontWeight: 800,
+                fontWeight: 700,
                 textTransform: "uppercase",
-                letterSpacing: "0.03em"
-              }}>
+              }}
+            >
+              {lead.status || "New"}
+            </span>
+            {lead.lead_id && (
+              <span
+                style={{
+                  backgroundColor: "#f1f5f9",
+                  color: "#334155",
+                  padding: "0.25rem 0.75rem",
+                  borderRadius: "99px",
+                  fontSize: "0.75rem",
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.03em",
+                }}
+              >
                 {lead.lead_id}
               </span>
             )}
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "1rem" }}>
+        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <button
             type="button"
             className={styles.addBtn}
@@ -293,6 +312,7 @@ export default function LeadDetailsPage() {
           {lead.status !== "Lost Leads" && (
             <>
               <button
+                type="button"
                 className={styles.createBtn}
                 onClick={handleConvertClick}
                 disabled={converting || markingLost || lead.status === "Converted To Customer"}
@@ -303,6 +323,7 @@ export default function LeadDetailsPage() {
               </button>
 
               <button
+                type="button"
                 className={styles.createBtn}
                 onClick={handleLostClick}
                 disabled={converting || markingLost || lead.status === "Converted To Customer"}
@@ -316,174 +337,197 @@ export default function LeadDetailsPage() {
         </div>
       </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <Info size={22} color="var(--admin-primary, #004d4d)" /> Lead Information
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <Info size={22} color={PRIMARY_ICON} /> Lead Information
         </div>
         <div className={styles.formGrid}>
-          <ReadOnlyField
-            label="Lead Source"
-            value={lead.leadSourceName || lead.leadSource || "—"}
-          />
-          <ReadOnlyField label="Lead Name" value={displayName} />
-          <ReadOnlyField label="DBA" value={lead.dba || "—"} />
-          <ReadOnlyField
-            label="Utility / Electric Company"
-            value={lead.electricCompany || "—"}
-          />
+          <ReadOnlyField label="Lead Source" icon={<Briefcase size={16} color={MUTED_ICON} />}>
+            {displayValue(lead.leadSourceName || lead.leadSource)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Lead Name" icon={<User size={16} color={MUTED_ICON} />}>
+            {displayValue(displayName)}
+          </ReadOnlyField>
+          <ReadOnlyField label="DBA" icon={<Building size={16} color={MUTED_ICON} />}>
+            {displayValue(lead.dba)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Utility / Electric Company" icon={<Zap size={16} color={MUTED_ICON} />}>
+            {displayValue(lead.electricCompany)}
+          </ReadOnlyField>
           <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
             <label>Electricity Bills</label>
-            {bills.length === 0 ? (
-              <div
-                className={styles.formInput}
-                style={{
-                  background: "#f8fafc",
-                  color: "#64748b",
-                  border: "1px solid #e2e8f0",
-                }}
-              >
-                No bills uploaded.
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                {bills.map((filename: string) => {
-                  const url = resolveUploadsUrl(filename);
-                  const isPdf = filename.toLowerCase().endsWith(".pdf");
-                  return (
-                    <a
-                      key={filename}
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        width: 160,
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 10,
-                        overflow: "hidden",
-                        background: "#ffffff",
-                        textDecoration: "none",
-                        color: "#1e293b",
-                      }}
-                    >
-                      <div
+            <div className={`${styles.formInput} ${viewStyles.readonlyField}`} style={{ minHeight: "2.75rem" }}>
+              {bills.length === 0 ? (
+                <span className={viewStyles.readonlyFieldMuted}>No bills uploaded.</span>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", width: "100%" }}>
+                  {bills.map((filename: string) => {
+                    const url = resolveUploadsUrl(filename);
+                    const isPdf = filename.toLowerCase().endsWith(".pdf");
+                    return (
+                      <a
+                        key={filename}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
                         style={{
-                          height: 110,
-                          background: "#f8fafc",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {isPdf ? (
-                          <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b" }}>
-                            PDF
-                          </div>
-                        ) : (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={url}
-                            alt={filename}
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                          />
-                        )}
-                      </div>
-                      <div
-                        style={{
-                          padding: "0.5rem 0.6rem",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          whiteSpace: "nowrap",
+                          width: 160,
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 10,
                           overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          background: "#ffffff",
+                          textDecoration: "none",
+                          color: "#1e293b",
                         }}
                       >
-                        {filename}
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
-            )}
+                        <div
+                          style={{
+                            height: 110,
+                            background: "#f8fafc",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {isPdf ? (
+                            <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b" }}>
+                              PDF
+                            </div>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={url}
+                              alt={filename}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            padding: "0.5rem 0.6rem",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {filename}
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+          <ReadOnlyField label="Bill Date" icon={<Calendar size={16} color={MUTED_ICON} />}>
+            {lead.billDate ? formatDate(lead.billDate) : "—"}
+          </ReadOnlyField>
+          <ReadOnlyField label="Account Number" icon={<Hash size={16} color={MUTED_ICON} />}>
+            {displayValue(lead.accountNumber)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Legal Name" icon={<User size={16} color={MUTED_ICON} />}>
+            {displayValue(lead.legalName)}
+          </ReadOnlyField>
+          <ReadOnlyField label="Mobile" icon={<Phone size={16} color={MUTED_ICON} />}>
+            {displayValue(lead.mobileNumber)}
+          </ReadOnlyField>
           <ReadOnlyField
-            label="Bill Date"
-            value={lead.billDate ? formatDate(lead.billDate) : "—"}
-          />
-          <ReadOnlyField label="Account Number" value={lead.accountNumber || "—"} />
-          <ReadOnlyField label="Legal Name" value={lead.legalName || "—"} />
-          <ReadOnlyField label="Mobile" value={lead.mobileNumber || "—"} />
-          <ReadOnlyField label="Email" value={lead.email || "—"} />
-          <ReadOnlyField
-            label="Assign to Sales Person"
-            value={lead.user_id?.fullName || "Unassigned"}
-          />
+            label="Email"
+            icon={<Mail size={16} color={MUTED_ICON} />}
+            valueClassName={emailDisplay !== "—" ? viewStyles.readonlyFieldLink : viewStyles.readonlyFieldMuted}
+          >
+            {emailDisplay}
+          </ReadOnlyField>
+          <ReadOnlyField label="Assign to Sales Person" icon={<UserCheck size={16} color={MUTED_ICON} />}>
+            {displayValue(lead.user_id?.fullName || "Unassigned")}
+          </ReadOnlyField>
           {lead.status === "Lost Leads" && (
             <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
               <label>Lost Reason</label>
               <div
-                className={styles.formInput}
+                className={`${styles.formInput} ${viewStyles.readonlyField}`}
                 style={{
                   background: "#fff7ed",
                   color: "#9a3412",
-                  fontWeight: 600,
                   border: "1px solid #fed7aa",
-                  minHeight: "3rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
                 }}
               >
-                <ShieldAlert size={16} color="#9a3412" />
-                {lead.lostReason || "—"}
+                <div className={viewStyles.fieldRow}>
+                  <ShieldAlert size={16} color="#9a3412" />
+                  {displayValue(lead.lostReason)}
+                </div>
               </div>
             </div>
           )}
         </div>
-      </section>
+      </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <MapPin size={22} color="var(--admin-primary, #004d4d)" /> Address Information
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <MapPin size={22} color={PRIMARY_ICON} /> Address Information
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {addresses.length === 0 ? (
-              <div className={addStyles.emptyState}>No addresses on file.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
-                {addresses.map((a: { _id?: string; title?: string; street?: string; city?: string; state?: string; zip?: string }, idx: number) => (
-                  <div key={a._id || idx} className={addStyles.itemCard}>
-                    <div className={addStyles.itemHeader}>
-                      <span className={addStyles.itemTitle}>
-                        {a.title || `Address ${idx + 1}`}
-                      </span>
-                    </div>
-                    <div className={addStyles.itemContent}>
-                      {a.street && <div>{a.street}</div>}
-                      {(a.city || a.state || a.zip) && (
-                        <div>
-                          {[a.city, a.state, a.zip].filter(Boolean).join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+        {addresses.length === 0 ? (
+          <div className={viewStyles.emptyState}>No addresses on file.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Street</th>
+                  <th>City / State / Zip</th>
+                </tr>
+              </thead>
+              <tbody>
+                {addresses.map(
+                  (
+                    a: {
+                      _id?: string;
+                      title?: string;
+                      street?: string;
+                      city?: string;
+                      state?: string;
+                      zip?: string;
+                    },
+                    idx: number
+                  ) => (
+                    <tr key={a._id || idx}>
+                      <td className={viewStyles.detailTableName}>
+                        {displayValue(a.title) !== "—" ? String(a.title) : `Address ${idx + 1}`}
+                      </td>
+                      <td>{displayValue(a.street)}</td>
+                      <td>{formatAddressLine(a)}</td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <Users size={22} color="var(--admin-primary, #004d4d)" /> Contact Information
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <Users size={22} color={PRIMARY_ICON} /> Contact Information
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {contacts.length === 0 ? (
-              <div className={addStyles.emptyState}>No contacts on file.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
+        {contacts.length === 0 ? (
+          <div className={viewStyles.emptyState}>No contacts on file.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Department</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Mobile</th>
+                  <th>Contact Card</th>
+                </tr>
+              </thead>
+              <tbody>
                 {contacts.map(
                   (
                     c: {
@@ -498,27 +542,23 @@ export default function LeadDetailsPage() {
                     },
                     idx: number
                   ) => (
-                    <div key={c._id || idx} className={addStyles.itemCard}>
-                      <div className={addStyles.itemHeader}>
-                        <span className={addStyles.itemTitle}>
-                          {c.name || "Contact"}
-                          {c.position ? ` (${c.position})` : ""}
-                        </span>
-                      </div>
-                      <div className={addStyles.itemContent}>
-                        {c.department && <div>Department: {c.department}</div>}
-                        {c.email && <div>Email: {c.email}</div>}
-                        {c.phone && <div>Phone: {c.phone}</div>}
-                        {c.mobile && <div>Mobile: {c.mobile}</div>}
-                        {Array.isArray(c.businessCard) && c.businessCard.length > 0 && (
-                          <div style={{ marginTop: "0.75rem" }}>
-                            <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
-                              Contact Card
-                            </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                              {c.businessCard.map((cardUrl) => {
-                                const imageUrl = resolveBusinessCardImageUrl(cardUrl);
-                                return (
+                    <tr key={c._id || idx}>
+                      <td className={viewStyles.detailTableName}>
+                        {displayValue(c.name) !== "—" ? String(c.name) : "Contact"}
+                        {c.position ? (
+                          <span className={viewStyles.detailTableMuted}> ({String(c.position)})</span>
+                        ) : null}
+                      </td>
+                      <td>{displayValue(c.department)}</td>
+                      <td>{displayValue(c.email)}</td>
+                      <td>{displayValue(c.phone)}</td>
+                      <td>{displayValue(c.mobile)}</td>
+                      <td>
+                        {Array.isArray(c.businessCard) && c.businessCard.length > 0 ? (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                            {c.businessCard.map((cardUrl) => {
+                              const imageUrl = resolveBusinessCardImageUrl(cardUrl);
+                              return (
                                 <a
                                   key={imageUrl}
                                   href={imageUrl}
@@ -540,72 +580,82 @@ export default function LeadDetailsPage() {
                                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                   />
                                 </a>
-                                );
-                              })}
-                            </div>
+                              );
+                            })}
                           </div>
+                        ) : (
+                          "—"
                         )}
-                      </div>
-                    </div>
+                      </td>
+                    </tr>
                   )
                 )}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <FileText size={22} color="var(--admin-primary, #004d4d)" /> Notes
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <FileText size={22} color={PRIMARY_ICON} /> Notes
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {notes.length === 0 ? (
-              <div className={addStyles.emptyState}>No notes on file.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
+        {notes.length === 0 ? (
+          <div className={viewStyles.emptyState}>No notes on file.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Date</th>
+                  <th>Author</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
                 {notes.map(
                   (
                     n: { _id?: string; title?: string; note?: string; createdAt?: string },
                     idx: number
                   ) => (
-                    <div key={n._id || idx} className={addStyles.itemCard}>
-                      <div className={addStyles.itemHeader}>
-                        <span className={addStyles.itemTitle}>
-                          {n.title || `Note ${idx + 1}`}
-                        </span>
-                        {n.createdAt && (
-                          <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
-                            {formatDateTime(n.createdAt)}
-                          </span>
-                        )}
-                      </div>
-                      <div className={addStyles.itemContent}>
-                        <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.35rem" }}>
-                          By {formatNoteAuthorLabel(n)}
-                        </div>
-                        {n.note || "—"}
-                      </div>
-                    </div>
+                    <tr key={n._id || idx}>
+                      <td className={viewStyles.detailTableName}>
+                        {displayValue(n.title) !== "—" ? String(n.title) : `Note ${idx + 1}`}
+                      </td>
+                      <td className={viewStyles.detailTableMuted}>
+                        {n.createdAt ? formatDateTime(n.createdAt) : "—"}
+                      </td>
+                      <td>{formatNoteAuthorLabel(n)}</td>
+                      <td>
+                        <div className={viewStyles.noteContent}>{displayValue(n.note)}</div>
+                      </td>
+                    </tr>
                   )
                 )}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
-      <section className={styles.formSection}>
-        <div className={styles.sectionTitle}>
-          <Calendar size={22} color="var(--admin-primary, #004d4d)" /> Activities
+      <div className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+          <Calendar size={22} color={PRIMARY_ICON} /> Activities
         </div>
-        <div className={styles.formGrid}>
-          <div className={styles.formGroup} style={{ gridColumn: "span 2" }}>
-            {activityLog.length === 0 ? (
-              <div className={addStyles.emptyState}>No activities recorded.</div>
-            ) : (
-              <div className={addStyles.itemGrid}>
+        {activityLog.length === 0 ? (
+          <div className={viewStyles.emptyState}>No activities recorded.</div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
                 {activityLog.map(
                   (
                     log: {
@@ -621,34 +671,35 @@ export default function LeadDetailsPage() {
                   ) => {
                     const activityText = getActivityDisplayText(log);
                     return (
-                      <div key={log._id || idx} className={addStyles.itemCard}>
-                        <div className={addStyles.itemHeader}>
-                          <span className={addStyles.itemTitle}>
-                            {log.activityType || "Activity"}
-                          </span>
-                        </div>
-                        <div className={addStyles.itemContent}>
-                          <div>
-                            Date:{" "}
-                            {log.date
-                              ? formatDateTime(log.date)
-                              : log.createdAt
-                                ? formatDateTime(log.createdAt)
-                                : "—"}
-                          </div>
-                          {activityText && (
-                            <div style={{ whiteSpace: "pre-line" }}>{activityText}</div>
+                      <tr key={log._id || idx}>
+                        <td className={viewStyles.detailTableName}>
+                          {displayValue(log.activityType) !== "—"
+                            ? String(log.activityType)
+                            : "Activity"}
+                        </td>
+                        <td className={viewStyles.detailTableMuted}>
+                          {log.date
+                            ? formatDateTime(log.date)
+                            : log.createdAt
+                              ? formatDateTime(log.createdAt)
+                              : "—"}
+                        </td>
+                        <td>
+                          {activityText ? (
+                            <div className={viewStyles.noteContent}>{activityText}</div>
+                          ) : (
+                            "—"
                           )}
-                        </div>
-                      </div>
+                        </td>
+                      </tr>
                     );
                   }
                 )}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </section>
+        )}
+      </div>
 
       <div className={styles.actionFooter} style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}>
         <button

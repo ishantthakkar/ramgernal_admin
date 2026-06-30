@@ -38,23 +38,6 @@ function toIsoOrEmpty(value: string): string {
   return Number.isNaN(d.getTime()) ? "" : d.toISOString();
 }
 
-function formatActivityDate(value: string): string {
-  if (!value.trim()) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function toDateInputValue(value: string): string {
-  if (!value.trim()) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
-}
 import { adminApi } from "@/lib/api";
 import { formatNoteAuthorLabel, withNoteAuthor } from "@/lib/leadNotes";
 import { persistLeadActivities, persistLeadNotes } from "@/lib/leadPersistence";
@@ -107,6 +90,14 @@ interface LeadActivityInput {
   followUpDate: string;
   nextFollowUpDate: string;
 }
+
+const ADDRESS_TITLE_OPTIONS = [
+  "Service address",
+  "Billing address",
+  "Office",
+  "Home",
+  "Other",
+] as const;
 
 export default function AddLeadPage() {
   const router = useRouter();
@@ -172,7 +163,7 @@ export default function AddLeadPage() {
     title: "", note: ""
   });
   const [tempActivity, setTempActivity] = useState<LeadActivityInput>({
-    activityType: "Call",
+    activityType: "Other",
     date: "",
     outcome: "",
     notes: "",
@@ -186,7 +177,7 @@ export default function AddLeadPage() {
       setTempAddress(addresses[index]);
       setEditingIndex(index);
     } else {
-      setTempAddress({ title: "Office", street: "", city: "", state: "", zip: "" });
+      setTempAddress({ title: "", street: "", city: "", state: "", zip: "" });
       setEditingIndex(null);
     }
     setActiveModal("address");
@@ -194,7 +185,7 @@ export default function AddLeadPage() {
 
   const saveAddress = () => {
     if (!tempAddress.title.trim()) {
-      toast.error("Please enter an address title.");
+      toast.error("Please select an address title.");
       return;
     }
     if (!tempAddress.street.trim() && !tempAddress.city.trim()) {
@@ -251,7 +242,7 @@ export default function AddLeadPage() {
 
   const saveContact = () => {
     if (!tempContact.name.trim()) {
-      toast.error("Please enter a contact name.");
+      toast.error("Please enter a name for the contact.");
       return;
     }
     if (editingIndex !== null) {
@@ -307,11 +298,14 @@ export default function AddLeadPage() {
 
   const openActivityModal = (index?: number) => {
     if (index !== undefined) {
-      setTempActivity(activities[index]);
+      setTempActivity({
+        ...activities[index],
+        activityType: "Other",
+      });
       setEditingIndex(index);
     } else {
       setTempActivity({
-        activityType: "Call",
+        activityType: "Other",
         date: "",
         outcome: "",
         notes: "",
@@ -1071,16 +1065,7 @@ export default function AddLeadPage() {
                           {activityItem.date && (
                             <div>Date: {new Date(activityItem.date).toLocaleString()}</div>
                           )}
-                          {activityItem.outcome && <div>Outcome: {activityItem.outcome}</div>}
                           {activityItem.notes && <div>{activityItem.notes}</div>}
-                          {activityItem.followUpDate && (
-                            <div>Follow Up Date: {formatActivityDate(activityItem.followUpDate)}</div>
-                          )}
-                          {activityItem.nextFollowUpDate && (
-                            <div>
-                              Next Follow Up Date: {formatActivityDate(activityItem.nextFollowUpDate)}
-                            </div>
-                          )}
                         </div>
                       </div>
                       <div className={addStyles.itemActions}>
@@ -1160,14 +1145,29 @@ export default function AddLeadPage() {
             </div>
             <div className={addStyles.modalBody}>
               <div className={styles.formGroup}>
-                <label>Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Office, Warehouse"
-                  className={styles.formInput}
+                <label>
+                  Title <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  className={styles.formSelect}
                   value={tempAddress.title}
-                  onChange={(e) => setTempAddress({ ...tempAddress, title: e.target.value })}
-                />
+                  onChange={(e) =>
+                    setTempAddress({ ...tempAddress, title: e.target.value })
+                  }
+                >
+                  <option value="">Select title</option>
+                  {(tempAddress.title &&
+                  !ADDRESS_TITLE_OPTIONS.includes(
+                    tempAddress.title as (typeof ADDRESS_TITLE_OPTIONS)[number]
+                  )
+                    ? [tempAddress.title, ...ADDRESS_TITLE_OPTIONS]
+                    : ADDRESS_TITLE_OPTIONS
+                  ).map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className={styles.formGroup}>
                 <label>Street</label>
@@ -1235,34 +1235,6 @@ export default function AddLeadPage() {
                 }}
               >
                 <div className={styles.formGroup}>
-                  <label>Name</label>
-                  <input
-                    type="text"
-                    placeholder="Name"
-                    className={styles.formInput}
-                    value={tempContact.name}
-                    onChange={(e) => setTempContact({ ...tempContact, name: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    className={styles.formInput}
-                    value={tempContact.email}
-                    onChange={(e) => setTempContact({ ...tempContact, email: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "1rem",
-                }}
-              >
-                <div className={styles.formGroup}>
                   <label>Position</label>
                   <input
                     type="text"
@@ -1282,6 +1254,18 @@ export default function AddLeadPage() {
                     onChange={(e) => setTempContact({ ...tempContact, department: e.target.value })}
                   />
                 </div>
+              </div>
+              <div className={styles.formGroup}>
+                <label>
+                  Name <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Name"
+                  className={styles.formInput}
+                  value={tempContact.name}
+                  onChange={(e) => setTempContact({ ...tempContact, name: e.target.value })}
+                />
               </div>
               <div
                 style={{
@@ -1311,7 +1295,17 @@ export default function AddLeadPage() {
                   />
                 </div>
               </div>
-              <div className={styles.formGroup} style={{ gridColumn: "1 / -1" }}>
+              <div className={styles.formGroup}>
+                <label>Email</label>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  className={styles.formInput}
+                  value={tempContact.email}
+                  onChange={(e) => setTempContact({ ...tempContact, email: e.target.value })}
+                />
+              </div>
+              <div className={styles.formGroup}>
                 <label>Contact Card</label>
                 <input
                   ref={contactCardInputRef}
@@ -1454,10 +1448,6 @@ export default function AddLeadPage() {
                     setTempActivity({ ...tempActivity, activityType: e.target.value })
                   }
                 >
-                  <option value="Call">Call</option>
-                  <option value="Meeting">Meeting</option>
-                  <option value="Email">Email</option>
-                  <option value="Site Visit">Site Visit</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -1473,18 +1463,6 @@ export default function AddLeadPage() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Outcome</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Left voicemail"
-                  className={styles.formInput}
-                  value={tempActivity.outcome}
-                  onChange={(e) =>
-                    setTempActivity({ ...tempActivity, outcome: e.target.value })
-                  }
-                />
-              </div>
-              <div className={styles.formGroup}>
                 <label>Notes</label>
                 <textarea
                   placeholder="Activity notes..."
@@ -1496,39 +1474,6 @@ export default function AddLeadPage() {
                   }
                   style={{ resize: "vertical", minHeight: 80 }}
                 />
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "1rem",
-                }}
-              >
-                <div className={styles.formGroup}>
-                  <label>Follow Up Date</label>
-                  <input
-                    type="date"
-                    className={styles.formInput}
-                    value={toDateInputValue(tempActivity.followUpDate)}
-                    onChange={(e) =>
-                      setTempActivity({ ...tempActivity, followUpDate: e.target.value })
-                    }
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Next Follow Up Date</label>
-                  <input
-                    type="date"
-                    className={styles.formInput}
-                    value={toDateInputValue(tempActivity.nextFollowUpDate)}
-                    onChange={(e) =>
-                      setTempActivity({
-                        ...tempActivity,
-                        nextFollowUpDate: e.target.value,
-                      })
-                    }
-                  />
-                </div>
               </div>
             </div>
             <div className={addStyles.modalFooter}>
