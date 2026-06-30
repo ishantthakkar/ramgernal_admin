@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Package } from "lucide-react";
 import modalStyles from "@/app/(authenticated)/commissions/commissions-modal.module.css";
+import { adminApi } from "@/lib/api";
 import {
   isExistingFixtureType,
   isAccessoriesTab,
@@ -14,6 +15,9 @@ import {
 export interface ProposedProductFormData {
   sku: string;
   name: string;
+  description?: string;
+  isComboItem?: boolean;
+  comboAccessoryIds?: string[];
   utilityPrice: number;
   directPrice: number;
   agentCommission: number;
@@ -52,6 +56,9 @@ interface ProductFormModalProps {
 const emptyProposedForm = {
   sku: "",
   name: "",
+  description: "",
+  isComboItem: false,
+  comboAccessoryIds: [] as string[],
   utilityPrice: "",
   directPrice: "",
   agentCommission: "",
@@ -72,6 +79,9 @@ function toProposedFormValues(data: ProposedProductFormData) {
   return {
     sku: data.sku,
     name: data.name,
+    description: data.description ?? "",
+    isComboItem: Boolean(data.isComboItem),
+    comboAccessoryIds: Array.isArray(data.comboAccessoryIds) ? data.comboAccessoryIds : [],
     utilityPrice: String(data.utilityPrice),
     directPrice: String(data.directPrice),
     agentCommission: String(data.agentCommission),
@@ -112,6 +122,10 @@ export function ProductFormModal({
   const [existingForm, setExistingForm] = useState(emptyExistingForm);
   const [accessoryForm, setAccessoryForm] = useState(emptyAccessoryForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [comboAccessoryOptions, setComboAccessoryOptions] = useState<
+    Array<{ id: string; name: string; accessoryType?: AccessoryType }>
+  >([]);
+  const [comboAccessoryQuery, setComboAccessoryQuery] = useState("");
 
   const isExisting = isExistingFixtureType(fixtureType);
   const isAccessory = isAccessoriesTab(fixtureType);
@@ -154,6 +168,41 @@ export function ProductFormModal({
 
     setErrors({});
   }, [isOpen, isEdit, initialData, isExisting, isAccessory, defaultAccessoryType]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isAccessory || isExisting) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await adminApi.getProducts("Accessories");
+        const list = (response.products || []).map((p: Record<string, unknown>) => ({
+          id: String((p as any)._id ?? (p as any).id),
+          name: String((p as any).name ?? ""),
+          accessoryType: (p as any).accessoryType
+            ? (String((p as any).accessoryType) as AccessoryType)
+            : undefined,
+        }));
+        if (!cancelled) setComboAccessoryOptions(list);
+      } catch {
+        if (!cancelled) setComboAccessoryOptions([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, isAccessory, isExisting]);
+
+  const filteredComboAccessoryOptions = comboAccessoryOptions.filter((opt) => {
+    const query = comboAccessoryQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      opt.name.toLowerCase().includes(query) ||
+      (opt.accessoryType ?? "").toLowerCase().includes(query)
+    );
+  });
 
   if (!isOpen) return null;
 
@@ -208,6 +257,14 @@ export function ProductFormModal({
       next.name = "Name is required.";
     }
 
+    const isComboItem = Boolean(proposedForm.isComboItem);
+    const comboAccessoryIds = Array.isArray(proposedForm.comboAccessoryIds)
+      ? proposedForm.comboAccessoryIds
+      : [];
+    if (isComboItem && comboAccessoryIds.length === 0) {
+      next.comboAccessoryIds = "Select at least one accessory for a combo item.";
+    }
+
     const utilityPrice = validateMoneyField(
       proposedForm.utilityPrice,
       "Utility Price",
@@ -245,6 +302,9 @@ export function ProductFormModal({
     return {
       sku: proposedForm.sku.trim(),
       name: proposedForm.name.trim(),
+      description: String(proposedForm.description ?? "").trim(),
+      isComboItem,
+      comboAccessoryIds,
       utilityPrice: utilityPrice!,
       directPrice: directPrice!,
       agentCommission: agentCommission!,
@@ -436,6 +496,123 @@ export function ProductFormModal({
                     </span>
                   )}
                 </div>
+
+                <div className={modalStyles.formGroup} style={{ gridColumn: "1 / -1" }}>
+                  <label htmlFor="product-description">Description</label>
+                  <textarea
+                    id="product-description"
+                    className={modalStyles.formInput}
+                    placeholder="Optional description"
+                    value={String(proposedForm.description ?? "")}
+                    rows={3}
+                    onChange={(e) => {
+                      setProposedForm((prev) => ({ ...prev, description: e.target.value }));
+                    }}
+                  />
+                </div>
+
+                <div className={modalStyles.formGroup} style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(proposedForm.isComboItem)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setProposedForm((prev) => ({
+                          ...prev,
+                          isComboItem: checked,
+                          comboAccessoryIds: checked ? prev.comboAccessoryIds : [],
+                        }));
+                        if (errors.comboAccessoryIds) {
+                          setErrors((prev) => ({ ...prev, comboAccessoryIds: "" }));
+                        }
+                      }}
+                    />
+                    Is this combo item?
+                  </label>
+                </div>
+
+                {Boolean(proposedForm.isComboItem) && (
+                  <div className={modalStyles.formGroup} style={{ gridColumn: "1 / -1" }}>
+                    <label htmlFor="product-combo-accessories">
+                      Combo Accessories <span style={{ color: "#ef4444" }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className={modalStyles.formInput}
+                      placeholder="Search accessories..."
+                      value={comboAccessoryQuery}
+                      onChange={(e) => setComboAccessoryQuery(e.target.value)}
+                      style={{ marginBottom: 10 }}
+                    />
+                    <div
+                      id="product-combo-accessories"
+                      style={{
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 10,
+                        padding: "0.75rem",
+                        background: "#ffffff",
+                        maxHeight: 220,
+                        overflow: "auto",
+                      }}
+                    >
+                      {filteredComboAccessoryOptions.length === 0 ? (
+                        <div style={{ color: "#64748b", fontWeight: 600, fontSize: "0.85rem" }}>
+                          No accessories found.
+                        </div>
+                      ) : (
+                        filteredComboAccessoryOptions.map((opt) => {
+                          const selected = Array.isArray(proposedForm.comboAccessoryIds)
+                            ? proposedForm.comboAccessoryIds.includes(opt.id)
+                            : false;
+                          return (
+                            <label
+                              key={opt.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                padding: "0.4rem 0.25rem",
+                                cursor: "pointer",
+                                userSelect: "none",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => {
+                                  setProposedForm((prev) => {
+                                    const current = Array.isArray(prev.comboAccessoryIds)
+                                      ? prev.comboAccessoryIds
+                                      : [];
+                                    const next = current.includes(opt.id)
+                                      ? current.filter((id) => id !== opt.id)
+                                      : [...current, opt.id];
+                                    return { ...prev, comboAccessoryIds: next };
+                                  });
+                                  if (errors.comboAccessoryIds) {
+                                    setErrors((prev) => ({ ...prev, comboAccessoryIds: "" }));
+                                  }
+                                }}
+                              />
+                              <span style={{ fontWeight: 700, color: "#1e293b" }}>{opt.name}</span>
+                              {opt.accessoryType && (
+                                <span style={{ color: "#64748b", fontWeight: 700, fontSize: "0.75rem" }}>
+                                  ({opt.accessoryType})
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                    {errors.comboAccessoryIds && (
+                      <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                        {errors.comboAccessoryIds}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className={modalStyles.formGroup}>
                   <label htmlFor="product-utility-price">

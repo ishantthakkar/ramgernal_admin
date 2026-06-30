@@ -9,6 +9,9 @@ import { validateUniqueProposedNamesInFile } from "@/lib/product-proposed-valida
 export const PROPOSED_PRODUCT_EXCEL_HEADERS = [
   "SKU",
   "Name",
+  "Description",
+  "Is Combo Item",
+  "Combo Accessories",
   "Utility Price",
   "Direct Price",
   "Agent Commission",
@@ -24,6 +27,9 @@ export const PRODUCT_EXCEL_HEADERS = PROPOSED_PRODUCT_EXCEL_HEADERS;
 const PROPOSED_TEMPLATE_EXAMPLE: ProductFormData = {
   sku: "RAM-EXAMPLE-001",
   name: "Example Product Name",
+  description: "Optional description (shown in Proposed Fixture list)",
+  isComboItem: true,
+  comboAccessoryIds: ["Accessory A", "Accessory B"],
   utilityPrice: 99.99,
   directPrice: 89.99,
   agentCommission: 10,
@@ -59,6 +65,11 @@ function normalizeHeaderKey(key: string): string {
 const PROPOSED_HEADER_FIELD_MAP: Record<string, keyof ProductFormData> = {
   sku: "sku",
   name: "name",
+  description: "description",
+  iscomboitem: "isComboItem",
+  comboproduct: "comboAccessoryIds",
+  comboaccessories: "comboAccessoryIds",
+  comboaccessory: "comboAccessoryIds",
   utilityprice: "utilityPrice",
   salesprice: "utilityPrice",
   directprice: "directPrice",
@@ -67,6 +78,23 @@ const PROPOSED_HEADER_FIELD_MAP: Record<string, keyof ProductFormData> = {
   managercommission: "managerCommission",
   installationcost: "installationCost",
 };
+
+function parseBooleanCell(value: unknown): boolean {
+  const raw = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!raw) return false;
+  return ["1", "true", "yes", "y", "checked"].includes(raw);
+}
+
+function parseListCell(value: unknown): string[] {
+  const raw = String(value ?? "").trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
 
 function parseMoneyCell(value: unknown, fieldLabel: string): { value?: number; error?: string } {
   if (value === undefined || value === null || value === "") {
@@ -110,6 +138,11 @@ export function downloadProductTemplate(
         [
           PROPOSED_TEMPLATE_EXAMPLE.sku,
           PROPOSED_TEMPLATE_EXAMPLE.name,
+          PROPOSED_TEMPLATE_EXAMPLE.description ?? "",
+          PROPOSED_TEMPLATE_EXAMPLE.isComboItem ? "Yes" : "No",
+          Array.isArray(PROPOSED_TEMPLATE_EXAMPLE.comboAccessoryIds)
+            ? PROPOSED_TEMPLATE_EXAMPLE.comboAccessoryIds.join(", ")
+            : "",
           PROPOSED_TEMPLATE_EXAMPLE.utilityPrice,
           PROPOSED_TEMPLATE_EXAMPLE.directPrice,
           PROPOSED_TEMPLATE_EXAMPLE.agentCommission,
@@ -143,6 +176,11 @@ export function exportProductsToExcel(
           return [
             proposed.sku,
             proposed.name,
+            proposed.description ?? "",
+            proposed.isComboItem ? "Yes" : "No",
+            Array.isArray(proposed.comboAccessoryIds)
+              ? proposed.comboAccessoryIds.join(", ")
+              : "",
             proposed.utilityPrice,
             proposed.directPrice,
             proposed.agentCommission,
@@ -210,6 +248,9 @@ function parseProposedRows(
 
     const sku = String(mapped.sku ?? "").trim();
     const name = String(mapped.name ?? "").trim();
+    const description = String(mapped.description ?? "").trim();
+    const isComboItem = parseBooleanCell(mapped.isComboItem);
+    const comboAccessoryIds = parseListCell(mapped.comboAccessoryIds);
 
     if (!sku) {
       errors.push({ rowNumber, message: "SKU is required." });
@@ -217,6 +258,14 @@ function parseProposedRows(
     }
     if (!name) {
       errors.push({ rowNumber, message: "Name is required." });
+      return;
+    }
+
+    if (isComboItem && comboAccessoryIds.length === 0) {
+      errors.push({
+        rowNumber,
+        message: 'Combo Accessories is required when "Is Combo Item" is Yes.',
+      });
       return;
     }
 
@@ -260,6 +309,9 @@ function parseProposedRows(
       rowNumber,
       sku,
       name,
+      description,
+      isComboItem,
+      comboAccessoryIds,
       utilityPrice: utilityPriceResult.value!,
       directPrice: directPriceResult.value!,
       agentCommission: agentCommissionResult.value!,

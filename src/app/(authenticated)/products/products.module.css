@@ -280,6 +280,81 @@
   color: var(--admin-primary);
 }
 
+.comboItemCell {
+  overflow: visible;
+}
+
+.comboItemTrigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comboItemTrigger:hover {
+  color: var(--admin-primary, #0076ce);
+}
+
+.comboItemPopup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 100;
+  min-width: 260px;
+  max-width: 360px;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
+.comboItemPopupTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comboItemPopupList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.comboItemPopupRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.comboItemPopupName {
+  color: #1e293b;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comboItemPopupType {
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
 @media (max-width: 1200px) {
   .listingStatsGrid {
     grid-template-columns: repeat(2, 1fr);

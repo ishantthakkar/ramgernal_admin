@@ -969,6 +969,7 @@ export default function WorkflowViewPage() {
   const [siteRows, setSiteRows] = useState<SiteDetailRow[]>([]);
   const [savingSiteRow, setSavingSiteRow] = useState(false);
   const [reorderingAreas, setReorderingAreas] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const isSurveyView = fromTab === "Surveys";
   const isInspectionView = fromTab === "Inspections";
@@ -1177,6 +1178,48 @@ export default function WorkflowViewPage() {
     }
   };
 
+  const handleExportProjectPdf = async (download: boolean) => {
+    const activeSurveyId = usesInstallationWorkflowApi
+      ? id
+      : focusedSurveyId ||
+        (focusedSurveyRecords[0] ? resolveSurveyId(focusedSurveyRecords[0]) : "");
+
+    if (!activeSurveyId) {
+      toast.error("Survey not found for export.");
+      return;
+    }
+
+    const workflow = isInstallationView ? "installation" : isSurveyView ? "survey" : undefined;
+
+    try {
+      setExportingPdf(true);
+      const blob = await adminApi.exportSurveyProjectPdf(activeSurveyId, {
+        download,
+        workflow,
+      });
+      const objectUrl = URL.createObjectURL(blob);
+
+      if (download) {
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = `project-details-${activeSurveyId}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+        toast.success("Project details PDF downloaded.");
+      } else {
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to export project details PDF.";
+      toast.error(message);
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
@@ -1309,6 +1352,30 @@ export default function WorkflowViewPage() {
                 : "View Workflow Profile"}
         </h1>
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+          {(isSurveyView || isInstallationView) && (
+            <>
+              <button
+                type="button"
+                className={styles.assignBtn}
+                disabled={exportingPdf}
+                onClick={() => handleExportProjectPdf(false)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.65rem 1.25rem" }}
+              >
+                {exportingPdf ? <Loader2 size={18} className={styles.spinner} /> : <FileText size={18} />}
+                <span>View PDF</span>
+              </button>
+              <button
+                type="button"
+                className={styles.assignBtn}
+                disabled={exportingPdf}
+                onClick={() => handleExportProjectPdf(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.65rem 1.25rem" }}
+              >
+                {exportingPdf ? <Loader2 size={18} className={styles.spinner} /> : <Download size={18} />}
+                <span>Export PDF</span>
+              </button>
+            </>
+          )}
           {isSurveyView && canEditSurveys && (
             <button
               type="button"

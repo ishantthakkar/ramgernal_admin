@@ -31,6 +31,40 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   return data;
 }
 
+export async function apiBlobRequest(endpoint: string, options: RequestInit = {}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers as Record<string, string>),
+  };
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    let message = "Something went wrong";
+    try {
+      const data = await response.json();
+      message = data.message || message;
+    } catch {
+      message = response.statusText || message;
+    }
+
+    if (response.status === 401) {
+      localStorage.removeItem("auth_token");
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
+    }
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
+
 export const authApi = {
   login: (credentials: any) => apiRequest("/admin/login", {
     method: "POST",
@@ -175,6 +209,24 @@ export const adminApi = {
     apiRequest(`/surveys/${surveyId}/installation-workflow`, {
       method: "GET",
     }),
+  exportSurveyProjectPdf: (
+    surveyId: string,
+    downloadOrOptions:
+      | boolean
+      | { download?: boolean; workflow?: "survey" | "installation" } = false
+  ) => {
+    const options =
+      typeof downloadOrOptions === "boolean"
+        ? { download: downloadOrOptions }
+        : downloadOrOptions ?? {};
+    const params = new URLSearchParams();
+    if (options.download) params.set("download", "1");
+    if (options.workflow) params.set("workflow", options.workflow);
+    const query = params.toString();
+    return apiBlobRequest(`/surveys/${surveyId}/project-pdf${query ? `?${query}` : ""}`, {
+      method: "GET",
+    });
+  },
   getExtraExpenses: (surveyId: string) =>
     apiRequest(`/surveys/${surveyId}/extra-expenses`, {
       method: "GET",

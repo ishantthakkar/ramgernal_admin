@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Save,
   Hammer,
+  Layers,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { canViewModule, hasPermission } from "@/lib/permissions";
@@ -40,12 +41,10 @@ import {
 } from "@/lib/product-excel";
 import {
   PRODUCT_FIXTURE_TABS,
-  ACCESSORY_TYPE_TABS,
   fixtureTypeSlug,
   isExistingFixtureType,
   isAccessoriesTab,
   parseProductTabFromParam,
-  parseAccessoryTypeFromParam,
   type ProductFixtureType,
   type AccessoryType,
 } from "@/lib/product-fixture-types";
@@ -59,6 +58,9 @@ interface Product {
   id: string;
   sku: string;
   name: string;
+  description?: string;
+  isComboItem?: boolean;
+  comboAccessoryIds?: string[];
   utilityPrice: number;
   directPrice: number;
   agentCommission: number;
@@ -81,6 +83,8 @@ type DataSource = "api" | "upload";
 const PROPOSED_TABLE_COLUMNS = [
   "SKU",
   "Name",
+  "Description",
+  "Combo Item",
   "Utility Price",
   "Direct Price",
   "Agent Commission",
@@ -116,6 +120,11 @@ function mapProduct(
     id: String(raw._id ?? raw.id),
     sku: String(raw.sku),
     name: String(raw.name),
+    description: raw.description ? String(raw.description) : "",
+    isComboItem: Boolean(raw.isComboItem),
+    comboAccessoryIds: Array.isArray(raw.comboAccessoryIds)
+      ? raw.comboAccessoryIds.map((id) => String(id))
+      : [],
     utilityPrice: Number(raw.utilityPrice ?? raw.salesPrice ?? 0),
     directPrice: Number(raw.directPrice ?? 0),
     agentCommission: Number(raw.agentCommission ?? raw.commission ?? 0),
@@ -140,6 +149,9 @@ function mapUploadRow(
       id: `upload-${row.rowNumber}-${index}`,
       sku: row.sku,
       name: row.name,
+      description: row.description ?? "",
+      isComboItem: Boolean(row.isComboItem),
+      comboAccessoryIds: Array.isArray(row.comboAccessoryIds) ? row.comboAccessoryIds : [],
       utilityPrice: row.utilityPrice,
       directPrice: row.directPrice,
       agentCommission: row.agentCommission,
@@ -154,6 +166,9 @@ function mapUploadRow(
     id: `upload-${row.rowNumber}-${index}`,
     sku: "",
     name: row.name,
+    description: "",
+    isComboItem: false,
+    comboAccessoryIds: [],
     utilityPrice: 0,
     directPrice: 0,
     agentCommission: 0,
@@ -173,6 +188,9 @@ function mapDuplicateAddAlsoRow(
     id: `upload-add-also-${item.rowNumber}-${index}`,
     sku: item.sku,
     name: item.uploadedName,
+    description: "",
+    isComboItem: false,
+    comboAccessoryIds: [],
     utilityPrice: item.utilityPrice,
     directPrice: item.directPrice,
     agentCommission: item.agentCommission,
@@ -191,6 +209,9 @@ function mapDuplicateOverwriteRow(
     id: item.existingId,
     sku: item.sku,
     name: item.uploadedName,
+    description: "",
+    isComboItem: false,
+    comboAccessoryIds: [],
     utilityPrice: item.utilityPrice,
     directPrice: item.directPrice,
     agentCommission: item.agentCommission,
@@ -256,9 +277,6 @@ export default function ProductsPage() {
   const [activeTab, setActiveTab] = useState<ProductFixtureType>(() =>
     parseProductTabFromParam(searchParams.get("tab"))
   );
-  const [activeAccessorySubTab, setActiveAccessorySubTab] = useState<AccessoryType>(() =>
-    parseAccessoryTypeFromParam(searchParams.get("accessoryType"))
-  );
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
@@ -284,14 +302,70 @@ export default function ProductsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
 
+  const [accessoryCatalog, setAccessoryCatalog] = useState<
+    Array<{ id: string; name: string; accessoryType?: AccessoryType }>
+  >([]);
+  const accessoryLookup = useMemo(() => {
+    return new Map(accessoryCatalog.map((a) => [a.id, a]));
+  }, [accessoryCatalog]);
+  const accessoryNameLookup = useMemo(() => {
+    return new Map(accessoryCatalog.map((a) => [a.name.trim().toLowerCase(), a]));
+  }, [accessoryCatalog]);
+
+  const [comboPopupOpenForId, setComboPopupOpenForId] = useState<string | null>(null);
+
+  const fetchAccessoryCatalog = useCallback(async () => {
+    try {
+      const response = await adminApi.getProducts("Accessories");
+      const list = (response.products || []).map((p: Record<string, unknown>) => ({
+        id: String((p as any)._id ?? (p as any).id),
+        name: String((p as any).name ?? ""),
+        accessoryType: (p as any).accessoryType
+          ? (String((p as any).accessoryType) as AccessoryType)
+          : undefined,
+      }));
+      setAccessoryCatalog(list);
+    } catch {
+      setAccessoryCatalog([]);
+    }
+  }, []);
+
+  function isMongoObjectId(value: string): boolean {
+    return /^[a-f\d]{24}$/i.test(String(value));
+  }
+
+  function resolveComboAccessoryIds(
+    values: string[] | undefined
+  ): { ids: string[]; missingNames: string[] } {
+    const raw = Array.isArray(values) ? values : [];
+    const ids: string[] = [];
+    const missingNames: string[] = [];
+
+    for (const item of raw) {
+      const trimmed = String(item ?? "").trim();
+      if (!trimmed) continue;
+
+      if (isMongoObjectId(trimmed)) {
+        ids.push(trimmed);
+        continue;
+      }
+
+      const match = accessoryNameLookup.get(trimmed.toLowerCase());
+      if (match) {
+        ids.push(match.id);
+      } else {
+        missingNames.push(trimmed);
+      }
+    }
+
+    return { ids, missingNames };
+  }
+
   const fetchProducts = useCallback(
-    async (fixtureType: ProductFixtureType, accessoryType?: AccessoryType) => {
+    async (fixtureType: ProductFixtureType) => {
     setLoading(true);
     try {
-      const response = await adminApi.getProducts(
-        fixtureType,
-        isAccessoriesTab(fixtureType) ? accessoryType : undefined
-      );
+      const response = await adminApi.getProducts(fixtureType);
       const list = (response.products || []).map((p: Record<string, unknown>) =>
         mapProduct(p, fixtureType)
       );
@@ -316,16 +390,14 @@ export default function ProductsPage() {
 
   useEffect(() => {
     setActiveTab(parseProductTabFromParam(searchParams.get("tab")));
-    setActiveAccessorySubTab(parseAccessoryTypeFromParam(searchParams.get("accessoryType")));
   }, [searchParams]);
 
   useEffect(() => {
-    if (isAccessoriesTab(activeTab)) {
-      fetchProducts(activeTab, activeAccessorySubTab);
-    } else {
-      fetchProducts(activeTab);
+    fetchProducts(activeTab);
+    if (activeTab === "Proposed Fixture") {
+      fetchAccessoryCatalog();
     }
-  }, [activeTab, activeAccessorySubTab, fetchProducts]);
+  }, [activeTab, fetchProducts, fetchAccessoryCatalog]);
 
   function handleTabChange(tab: ProductFixtureType) {
     if (tab === activeTab) return;
@@ -339,22 +411,7 @@ export default function ProductsPage() {
     setDuplicateResolutions(new Map());
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
-    if (isAccessoriesTab(tab)) {
-      params.set("accessoryType", activeAccessorySubTab);
-    } else {
-      params.delete("accessoryType");
-    }
-    router.replace(`/products?${params.toString()}`, { scroll: false });
-  }
-
-  function handleAccessorySubTabChange(subTab: AccessoryType) {
-    if (subTab === activeAccessorySubTab) return;
-    setActiveAccessorySubTab(subTab);
-    setSearchQuery("");
-    setCurrentPage(1);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", "Accessories");
-    params.set("accessoryType", subTab);
+    params.delete("accessoryType");
     router.replace(`/products?${params.toString()}`, { scroll: false });
   }
 
@@ -377,6 +434,7 @@ export default function ProductsPage() {
       return (
         product.sku.toLowerCase().includes(query) ||
         product.name.toLowerCase().includes(query) ||
+        (product.description ?? "").toLowerCase().includes(query) ||
         formatMoney(product.utilityPrice).toLowerCase().includes(query) ||
         formatMoney(product.directPrice).toLowerCase().includes(query) ||
         formatMoney(product.agentCommission).toLowerCase().includes(query) ||
@@ -748,6 +806,17 @@ export default function ProductsPage() {
       return;
     }
 
+    const hasComboNeedingResolve =
+      activeTab === "Proposed Fixture" &&
+      toSave.some(
+        (p) =>
+          Boolean(p.isComboItem) &&
+          (p.comboAccessoryIds ?? []).some((value) => !isMongoObjectId(String(value)))
+      );
+    if (hasComboNeedingResolve && accessoryCatalog.length === 0) {
+      await fetchAccessoryCatalog();
+    }
+
     setIsSavingBulk(true);
     let created = 0;
     let updated = 0;
@@ -769,9 +838,27 @@ export default function ProductsPage() {
             created += 1;
           }
         } else {
+          const { ids: resolvedComboIds, missingNames } = resolveComboAccessoryIds(
+            product.comboAccessoryIds
+          );
+          if (Boolean(product.isComboItem) && missingNames.length > 0) {
+            failed += 1;
+            failDetails.push(
+              `${product.sku}: combo accessories not found: ${missingNames
+                .slice(0, 3)
+                .join(", ")}`
+            );
+            continue;
+          }
+
           const proposedPayload = {
             sku: product.sku,
             name: product.name,
+            description: product.description ?? "",
+            isComboItem: Boolean(product.isComboItem),
+            comboAccessoryIds: Array.isArray(product.comboAccessoryIds)
+              ? resolvedComboIds
+              : [],
             utilityPrice: product.utilityPrice,
             directPrice: product.directPrice,
             agentCommission: product.agentCommission,
@@ -897,11 +984,7 @@ export default function ProductsPage() {
       closeModal();
       setCurrentPage(1);
       toast.success(isAccessoriesTab(activeTab) ? "Accessory added successfully." : "Product added successfully.");
-      if (isAccessoriesTab(activeTab)) {
-        await fetchProducts(activeTab, activeAccessorySubTab);
-      } else {
-        await fetchProducts(activeTab);
-      }
+      await fetchProducts(activeTab);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to add product";
       toast.error(message);
@@ -954,11 +1037,7 @@ export default function ProductsPage() {
           ? "Accessory updated successfully."
           : "Product updated successfully."
       );
-      if (isAccessoriesTab(editingProduct.productType)) {
-        await fetchProducts(editingProduct.productType, activeAccessorySubTab);
-      } else {
-        await fetchProducts(editingProduct.productType);
-      }
+      await fetchProducts(editingProduct.productType);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update product";
       toast.error(message);
@@ -1013,9 +1092,7 @@ export default function ProductsPage() {
             type="button"
             className={productStyles.secondaryBtn}
             onClick={() =>
-              isAccessoriesTab(activeTab)
-                ? fetchProducts(activeTab, activeAccessorySubTab)
-                : fetchProducts(activeTab)
+              fetchProducts(activeTab)
             }
             disabled={loading || isSavingBulk || isUploading}
             title="Reload products from server"
@@ -1120,21 +1197,6 @@ export default function ProductsPage() {
             ))}
           </div>
           <div className={productStyles.searchRow}>
-            {isAccessoriesTab(activeTab) && (
-              <div className={productStyles.accessorySubTabs}>
-                {ACCESSORY_TYPE_TABS.map((subTab) => (
-                  <div
-                    key={subTab}
-                    className={`${productStyles.accessorySubTab} ${
-                      activeAccessorySubTab === subTab ? productStyles.accessorySubTabActive : ""
-                    }`}
-                    onClick={() => handleAccessorySubTabChange(subTab)}
-                  >
-                    {subTab}
-                  </div>
-                ))}
-              </div>
-            )}
             <div className={styles.searchUsers}>
               <Search size={16} color="#94a3b8" />
               <input
@@ -1213,7 +1275,7 @@ export default function ProductsPage() {
                                   : productStyles.typeBadgeIndependent
                               }
                             >
-                              {product.accessoryType ?? activeAccessorySubTab}
+                              {product.accessoryType ?? ""}
                             </span>
                           </td>
                         </>
@@ -1229,6 +1291,64 @@ export default function ProductsPage() {
                             {statusBadges}
                           </td>
                           <td className={productStyles.nameCell}>{product.name}</td>
+                          <td style={{ maxWidth: 320, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {product.description ?? ""}
+                          </td>
+                          <td className={productStyles.comboItemCell}>
+                            {product.isComboItem ? (
+                              <div
+                                className={productStyles.comboItemTrigger}
+                                onMouseEnter={() => setComboPopupOpenForId(product.id)}
+                                onMouseLeave={() => setComboPopupOpenForId(null)}
+                                onClick={() =>
+                                  setComboPopupOpenForId((value) => (value === product.id ? null : product.id))
+                                }
+                                role="button"
+                                tabIndex={0}
+                                aria-label="View combo accessories"
+                                aria-expanded={comboPopupOpenForId === product.id}
+                              >
+                                <span style={{ cursor: "pointer" }}>View</span>
+                                <span style={{ color: "#64748b", fontWeight: 700 }}>
+                                  ({product.comboAccessoryIds?.length ?? 0})
+                                </span>
+
+                                {comboPopupOpenForId === product.id && (
+                                  <div className={productStyles.comboItemPopup} role="tooltip">
+                                    <div className={productStyles.comboItemPopupTitle}>
+                                      <Layers size={14} />
+                                      Combo Accessories
+                                    </div>
+                                    <div className={productStyles.comboItemPopupList}>
+                                      {(product.comboAccessoryIds ?? []).length === 0 ? (
+                                        <div style={{ color: "#64748b", fontWeight: 600, fontSize: "0.85rem" }}>
+                                          No accessories selected.
+                                        </div>
+                                      ) : (
+                                        (product.comboAccessoryIds ?? []).map((id) => {
+                                          const accessory = accessoryLookup.get(id);
+                                          const displayName = accessory?.name ?? String(id);
+                                          const displayType = accessory?.accessoryType ?? "";
+                                          return (
+                                            <div key={id} className={productStyles.comboItemPopupRow}>
+                                              <span className={productStyles.comboItemPopupName}>
+                                                {displayName}
+                                              </span>
+                                              <span className={productStyles.comboItemPopupType}>
+                                                {displayType}
+                                              </span>
+                                            </div>
+                                          );
+                                        })
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ fontWeight: 700, color: "#64748b" }}>No</span>
+                            )}
+                          </td>
                           <td className={productStyles.priceCell}>
                             {formatMoney(product.utilityPrice)}
                           </td>
@@ -1302,7 +1422,7 @@ export default function ProductsPage() {
         isOpen={modalMode === "add"}
         mode="add"
         fixtureType={activeTab}
-        defaultAccessoryType={activeAccessorySubTab}
+        defaultAccessoryType="Independent"
         onClose={closeModal}
         onSubmit={handleAddProduct}
         isSubmitting={isSubmitting}
@@ -1312,12 +1432,12 @@ export default function ProductsPage() {
         isOpen={modalMode === "edit"}
         mode="edit"
         fixtureType={editingProduct?.productType ?? activeTab}
-        defaultAccessoryType={activeAccessorySubTab}
+        defaultAccessoryType="Independent"
         initialData={
           editingProduct && isAccessoriesTab(editingProduct.productType)
             ? {
                 name: editingProduct.name,
-                accessoryType: editingProduct.accessoryType ?? activeAccessorySubTab,
+                accessoryType: editingProduct.accessoryType ?? "Independent",
               }
             : editingProduct
         }

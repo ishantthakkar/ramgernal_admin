@@ -21,6 +21,7 @@ import { adminApi } from "@/lib/api";
 import { formatNoteAuthorLabel, withNoteAuthor } from "@/lib/leadNotes";
 import { formatDateTime } from "@/lib/dateUtils";
 import { toast } from "react-toastify";
+import { UsaAddressFields } from "@/components/address/usa-address-fields";
 
 const SECTION_ICON_COLOR = "var(--admin-primary, #004d4d)";
 
@@ -282,21 +283,25 @@ export default function EditCustomerPage() {
           adminApi.getLeadSources().catch(() => ({ leadSources: [] })),
         ]);
         const customer = (customerRes.customer || {}) as Record<string, unknown>;
+        const leadRecord =
+          customer.leadId && typeof customer.leadId === "object"
+            ? (customer.leadId as Record<string, unknown>)
+            : null;
         setLeadSources(sourcesRes.leadSources || []);
 
-        setLeadIdLabel(String(customer.lead_id || customer.leadId || ""));
+        setLeadIdLabel(String(customer.lead_id || leadRecord?.lead_id || customer.leadId || ""));
         setCustomerStatus(String(customer.status || "New"));
 
         setFormData({
-          leadName: String(customer.leadName || customer.name || ""),
+          leadName: String(customer.leadName || leadRecord?.leadName || leadRecord?.name || customer.name || ""),
           email: String(customer.email || ""),
           mobileNumber: customer.mobileNumber
             ? formatUsPhone(String(customer.mobileNumber))
             : "",
-          dba: String(customer.dba || ""),
+          dba: String(customer.dba || leadRecord?.dba || ""),
           legalName: String(customer.legalName || ""),
           accountNumber: String(customer.accountNumber || ""),
-          electricCompany: String(customer.electricCompany || ""),
+          electricCompany: String(customer.electricCompany || leadRecord?.electricCompany || ""),
           leadSource: String(customer.leadSource || ""),
         });
 
@@ -899,6 +904,7 @@ export default function EditCustomerPage() {
                 <label>Title</label>
                 <input
                   type="text"
+                  placeholder="e.g. Office, Warehouse"
                   className={styles.formInput}
                   value={tempAddress.title}
                   onChange={(e) => setTempAddress({ ...tempAddress, title: e.target.value })}
@@ -908,40 +914,23 @@ export default function EditCustomerPage() {
                 <label>Street</label>
                 <input
                   type="text"
+                  placeholder="Street Address"
                   className={styles.formInput}
                   value={tempAddress.street}
                   onChange={(e) => setTempAddress({ ...tempAddress, street: e.target.value })}
                 />
               </div>
-              <div className={styles.formGroup}>
-                <label>City</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  value={tempAddress.city}
-                  onChange={(e) => setTempAddress({ ...tempAddress, city: e.target.value })}
-                />
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                <div className={styles.formGroup}>
-                  <label>State</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    value={tempAddress.state}
-                    onChange={(e) => setTempAddress({ ...tempAddress, state: e.target.value })}
-                  />
-                </div>
-                <div className={styles.formGroup}>
-                  <label>Zip</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    value={tempAddress.zip}
-                    onChange={(e) => setTempAddress({ ...tempAddress, zip: e.target.value })}
-                  />
-                </div>
-              </div>
+              <UsaAddressFields
+                flow="zipFirst"
+                city={tempAddress.city}
+                state={tempAddress.state}
+                zip={tempAddress.zip}
+                onChange={(updates) =>
+                  setTempAddress((prev) => ({ ...prev, ...updates }))
+                }
+                formGroupClassName={styles.formGroup}
+                formSelectClassName={styles.formSelect}
+              />
             </div>
             <div className={addStyles.modalFooter}>
               <button type="button" className={addStyles.modalCancelBtn} onClick={() => setActiveModal(null)}>
