@@ -5,7 +5,10 @@ import { X, Package } from "lucide-react";
 import modalStyles from "@/app/(authenticated)/commissions/commissions-modal.module.css";
 import {
   isExistingFixtureType,
+  isAccessoriesTab,
+  ACCESSORY_TYPE_TABS,
   type ProductFixtureType,
+  type AccessoryType,
 } from "@/lib/product-fixture-types";
 
 export interface ProposedProductFormData {
@@ -22,16 +25,28 @@ export interface ExistingProductFormData {
   name: string;
 }
 
+export interface AccessoryProductFormData {
+  name: string;
+  accessoryType: AccessoryType;
+}
+
 export type ProductFormData = ProposedProductFormData;
 
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: ProposedProductFormData | ExistingProductFormData) => void | Promise<void>;
+  onSubmit: (
+    data: ProposedProductFormData | ExistingProductFormData | AccessoryProductFormData
+  ) => void | Promise<void>;
   isSubmitting?: boolean;
   mode?: "add" | "edit";
-  initialData?: ProposedProductFormData | ExistingProductFormData | null;
+  initialData?:
+    | ProposedProductFormData
+    | ExistingProductFormData
+    | AccessoryProductFormData
+    | null;
   fixtureType?: ProductFixtureType;
+  defaultAccessoryType?: AccessoryType;
 }
 
 const emptyProposedForm = {
@@ -46,6 +61,11 @@ const emptyProposedForm = {
 
 const emptyExistingForm = {
   name: "",
+};
+
+const emptyAccessoryForm = {
+  name: "",
+  accessoryType: "Independent" as AccessoryType,
 };
 
 function toProposedFormValues(data: ProposedProductFormData) {
@@ -86,20 +106,41 @@ export function ProductFormModal({
   mode = "add",
   initialData = null,
   fixtureType = "Proposed Fixture",
+  defaultAccessoryType = "Independent",
 }: ProductFormModalProps) {
   const [proposedForm, setProposedForm] = useState(emptyProposedForm);
   const [existingForm, setExistingForm] = useState(emptyExistingForm);
+  const [accessoryForm, setAccessoryForm] = useState(emptyAccessoryForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isExisting = isExistingFixtureType(fixtureType);
+  const isAccessory = isAccessoriesTab(fixtureType);
   const isEdit = mode === "edit";
-  const title = isEdit ? "Edit Product" : "Add Product";
-  const submitLabel = isEdit ? "Save Changes" : "Add Product";
+  const title = isEdit
+    ? isAccessory
+      ? "Edit Accessory"
+      : "Edit Product"
+    : isAccessory
+      ? "Add Accessory"
+      : "Add Product";
+  const submitLabel = isEdit ? "Save Changes" : isAccessory ? "Add Accessory" : "Add Product";
 
   useEffect(() => {
     if (!isOpen) return;
 
-    if (isExisting) {
+    if (isAccessory) {
+      if (isEdit && initialData && "accessoryType" in initialData) {
+        setAccessoryForm({
+          name: initialData.name,
+          accessoryType: initialData.accessoryType,
+        });
+      } else {
+        setAccessoryForm({
+          name: "",
+          accessoryType: defaultAccessoryType,
+        });
+      }
+    } else if (isExisting) {
       if (isEdit && initialData && "name" in initialData) {
         setExistingForm({ name: initialData.name });
       } else {
@@ -112,13 +153,14 @@ export function ProductFormModal({
     }
 
     setErrors({});
-  }, [isOpen, isEdit, initialData, isExisting]);
+  }, [isOpen, isEdit, initialData, isExisting, isAccessory, defaultAccessoryType]);
 
   if (!isOpen) return null;
 
   function handleClose() {
     setProposedForm(emptyProposedForm);
     setExistingForm(emptyExistingForm);
+    setAccessoryForm(emptyAccessoryForm);
     setErrors({});
     onClose();
   }
@@ -134,6 +176,26 @@ export function ProductFormModal({
     if (Object.keys(next).length > 0) return null;
 
     return { name: existingForm.name.trim() };
+  }
+
+  function validateAccessoryForm(): AccessoryProductFormData | null {
+    const next: Record<string, string> = {};
+
+    if (!accessoryForm.name.trim()) {
+      next.name = "Name is required.";
+    }
+
+    if (!ACCESSORY_TYPE_TABS.includes(accessoryForm.accessoryType)) {
+      next.accessoryType = "Type is required.";
+    }
+
+    setErrors(next);
+    if (Object.keys(next).length > 0) return null;
+
+    return {
+      name: accessoryForm.name.trim(),
+      accessoryType: accessoryForm.accessoryType,
+    };
   }
 
   function validateProposedForm(): ProposedProductFormData | null {
@@ -195,13 +257,19 @@ export function ProductFormModal({
     e.preventDefault();
     if (isSubmitting) return;
 
-    const payload = isExisting ? validateExistingForm() : validateProposedForm();
+    const payload = isAccessory
+      ? validateAccessoryForm()
+      : isExisting
+        ? validateExistingForm()
+        : validateProposedForm();
     if (!payload) return;
 
     await onSubmit(payload);
 
     if (!isEdit) {
-      if (isExisting) {
+      if (isAccessory) {
+        setAccessoryForm({ name: "", accessoryType: defaultAccessoryType });
+      } else if (isExisting) {
         setExistingForm(emptyExistingForm);
       } else {
         setProposedForm(emptyProposedForm);
@@ -242,7 +310,63 @@ export function ProductFormModal({
 
         <form onSubmit={handleSubmit}>
           <div className={modalStyles.modalBody}>
-            {isExisting ? (
+            {isAccessory ? (
+              <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <div className={modalStyles.formGroup}>
+                  <label htmlFor="accessory-name">
+                    Name <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    id="accessory-name"
+                    type="text"
+                    className={modalStyles.formInput}
+                    placeholder="Accessory name"
+                    value={accessoryForm.name}
+                    required
+                    onChange={(e) => {
+                      setAccessoryForm((prev) => ({ ...prev, name: e.target.value }));
+                      if (errors.name) setErrors((prev) => ({ ...prev, name: "" }));
+                    }}
+                  />
+                  {errors.name && (
+                    <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                      {errors.name}
+                    </span>
+                  )}
+                </div>
+
+                <div className={modalStyles.formGroup}>
+                  <label htmlFor="accessory-type">
+                    Type <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <select
+                    id="accessory-type"
+                    className={modalStyles.formInput}
+                    value={accessoryForm.accessoryType}
+                    onChange={(e) => {
+                      setAccessoryForm((prev) => ({
+                        ...prev,
+                        accessoryType: e.target.value as AccessoryType,
+                      }));
+                      if (errors.accessoryType) {
+                        setErrors((prev) => ({ ...prev, accessoryType: "" }));
+                      }
+                    }}
+                  >
+                    {ACCESSORY_TYPE_TABS.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.accessoryType && (
+                    <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                      {errors.accessoryType}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : isExisting ? (
               <div className={modalStyles.formGroup}>
                 <label htmlFor="existing-product-name">
                   Name <span style={{ color: "#ef4444" }}>*</span>

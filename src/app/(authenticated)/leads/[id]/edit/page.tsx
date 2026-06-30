@@ -65,6 +65,10 @@ import {
   persistLeadActivities,
   persistLeadNotes,
 } from "@/lib/leadPersistence";
+import {
+  leadCanConvertToCustomer,
+  leadHasPhoneOrMobile,
+} from "@/lib/lead-validation";
 import { toast } from "react-toastify";
 import { UsaAddressFields } from "@/components/address/usa-address-fields";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
@@ -175,6 +179,7 @@ export default function EditLeadPage() {
   const [existingActivityLog, setExistingActivityLog] = useState<ExistingActivity[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [lostReason, setLostReason] = useState("");
+  const [convertMobileNumber, setConvertMobileNumber] = useState("");
   const [modalConfig, setModalConfig] = useState({
     type: "convert" as "convert" | "lost",
     title: "",
@@ -190,6 +195,7 @@ export default function EditLeadPage() {
   const [formData, setFormData] = useState({
     email: "",
     mobileNumber: "",
+    phone: "",
     leadName: "",
     dba: "",
     legalName: "",
@@ -448,6 +454,7 @@ export default function EditLeadPage() {
         setFormData({
           email: lead.email || "",
           mobileNumber: lead.mobileNumber ? formatUsPhone(lead.mobileNumber) : "",
+          phone: lead.phone || "",
           leadName: lead.leadName || lead.name || "",
           dba: lead.dba || "",
           legalName: lead.legalName || "",
@@ -635,12 +642,21 @@ export default function EditLeadPage() {
     }
   };
 
+  const convertLeadPhoneCheck = {
+    mobileNumber: formData.mobileNumber,
+    phone: formData.phone,
+    contactInfo,
+  };
+  const convertNeedsMobile = !leadHasPhoneOrMobile(convertLeadPhoneCheck);
+
   const handleConvertClick = () => {
+    setConvertMobileNumber(formData.mobileNumber || "");
     setModalConfig({
       type: "convert",
       title: "Convert to Customer",
-      message:
-        "Are you sure you want to convert this lead to a customer? This will create a new customer record and workflow.",
+      message: convertNeedsMobile
+        ? "Add a mobile number below, then convert this lead to a customer."
+        : "Are you sure you want to convert this lead to a customer?",
       confirmText: "Yes, Convert",
       btnType: "success",
     });
@@ -653,7 +669,7 @@ export default function EditLeadPage() {
       type: "lost",
       title: "Mark as Lost",
       message:
-        "Are you sure you want to mark this lead as lost? This action can be reversed by changing the status later.",
+        "Are you sure you want to mark this lead as lost?",
       confirmText: "Yes, Mark Lost",
       btnType: "danger",
     });
@@ -663,6 +679,7 @@ export default function EditLeadPage() {
   const handleCloseConfirmModal = () => {
     setShowConfirmModal(false);
     setLostReason("");
+    setConvertMobileNumber("");
   };
 
   const handleModalConfirm = async () => {
@@ -678,6 +695,18 @@ export default function EditLeadPage() {
   const handleConvert = async () => {
     setConverting(true);
     try {
+      const mobileToSave = convertMobileNumber.trim();
+      if (mobileToSave) {
+        const currentMobile = formData.mobileNumber.trim();
+        if (mobileToSave !== currentMobile) {
+          const data = new FormData();
+          data.append("id", id);
+          data.append("mobileNumber", mobileToSave);
+          await adminApi.updateLead(data);
+          setFormData((prev) => ({ ...prev, mobileNumber: mobileToSave }));
+        }
+      }
+
       await adminApi.convertLead(id);
       toast.success("Lead converted to customer successfully!");
       router.push("/customers");
@@ -686,15 +715,12 @@ export default function EditLeadPage() {
       toast.error(message);
     } finally {
       setConverting(false);
+      setConvertMobileNumber("");
     }
   };
 
   const handleLost = async () => {
     const reason = lostReason.trim();
-    if (!reason) {
-      toast.error("Please enter a lost reason.");
-      return;
-    }
 
     setMarkingLost(true);
     try {
@@ -1641,12 +1667,15 @@ export default function EditLeadPage() {
         confirmText={modalConfig.confirmText}
         type={modalConfig.btnType}
         isLoading={converting || markingLost}
-        confirmDisabled={modalConfig.type === "lost" && !lostReason.trim()}
+        confirmDisabled={
+          modalConfig.type === "convert" &&
+          !leadCanConvertToCustomer(convertLeadPhoneCheck, convertMobileNumber)
+        }
       >
         {modalConfig.type === "lost" ? (
           <div>
             <label className={modalStyles.modalFieldLabel} htmlFor="lost-reason-edit">
-              Lost Reason <span className={modalStyles.modalFieldRequired}>*</span>
+              Lost Reason
             </label>
             <textarea
               id="lost-reason-edit"
@@ -1655,6 +1684,24 @@ export default function EditLeadPage() {
               value={lostReason}
               onChange={(e) => setLostReason(e.target.value)}
               disabled={markingLost}
+            />
+          </div>
+        ) : null}
+        {modalConfig.type === "convert" && convertNeedsMobile ? (
+          <div>
+            <label className={modalStyles.modalFieldLabel} htmlFor="convert-mobile-edit">
+              Mobile Number <span className={modalStyles.modalFieldRequired}>*</span>
+            </label>
+            <input
+              id="convert-mobile-edit"
+              type="tel"
+              className={modalStyles.modalInput}
+              placeholder="(555) 555-1234"
+              value={convertMobileNumber}
+              onChange={(e) => setConvertMobileNumber(formatUsPhone(e.target.value))}
+              disabled={converting}
+              inputMode="numeric"
+              maxLength={14}
             />
           </div>
         ) : null}

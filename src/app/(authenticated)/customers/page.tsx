@@ -1,13 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import styles from "./customers.module.css";
 import dashboardStyles from "../dashboard.module.css";
-import { ChevronLeft, ChevronRight, Search, Loader2 } from "lucide-react";
+import modalStyles from "../workflow/assign-modal.module.css";
+import { ChevronLeft, ChevronRight, Search, Loader2, UserPlus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { adminApi } from "@/lib/api";
 import { hasPermission } from "@/lib/permissions";
 import { mapCustomerRows, type CustomerRow } from "@/lib/mappers/customers";
+import { toast } from "react-toastify";
+
+interface SalesManagerOption {
+  _id: string;
+  fullName?: string;
+  userRole?: string;
+}
+
+function hasAssignedSalesManager(name: string): boolean {
+  const value = name.trim();
+  return Boolean(value && value !== "—");
+}
 
 export default function CustomersPage() {
   const router = useRouter();
@@ -17,23 +30,29 @@ export default function CustomersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [targetCustomer, setTargetCustomer] = useState<CustomerRow | null>(null);
+  const [availableManagers, setAvailableManagers] = useState<SalesManagerOption[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
+
   const canEdit = hasPermission("Customers", "edit");
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      setLoading(true);
-      try {
-        const response = await adminApi.getCustomers();
-        const raw = response.customers || response.data || response;
-        setCustomers(mapCustomerRows(Array.isArray(raw) ? raw : []));
-      } catch (err) {
-        console.error("Failed to fetch customers:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCustomers();
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await adminApi.getCustomers();
+      const raw = response.customers || response.data || response;
+      setCustomers(mapCustomerRows(Array.isArray(raw) ? raw : []));
+    } catch (err) {
+      console.error("Failed to fetch customers:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const filteredCustomers = customers.filter((customer) => {
     const q = searchQuery.toLowerCase();
@@ -45,6 +64,7 @@ export default function CustomersPage() {
       customer.accountNumber.toLowerCase().includes(q) ||
       customer.dba.toLowerCase().includes(q) ||
       customer.salesPersonName.toLowerCase().includes(q) ||
+      customer.salesManagerName.toLowerCase().includes(q) ||
       customer.statusLabel.toLowerCase().includes(q)
     );
   });
@@ -57,6 +77,54 @@ export default function CustomersPage() {
   const handlePageChange = (pageNum: number) => {
     if (pageNum > 0 && pageNum <= totalPages) {
       setCurrentPage(pageNum);
+    }
+  };
+
+  const openAssignSalesManagerModal = async (customer: CustomerRow) => {
+    setTargetCustomer(customer);
+    setShowAssignModal(true);
+    setModalLoading(true);
+    setAvailableManagers([]);
+
+    try {
+      const response = await adminApi.getUserList("Sales Manager");
+      const managers = response.users || response.data || response;
+      setAvailableManagers(Array.isArray(managers) ? managers : []);
+    } catch (err) {
+      console.error("Failed to fetch sales managers:", err);
+      toast.error("Could not load sales managers.");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleAssignSalesManager = async (manager: SalesManagerOption) => {
+    if (!targetCustomer) return;
+
+    try {
+      setModalLoading(true);
+      const response = await adminApi.assignSalesManagerToCustomer(
+        targetCustomer.id,
+        manager._id
+      );
+
+      const managerName = String(response.salesManagerName || manager.fullName || "").trim();
+      setCustomers((prev) =>
+        prev.map((customer) =>
+          customer.id === targetCustomer.id
+            ? { ...customer, salesManagerName: managerName || customer.salesManagerName }
+            : customer
+        )
+      );
+
+      toast.success(response.message || "Sales manager assigned successfully.");
+      setShowAssignModal(false);
+      setTargetCustomer(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to assign sales manager.";
+      toast.error(message);
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -99,13 +167,14 @@ export default function CustomersPage() {
               <th>MOBILE NUMBER</th>
               <th>EMAIL</th>
               <th>DBA</th>
+              <th>SALES MANAGER</th>
               <th>ACTIONS</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: "4rem" }}>
+                <td colSpan={8} style={{ textAlign: "center", padding: "4rem" }}>
                   <div
                     style={{
                       display: "flex",
@@ -122,12 +191,15 @@ export default function CustomersPage() {
               </tr>
             ) : filteredCustomers.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
+                <td colSpan={8} style={{ textAlign: "center", padding: "4rem", color: "#94a3b8", fontWeight: 600 }}>
                   No customers found.
                 </td>
               </tr>
             ) : (
-              currentItems.map((customer) => (
+              currentItems.map((customer) => {
+                const managerAssigned = hasAssignedSalesManager(customer.salesManagerName);
+
+                return (
                   <tr key={customer.id}>
                     <td style={{ fontWeight: 600, color: "#94a3b8" }}>{customer.leadId || "—"}</td>
                     <td
@@ -147,6 +219,24 @@ export default function CustomersPage() {
                     <td style={{ color: "#64748b" }}>{customer.email}</td>
                     <td>{customer.dba}</td>
                     <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                        {managerAssigned ? (
+                          <span style={{ fontWeight: 600, color: "#1e293b" }}>
+                            {customer.salesManagerName}
+                          </span>
+                        ) : canEdit ? (
+                          <button
+                            type="button"
+                            className={dashboardStyles.assignBtn}
+                            onClick={() => openAssignSalesManagerModal(customer)}
+                          >
+                            <UserPlus size={14} strokeWidth={2.25} aria-hidden="true" />
+                            <span>Assign</span>
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td>
                       {canEdit && (
                         <button
                           type="button"
@@ -158,7 +248,8 @@ export default function CustomersPage() {
                       )}
                     </td>
                   </tr>
-                ))
+                );
+              })
             )}
           </tbody>
         </table>
@@ -195,6 +286,63 @@ export default function CustomersPage() {
           </div>
         </div>
       </div>
+
+      {showAssignModal && (
+        <div className={modalStyles.modalOverlay} onClick={() => setShowAssignModal(false)}>
+          <div className={modalStyles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={modalStyles.modalHeader}>
+              <h3>Assign Sales Manager</h3>
+              <button className={modalStyles.closeBtn} onClick={() => setShowAssignModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className={modalStyles.modalBody}>
+              {targetCustomer ? (
+                <p style={{ margin: "0 0 1rem", color: "#64748b", fontSize: "0.9rem" }}>
+                  Customer: <strong style={{ color: "#1e293b" }}>{targetCustomer.leadName}</strong>
+                </p>
+              ) : null}
+
+              {modalLoading ? (
+                <div className={modalStyles.modalLoading}>
+                  <Loader2 size={40} className={modalStyles.spinner} />
+                  <p>Fetching available sales managers...</p>
+                </div>
+              ) : availableManagers.length === 0 ? (
+                <div className={modalStyles.emptyState}>
+                  <p>No sales managers found in the system.</p>
+                </div>
+              ) : (
+                <div className={modalStyles.staffList}>
+                  {availableManagers.map((manager) => (
+                    <div key={manager._id} className={modalStyles.staffItem}>
+                      <div className={modalStyles.staffLeft}>
+                        <div className={modalStyles.staffAvatar}>
+                          {manager.fullName?.charAt(0) || "S"}
+                        </div>
+                        <div className={modalStyles.staffInfo}>
+                          <span className={modalStyles.staffName}>{manager.fullName}</span>
+                          <span className={modalStyles.staffRole}>
+                            {manager.userRole || "Sales Manager"}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className={modalStyles.modalAssignBtn}
+                        onClick={() => handleAssignSalesManager(manager)}
+                      >
+                        Assign
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

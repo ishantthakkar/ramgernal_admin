@@ -169,6 +169,28 @@
   color: #94a3b8;
 }
 
+.modalInput {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: #1e293b;
+  font-family: inherit;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.modalInput:focus {
+  outline: none;
+  border-color: #004d4d;
+  box-shadow: 0 0 0 3px rgba(0, 77, 77, 0.12);
+}
+
+.modalInput::placeholder {
+  color: #94a3b8;
+}
+
 .modalFooter {
   display: flex;
   gap: 1rem;

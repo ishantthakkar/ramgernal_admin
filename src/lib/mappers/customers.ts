@@ -10,6 +10,7 @@ export interface CustomerRow {
   mobileNumber: string;
   dba: string;
   salesPersonName: string;
+  salesManagerName: string;
   status: string;
   statusLabel: string;
   verifyStatus: string;
@@ -27,6 +28,7 @@ export function mapCustomerRow(raw: Record<string, unknown>): CustomerRow {
     mobileNumber: String(raw.mobileNumber || raw.phone || "—"),
     dba: String(raw.dba || "—"),
     salesPersonName: String(raw.salesPersonName || "—"),
+    salesManagerName: String(raw.salesManagerName || "—"),
     status,
     statusLabel: formatCustomerStatusLabel(status, verifyStatus),
     verifyStatus,

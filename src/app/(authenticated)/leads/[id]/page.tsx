@@ -24,6 +24,8 @@ import modalStyles from "@/components/modals/ConfirmationModal.module.css";
 import { formatDate, formatDateTime } from "@/lib/dateUtils";
 import { formatNoteAuthorLabel } from "@/lib/leadNotes";
 import { getActivityDisplayText } from "@/lib/leadPersistence";
+import { formatUsPhone } from "@/lib/format-us-phone";
+import { leadCanConvertToCustomer, leadHasPhoneOrMobile } from "@/lib/lead-validation";
 
 function resolveUploadsUrl(filename: string): string {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -77,6 +79,7 @@ export default function LeadDetailsPage() {
   // Modal State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [lostReason, setLostReason] = useState("");
+  const [convertMobileNumber, setConvertMobileNumber] = useState("");
   const [modalConfig, setModalConfig] = useState({
     type: "convert" as "convert" | "lost",
     title: "",
@@ -106,11 +109,18 @@ export default function LeadDetailsPage() {
     if (id) fetchLead();
   }, [id]);
 
+  const convertNeedsMobile = lead ? !leadHasPhoneOrMobile(lead) : false;
+
   const handleConvertClick = () => {
+    setConvertMobileNumber(
+      lead?.mobileNumber ? formatUsPhone(String(lead.mobileNumber)) : ""
+    );
     setModalConfig({
       type: "convert",
       title: "Convert to Customer",
-      message: "Are you sure you want to convert this lead to a customer? This will create a new customer record and workflow.",
+      message: convertNeedsMobile
+        ? "Add a mobile number below, then convert this lead to a customer."
+        : "Are you sure you want to convert this lead to a customer?",
       confirmText: "Yes, Convert",
       btnType: "success"
     });
@@ -122,7 +132,7 @@ export default function LeadDetailsPage() {
     setModalConfig({
       type: "lost",
       title: "Mark as Lost",
-      message: "Are you sure you want to mark this lead as lost? This action can be reversed by changing the status later.",
+      message: "Are you sure you want to mark this lead as lost?",
       confirmText: "Yes, Mark Lost",
       btnType: "danger"
     });
@@ -132,6 +142,7 @@ export default function LeadDetailsPage() {
   const handleCloseConfirmModal = () => {
     setShowConfirmModal(false);
     setLostReason("");
+    setConvertMobileNumber("");
   };
 
   const handleModalConfirm = async () => {
@@ -147,6 +158,17 @@ export default function LeadDetailsPage() {
   const handleConvert = async () => {
     setConverting(true);
     try {
+      const mobileToSave = convertMobileNumber.trim();
+      if (mobileToSave) {
+        const currentMobile = String(lead?.mobileNumber || "").trim();
+        if (mobileToSave !== currentMobile) {
+          const data = new FormData();
+          data.append("id", id);
+          data.append("mobileNumber", mobileToSave);
+          await adminApi.updateLead(data);
+        }
+      }
+
       await adminApi.convertLead(id);
       toast.success("Lead converted to customer successfully!");
       router.push("/customers");
@@ -154,15 +176,12 @@ export default function LeadDetailsPage() {
       toast.error(err.message || "Failed to convert lead. Please try again.");
     } finally {
       setConverting(false);
+      setConvertMobileNumber("");
     }
   };
 
   const handleLost = async () => {
     const reason = lostReason.trim();
-    if (!reason) {
-      toast.error("Please enter a lost reason.");
-      return;
-    }
 
     setMarkingLost(true);
     try {
@@ -651,12 +670,15 @@ export default function LeadDetailsPage() {
         confirmText={modalConfig.confirmText}
         type={modalConfig.btnType}
         isLoading={converting || markingLost}
-        confirmDisabled={modalConfig.type === "lost" && !lostReason.trim()}
+        confirmDisabled={
+          modalConfig.type === "convert" &&
+          !leadCanConvertToCustomer(lead || {}, convertMobileNumber)
+        }
       >
         {modalConfig.type === "lost" ? (
           <div>
             <label className={modalStyles.modalFieldLabel} htmlFor="lost-reason-view">
-              Lost Reason <span className={modalStyles.modalFieldRequired}>*</span>
+              Lost Reason
             </label>
             <textarea
               id="lost-reason-view"
@@ -665,6 +687,24 @@ export default function LeadDetailsPage() {
               value={lostReason}
               onChange={(e) => setLostReason(e.target.value)}
               disabled={markingLost}
+            />
+          </div>
+        ) : null}
+        {modalConfig.type === "convert" && convertNeedsMobile ? (
+          <div>
+            <label className={modalStyles.modalFieldLabel} htmlFor="convert-mobile-view">
+              Mobile Number <span className={modalStyles.modalFieldRequired}>*</span>
+            </label>
+            <input
+              id="convert-mobile-view"
+              type="tel"
+              className={modalStyles.modalInput}
+              placeholder="(555) 555-1234"
+              value={convertMobileNumber}
+              onChange={(e) => setConvertMobileNumber(formatUsPhone(e.target.value))}
+              disabled={converting}
+              inputMode="numeric"
+              maxLength={14}
             />
           </div>
         ) : null}

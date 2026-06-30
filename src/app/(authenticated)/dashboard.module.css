@@ -787,6 +787,10 @@
 }
 
 .assignBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   background: #ffffff;
   border: 1px solid var(--admin-primary);
   color: var(--admin-primary);
@@ -794,9 +798,14 @@
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 700;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
+}
+
+.assignBtn svg {
+  flex-shrink: 0;
 }
 
 .assignBtn:hover {

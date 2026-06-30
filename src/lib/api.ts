@@ -145,6 +145,11 @@ export const adminApi = {
   getCustomers: () => apiRequest("/customer/customers-list", {
     method: "GET",
   }),
+  assignSalesManagerToCustomer: (customerId: string, salesManagerId: string) =>
+    apiRequest("/customer/customers/assign-sales-manager", {
+      method: "POST",
+      body: JSON.stringify({ customerId, salesManagerId }),
+    }),
   getWorkflowSurveys: () => apiRequest("/workflow-surveys", {
     method: "GET",
   }),
@@ -409,10 +414,11 @@ export const adminApi = {
   getActivityLogs: () => apiRequest("/activities", {
     method: "GET",
   }),
-  getProducts: (productType?: string) => {
-    const query = productType
-      ? `?productType=${encodeURIComponent(productType)}`
-      : "";
+  getProducts: (productType?: string, accessoryType?: string) => {
+    const params = new URLSearchParams();
+    if (productType) params.set("productType", productType);
+    if (accessoryType) params.set("accessoryType", accessoryType);
+    const query = params.toString() ? `?${params.toString()}` : "";
     return apiRequest(`/products${query}`, {
       method: "GET",
     });
@@ -441,6 +447,11 @@ export const adminApi = {
           name: string;
           productType: string;
         }
+      | {
+          name: string;
+          accessoryType: string;
+          productType: string;
+        }
   ) =>
     apiRequest("/products", {
       method: "POST",
@@ -461,6 +472,11 @@ export const adminApi = {
         }
       | {
           name: string;
+          productType?: string;
+        }
+      | {
+          name: string;
+          accessoryType: string;
           productType?: string;
         }
   ) =>

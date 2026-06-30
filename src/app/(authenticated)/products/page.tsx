@@ -23,6 +23,7 @@ import {
   ProductFormModal,
   type ExistingProductFormData,
   type ProposedProductFormData,
+  type AccessoryProductFormData,
 } from "@/components/modals/AddProductModal";
 import {
   ProductUploadDuplicateModal,
@@ -39,10 +40,14 @@ import {
 } from "@/lib/product-excel";
 import {
   PRODUCT_FIXTURE_TABS,
+  ACCESSORY_TYPE_TABS,
   fixtureTypeSlug,
   isExistingFixtureType,
+  isAccessoriesTab,
   parseProductTabFromParam,
+  parseAccessoryTypeFromParam,
   type ProductFixtureType,
+  type AccessoryType,
 } from "@/lib/product-fixture-types";
 import {
   validateProposedNamePriceAgainstCatalog,
@@ -60,6 +65,7 @@ interface Product {
   managerCommission: number;
   installationCost: number;
   productType: ProductFixtureType;
+  accessoryType?: AccessoryType;
   pendingUpload?: "create" | "add-also" | "overwrite";
 }
 
@@ -85,7 +91,10 @@ const PROPOSED_TABLE_COLUMNS = [
 
 const EXISTING_TABLE_COLUMNS = ["Name", "Actions"] as const;
 
+const ACCESSORIES_TABLE_COLUMNS = ["Name", "Type", "Actions"] as const;
+
 function getTableColumns(fixtureType: ProductFixtureType) {
+  if (isAccessoriesTab(fixtureType)) return ACCESSORIES_TABLE_COLUMNS;
   return isExistingFixtureType(fixtureType)
     ? EXISTING_TABLE_COLUMNS
     : PROPOSED_TABLE_COLUMNS;
@@ -115,6 +124,9 @@ function mapProduct(
     productType: PRODUCT_FIXTURE_TABS.includes(productType)
       ? productType
       : fallbackType,
+    accessoryType: raw.accessoryType
+      ? (String(raw.accessoryType) as AccessoryType)
+      : undefined,
   };
 }
 
@@ -244,6 +256,9 @@ export default function ProductsPage() {
   const [activeTab, setActiveTab] = useState<ProductFixtureType>(() =>
     parseProductTabFromParam(searchParams.get("tab"))
   );
+  const [activeAccessorySubTab, setActiveAccessorySubTab] = useState<AccessoryType>(() =>
+    parseAccessoryTypeFromParam(searchParams.get("accessoryType"))
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState<Product[]>([]);
@@ -269,10 +284,14 @@ export default function ProductsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const itemsPerPage = 10;
 
-  const fetchProducts = useCallback(async (fixtureType: ProductFixtureType) => {
+  const fetchProducts = useCallback(
+    async (fixtureType: ProductFixtureType, accessoryType?: AccessoryType) => {
     setLoading(true);
     try {
-      const response = await adminApi.getProducts(fixtureType);
+      const response = await adminApi.getProducts(
+        fixtureType,
+        isAccessoriesTab(fixtureType) ? accessoryType : undefined
+      );
       const list = (response.products || []).map((p: Record<string, unknown>) =>
         mapProduct(p, fixtureType)
       );
@@ -291,15 +310,22 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  },
+    []
+  );
 
   useEffect(() => {
     setActiveTab(parseProductTabFromParam(searchParams.get("tab")));
+    setActiveAccessorySubTab(parseAccessoryTypeFromParam(searchParams.get("accessoryType")));
   }, [searchParams]);
 
   useEffect(() => {
-    fetchProducts(activeTab);
-  }, [activeTab, fetchProducts]);
+    if (isAccessoriesTab(activeTab)) {
+      fetchProducts(activeTab, activeAccessorySubTab);
+    } else {
+      fetchProducts(activeTab);
+    }
+  }, [activeTab, activeAccessorySubTab, fetchProducts]);
 
   function handleTabChange(tab: ProductFixtureType) {
     if (tab === activeTab) return;
@@ -313,6 +339,22 @@ export default function ProductsPage() {
     setDuplicateResolutions(new Map());
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
+    if (isAccessoriesTab(tab)) {
+      params.set("accessoryType", activeAccessorySubTab);
+    } else {
+      params.delete("accessoryType");
+    }
+    router.replace(`/products?${params.toString()}`, { scroll: false });
+  }
+
+  function handleAccessorySubTabChange(subTab: AccessoryType) {
+    if (subTab === activeAccessorySubTab) return;
+    setActiveAccessorySubTab(subTab);
+    setSearchQuery("");
+    setCurrentPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "Accessories");
+    params.set("accessoryType", subTab);
     router.replace(`/products?${params.toString()}`, { scroll: false });
   }
 
@@ -321,6 +363,13 @@ export default function ProductsPage() {
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase();
     return products.filter((product) => {
+      if (isAccessoriesTab(activeTab)) {
+        return (
+          product.name.toLowerCase().includes(query) ||
+          (product.accessoryType ?? "").toLowerCase().includes(query)
+        );
+      }
+
       if (isExistingFixtureType(activeTab)) {
         return product.name.toLowerCase().includes(query);
       }
@@ -778,10 +827,32 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleAddProduct(data: ProposedProductFormData | ExistingProductFormData) {
+  async function handleAddProduct(
+    data: ProposedProductFormData | ExistingProductFormData | AccessoryProductFormData
+  ) {
     setIsSubmitting(true);
     try {
-      if (isExistingFixtureType(activeTab)) {
+      if (isAccessoriesTab(activeTab)) {
+        const accessoryData = data as AccessoryProductFormData;
+        const existing = serverProducts.find(
+          (product) =>
+            product.name.trim().toLowerCase() === accessoryData.name.trim().toLowerCase() &&
+            product.accessoryType === accessoryData.accessoryType
+        );
+
+        if (existing) {
+          toast.error(
+            `Name "${accessoryData.name}" already exists for ${accessoryData.accessoryType} accessories.`
+          );
+          return;
+        }
+
+        await adminApi.createProduct({
+          name: accessoryData.name,
+          accessoryType: accessoryData.accessoryType,
+          productType: activeTab,
+        });
+      } else if (isExistingFixtureType(activeTab)) {
         const existingData = data as ExistingProductFormData;
         const existing = buildProductLookup(serverProducts, activeTab).get(
           existingData.name.trim().toLowerCase()
@@ -825,8 +896,12 @@ export default function ProductsPage() {
       }
       closeModal();
       setCurrentPage(1);
-      toast.success("Product added successfully.");
-      await fetchProducts(activeTab);
+      toast.success(isAccessoriesTab(activeTab) ? "Accessory added successfully." : "Product added successfully.");
+      if (isAccessoriesTab(activeTab)) {
+        await fetchProducts(activeTab, activeAccessorySubTab);
+      } else {
+        await fetchProducts(activeTab);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to add product";
       toast.error(message);
@@ -836,12 +911,21 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleEditProduct(data: ProposedProductFormData | ExistingProductFormData) {
+  async function handleEditProduct(
+    data: ProposedProductFormData | ExistingProductFormData | AccessoryProductFormData
+  ) {
     if (!editingProduct) return;
 
     setIsSubmitting(true);
     try {
-      if (isExistingFixtureType(editingProduct.productType)) {
+      if (isAccessoriesTab(editingProduct.productType)) {
+        const accessoryData = data as AccessoryProductFormData;
+        await adminApi.updateProduct(editingProduct.id, {
+          name: accessoryData.name,
+          accessoryType: accessoryData.accessoryType,
+          productType: editingProduct.productType,
+        });
+      } else if (isExistingFixtureType(editingProduct.productType)) {
         await adminApi.updateProduct(editingProduct.id, {
           name: (data as ExistingProductFormData).name,
           productType: editingProduct.productType,
@@ -865,8 +949,16 @@ export default function ProductsPage() {
         });
       }
       closeModal();
-      toast.success("Product updated successfully.");
-      await fetchProducts(activeTab);
+      toast.success(
+        isAccessoriesTab(editingProduct.productType)
+          ? "Accessory updated successfully."
+          : "Product updated successfully."
+      );
+      if (isAccessoriesTab(editingProduct.productType)) {
+        await fetchProducts(editingProduct.productType, activeAccessorySubTab);
+      } else {
+        await fetchProducts(editingProduct.productType);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update product";
       toast.error(message);
@@ -886,6 +978,8 @@ export default function ProductsPage() {
       <div className={productStyles.pageHeader}>
         <h1 className={styles.welcomeText}>Products</h1>
         <div className={productStyles.headerActions}>
+          {!isAccessoriesTab(activeTab) && (
+            <>
           <button
             type="button"
             className={productStyles.secondaryBtn}
@@ -913,10 +1007,16 @@ export default function ProductsPage() {
             className={productStyles.hiddenFileInput}
             onChange={handleFileUpload}
           />
+            </>
+          )}
           <button
             type="button"
             className={productStyles.secondaryBtn}
-            onClick={() => fetchProducts(activeTab)}
+            onClick={() =>
+              isAccessoriesTab(activeTab)
+                ? fetchProducts(activeTab, activeAccessorySubTab)
+                : fetchProducts(activeTab)
+            }
             disabled={loading || isSavingBulk || isUploading}
             title="Reload products from server"
           >
@@ -927,6 +1027,7 @@ export default function ProductsPage() {
             )}
             Reload
           </button>
+          {!isAccessoriesTab(activeTab) && (
           <button
             type="button"
             className={productStyles.secondaryBtn}
@@ -935,6 +1036,7 @@ export default function ProductsPage() {
           >
             <FileSpreadsheet size={18} /> Export
           </button>
+          )}
           {isExistingFixtureType(activeTab) && (
             <button
               type="button"
@@ -963,7 +1065,7 @@ export default function ProductsPage() {
           )}
           {canCreateProducts && (
           <button type="button" className={styles.addBtn} onClick={openAddModal}>
-            <Plus size={20} /> Add Product
+            <Plus size={20} /> {isAccessoriesTab(activeTab) ? "Add Accessory" : "Add Product"}
           </button>
           )}
         </div>
@@ -1017,18 +1119,37 @@ export default function ProductsPage() {
               </div>
             ))}
           </div>
-          <div className={styles.searchUsers}>
-            <Search size={16} color="#94a3b8" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              className={styles.searchInputSmall}
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
+          <div className={productStyles.searchRow}>
+            {isAccessoriesTab(activeTab) && (
+              <div className={productStyles.accessorySubTabs}>
+                {ACCESSORY_TYPE_TABS.map((subTab) => (
+                  <div
+                    key={subTab}
+                    className={`${productStyles.accessorySubTab} ${
+                      activeAccessorySubTab === subTab ? productStyles.accessorySubTabActive : ""
+                    }`}
+                    onClick={() => handleAccessorySubTabChange(subTab)}
+                  >
+                    {subTab}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className={styles.searchUsers}>
+              <Search size={16} color="#94a3b8" />
+              <input
+                type="text"
+                placeholder={
+                  isAccessoriesTab(activeTab) ? "Search accessories..." : "Search products..."
+                }
+                className={styles.searchInputSmall}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -1081,7 +1202,22 @@ export default function ProductsPage() {
 
                   return (
                     <tr key={product.id}>
-                      {isExistingFixtureType(activeTab) ? (
+                      {isAccessoriesTab(activeTab) ? (
+                        <>
+                          <td className={productStyles.nameCell}>{product.name}</td>
+                          <td>
+                            <span
+                              className={
+                                product.accessoryType === "Combo"
+                                  ? productStyles.typeBadgeCombo
+                                  : productStyles.typeBadgeIndependent
+                              }
+                            >
+                              {product.accessoryType ?? activeAccessorySubTab}
+                            </span>
+                          </td>
+                        </>
+                      ) : isExistingFixtureType(activeTab) ? (
                         <td className={productStyles.nameCell}>
                           {product.name}
                           {statusBadges}
@@ -1166,6 +1302,7 @@ export default function ProductsPage() {
         isOpen={modalMode === "add"}
         mode="add"
         fixtureType={activeTab}
+        defaultAccessoryType={activeAccessorySubTab}
         onClose={closeModal}
         onSubmit={handleAddProduct}
         isSubmitting={isSubmitting}
@@ -1175,7 +1312,15 @@ export default function ProductsPage() {
         isOpen={modalMode === "edit"}
         mode="edit"
         fixtureType={editingProduct?.productType ?? activeTab}
-        initialData={editingProduct}
+        defaultAccessoryType={activeAccessorySubTab}
+        initialData={
+          editingProduct && isAccessoriesTab(editingProduct.productType)
+            ? {
+                name: editingProduct.name,
+                accessoryType: editingProduct.accessoryType ?? activeAccessorySubTab,
+              }
+            : editingProduct
+        }
         onClose={closeModal}
         onSubmit={handleEditProduct}
         isSubmitting={isSubmitting}
