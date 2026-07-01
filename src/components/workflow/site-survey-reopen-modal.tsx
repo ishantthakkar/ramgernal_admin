@@ -10,6 +10,8 @@ interface SiteSurveyReopenModalProps {
   loading: boolean;
   onClose: () => void;
   onSubmit: (payload: { title: string; note: string }) => Promise<void>;
+  modalTitle?: string;
+  submitLabel?: string;
 }
 
 export function SiteSurveyReopenModal({
@@ -17,6 +19,8 @@ export function SiteSurveyReopenModal({
   loading,
   onClose,
   onSubmit,
+  modalTitle = "Reopen Survey",
+  submitLabel = "Reopen Survey",
 }: SiteSurveyReopenModalProps) {
   const [title, setTitle] = useState("");
   const [note, setNote] = useState("");
@@ -38,7 +42,7 @@ export function SiteSurveyReopenModal({
       >
         <div className={modalStyles.modalHeader}>
           <div>
-            <h3 id="reopen-survey-title">Reopen Survey</h3>
+            <h3 id="reopen-survey-title">{modalTitle}</h3>
             <p className={detailStyles.reopenModalSubtitle}>{surveyName}</p>
           </div>
           <button type="button" className={modalStyles.closeBtn} onClick={onClose} disabled={loading}>
@@ -96,7 +100,7 @@ export function SiteSurveyReopenModal({
                   Reopening...
                 </>
               ) : (
-                "Reopen Survey"
+                submitLabel
               )}
             </button>
           </div>

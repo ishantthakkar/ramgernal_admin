@@ -322,6 +322,18 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify({ survey_id: surveyId, status: "verified" }),
     }),
+  reopenInstallation: (
+    surveyId: string,
+    payload: { title?: string; note: string }
+  ) =>
+    apiRequest("/surveys/installation/reopen", {
+      method: "POST",
+      body: JSON.stringify({
+        survey_id: surveyId,
+        title: payload.title || "",
+        note: payload.note,
+      }),
+    }),
   saveSurveyAreaVerification: (payload: Record<string, unknown> | FormData) =>
     apiRequest("/surveys/area-verification", {
       method: "POST",

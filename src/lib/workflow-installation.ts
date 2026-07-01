@@ -46,6 +46,10 @@ export function isInspectionReadyForAdminVerify(value: string): boolean {
   return ["confirm", "submitted", "in_progress", "to-do", "reopen"].includes(status);
 }
 
+export function canReopenInstallationForInspection(value: string): boolean {
+  return !isAdminInspectionVerified(value);
+}
+
 export function formatAdminInspectionApprovalLabel(value: string): string {
   if (isAdminInspectionVerified(value)) return "Verified";
   const status = String(value || "").trim().toLowerCase();

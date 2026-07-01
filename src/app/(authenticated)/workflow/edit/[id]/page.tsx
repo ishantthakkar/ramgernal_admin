@@ -20,6 +20,7 @@ import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
 import { SiteSurveyActionControls } from "@/components/workflow/site-survey-action-controls";
+import { SiteSurveyReopenModal } from "@/components/workflow/site-survey-reopen-modal";
 import {
   mapNotes,
   mapSiteDetailGroups,
@@ -45,13 +46,14 @@ import {
   resolveInstallationSurvey,
   resolveSurveyContractorName,
 } from "@/lib/workflow-installation-details";
-import { formatInspectionStatusLabel, formatAdminInspectionApprovalLabel, getAdminInspectionApprovalColor, isAdminInspectionVerified, isInspectionReadyForAdminVerify } from "@/lib/workflow-installation";
+import { formatInspectionStatusLabel, formatAdminInspectionApprovalLabel, getAdminInspectionApprovalColor, isAdminInspectionVerified, isInspectionReadyForAdminVerify, canReopenInstallationForInspection } from "@/lib/workflow-installation";
 import {
   formatRelativeUpdated,
   getInspectionStatusColor,
   mapInspectionAreas,
   resolveCustomerDisplayName,
   resolveCustomerMobile,
+  resolveInspectionProjectTitle,
   resolveInspectionStatusRaw,
   resolveServiceAddress,
   resolveUpdatedAt,
@@ -356,6 +358,8 @@ export default function WorkflowEditPage() {
   const [loading, setLoading] = useState(!isQuotationEdit);
   const [saving, setSaving] = useState(false);
   const [approvingInspection, setApprovingInspection] = useState(false);
+  const [reopeningInstallation, setReopeningInstallation] = useState(false);
+  const [showReopenInstallationModal, setShowReopenInstallationModal] = useState(false);
   const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
   const [reopeningSurveyId, setReopeningSurveyId] = useState<string | null>(null);
   const [customer, setCustomer] = useState<any>(null);
@@ -704,6 +708,11 @@ export default function WorkflowEditPage() {
     isInspectionReadyForAdminVerify(inspectionStatusRaw) &&
     (canEditInspections || canCreateInspections);
 
+  const canReopenInstallation =
+    isInspectionEdit &&
+    canReopenInstallationForInspection(inspectionStatusRaw) &&
+    (canEditInspections || canCreateInspections);
+
   const handleApproveInspection = async () => {
     if (!id) {
       toast.error("Survey ID is missing for this inspection.");
@@ -729,6 +738,27 @@ export default function WorkflowEditPage() {
       toast.error(message);
     } finally {
       setApprovingInspection(false);
+    }
+  };
+
+  const handleReopenInstallation = async (payload: { title: string; note: string }) => {
+    if (!id) {
+      toast.error("Survey ID is missing for this inspection.");
+      return;
+    }
+
+    try {
+      setReopeningInstallation(true);
+      const response = await adminApi.reopenInstallation(id, payload);
+      toast.success(response.message || "Installation reopened successfully.");
+      setShowReopenInstallationModal(false);
+      await refreshWorkflow();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to reopen installation.";
+      toast.error(message);
+    } finally {
+      setReopeningInstallation(false);
     }
   };
 
@@ -1008,16 +1038,35 @@ export default function WorkflowEditPage() {
           type="button"
           className={styles.cancelBtn}
           onClick={() => router.push(isInspectionEdit ? viewUrl : backUrl)}
-          disabled={saving || approvingInspection}
+          disabled={saving || approvingInspection || reopeningInstallation}
         >
           <X size={20} /> Cancel
         </button>
+        {canReopenInstallation ? (
+          <button
+            type="button"
+            className={styles.assignBtn}
+            onClick={() => setShowReopenInstallationModal(true)}
+            disabled={saving || approvingInspection || reopeningInstallation}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              background: "#f59e0b",
+              color: "#ffffff",
+              border: "none",
+            }}
+          >
+            {reopeningInstallation ? <Loader2 size={20} className={styles.spinner} /> : null}
+            {reopeningInstallation ? "Reopening..." : "Reopen Installation"}
+          </button>
+        ) : null}
         {canApproveInspection ? (
           <button
             type="button"
             className={styles.addBtn}
             onClick={handleApproveInspection}
-            disabled={saving || approvingInspection}
+            disabled={saving || approvingInspection || reopeningInstallation}
             style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
           >
             {approvingInspection ? <Loader2 size={20} className={styles.spinner} /> : null}
@@ -1028,7 +1077,7 @@ export default function WorkflowEditPage() {
           type="button"
           className={styles.createBtn}
           onClick={handleSave}
-          disabled={saving || approvingInspection}
+          disabled={saving || approvingInspection || reopeningInstallation}
         >
           {saving ? (
             "Saving..."
@@ -1039,6 +1088,19 @@ export default function WorkflowEditPage() {
           )}
         </button>
       </div>
+
+      {showReopenInstallationModal ? (
+        <SiteSurveyReopenModal
+          surveyName={resolveInspectionProjectTitle(installationSurvey, customer)}
+          modalTitle="Reopen Installation"
+          submitLabel="Reopen Installation"
+          loading={reopeningInstallation}
+          onClose={() => {
+            if (!reopeningInstallation) setShowReopenInstallationModal(false);
+          }}
+          onSubmit={handleReopenInstallation}
+        />
+      ) : null}
 
       {selectedImages ? (
         <div className={detailStyles.imgModalOverlay} onClick={() => setSelectedImages(null)}>
