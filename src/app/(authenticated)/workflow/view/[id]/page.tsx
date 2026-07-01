@@ -32,7 +32,7 @@ import { adminApi } from "@/lib/api";
 import { canReorderSiteDetails, hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
 import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
-import { SiteSurveyVerifyControl } from "@/components/workflow/site-survey-verify-control";
+import { SiteSurveyActionControls } from "@/components/workflow/site-survey-action-controls";
 import {
   mapNotes,
   mapSiteDetailGroups,
@@ -669,8 +669,11 @@ function SiteDetailsAreaList({
   reordering,
   onReorder,
   canVerify,
+  canReopen,
   verifyingSurveyId,
+  reopeningSurveyId,
   onVerifySurvey,
+  onReopenSurvey,
 }: {
   groups: SiteDetailSurveyGroup[];
   onViewArea: (row: SiteDetailRow, roomIndex: number) => void;
@@ -678,8 +681,14 @@ function SiteDetailsAreaList({
   reordering: boolean;
   onReorder: (surveyId: string, fromIndex: number, toIndex: number) => void;
   canVerify: boolean;
+  canReopen: boolean;
   verifyingSurveyId: string | null;
+  reopeningSurveyId: string | null;
   onVerifySurvey: (surveyId: string, surveyName: string) => void;
+  onReopenSurvey: (
+    surveyId: string,
+    payload: { title: string; note: string }
+  ) => Promise<void>;
 }) {
   const hasAreas = groups.some((group) => group.areas.length > 0);
   const [dragging, setDragging] = useState<{ surveyId: string; index: number } | null>(null);
@@ -699,13 +708,17 @@ function SiteDetailsAreaList({
                 Survey {group.surveyIndex + 1} · {group.surveyName}
                 {group.surveyDate ? ` · ${formatDate(group.surveyDate)}` : ""}
               </p>
-              <SiteSurveyVerifyControl
+              <SiteSurveyActionControls
                 surveyId={group.surveyId}
                 surveyName={group.surveyName}
                 isVerified={group.isVerified}
+                surveyStatus={group.status}
                 canVerify={canVerify}
+                canReopen={canReopen}
                 verifying={verifyingSurveyId === group.surveyId}
+                reopening={reopeningSurveyId === group.surveyId}
                 onVerify={onVerifySurvey}
+                onReopen={onReopenSurvey}
                 compact
               />
             </div>
@@ -804,11 +817,14 @@ function SurveyViewSections({
   siteDetailGroups,
   noteEntries,
   canVerify,
+  canReopen,
   canEdit,
   canReorder,
   savingSiteRow,
   verifyingSurveyId,
+  reopeningSurveyId,
   onVerifySurvey,
+  onReopenSurvey,
   onViewImages,
   onSaveSiteRow,
   onReorderSiteRows,
@@ -823,11 +839,17 @@ function SurveyViewSections({
   siteDetailGroups: SiteDetailSurveyGroup[];
   noteEntries: NoteEntry[];
   canVerify: boolean;
+  canReopen: boolean;
   canEdit: boolean;
   canReorder: boolean;
   savingSiteRow: boolean;
   verifyingSurveyId: string | null;
+  reopeningSurveyId: string | null;
   onVerifySurvey: (surveyId: string, surveyName: string) => void;
+  onReopenSurvey: (
+    surveyId: string,
+    payload: { title: string; note: string }
+  ) => Promise<void>;
   onViewImages: (images: string[], area: string) => void;
   onSaveSiteRow: (row: SiteDetailRow) => Promise<void>;
   onReorderSiteRows: (surveyId: string, fromIndex: number, toIndex: number) => Promise<void>;
@@ -901,13 +923,17 @@ function SurveyViewSections({
             <MapPin size={22} color={PRIMARY_ICON} /> Site Details
           </div>
           {singleGroup ? (
-            <SiteSurveyVerifyControl
+            <SiteSurveyActionControls
               surveyId={singleGroup.surveyId}
               surveyName={singleGroup.surveyName}
               isVerified={singleGroup.isVerified}
+              surveyStatus={singleGroup.status}
               canVerify={canVerify}
+              canReopen={canReopen}
               verifying={verifyingSurveyId === singleGroup.surveyId}
+              reopening={reopeningSurveyId === singleGroup.surveyId}
               onVerify={onVerifySurvey}
+              onReopen={onReopenSurvey}
               compact
             />
           ) : null}
@@ -920,8 +946,11 @@ function SurveyViewSections({
           reordering={reorderingAreas || savingSiteRow}
           onReorder={onReorderSiteRows}
           canVerify={canVerify}
+          canReopen={canReopen}
           verifyingSurveyId={verifyingSurveyId}
+          reopeningSurveyId={reopeningSurveyId}
           onVerifySurvey={onVerifySurvey}
+          onReopenSurvey={onReopenSurvey}
         />
         <SiteAreaDetailModal
           row={selectedRow}
@@ -955,6 +984,7 @@ export default function WorkflowViewPage() {
 
   const [loading, setLoading] = useState(true);
   const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
+  const [reopeningSurveyId, setReopeningSurveyId] = useState<string | null>(null);
   const [approvingInspection, setApprovingInspection] = useState(false);
   const [data, setData] = useState<any>(null);
   const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
@@ -1175,6 +1205,24 @@ export default function WorkflowViewPage() {
       toast.error(message);
     } finally {
       setVerifyingSurveyId(null);
+    }
+  };
+
+  const handleReopenSurvey = async (
+    surveyId: string,
+    payload: { title: string; note: string }
+  ) => {
+    try {
+      setReopeningSurveyId(surveyId);
+      const response = await adminApi.reopenSurvey(surveyId, payload);
+      toast.success(response.message || "Survey reopened successfully!");
+      await refreshData();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reopen survey.";
+      toast.error(message);
+      throw err;
+    } finally {
+      setReopeningSurveyId(null);
     }
   };
 
@@ -1574,11 +1622,14 @@ export default function WorkflowViewPage() {
           siteDetailGroups={siteDetailGroups}
           noteEntries={noteEntries}
           canVerify={isSurveyView && canVerifySurveys}
+          canReopen={isSurveyView && canEditSurveys}
           canEdit={isSurveyView && canEditSurveys}
           canReorder={isSurveyView && canReorderSiteDetails()}
           savingSiteRow={savingSiteRow}
           verifyingSurveyId={verifyingSurveyId}
+          reopeningSurveyId={reopeningSurveyId}
           onVerifySurvey={handleVerifySurvey}
+          onReopenSurvey={handleReopenSurvey}
           onViewImages={handleViewImages}
           onSaveSiteRow={handleSaveSiteRow}
           onReorderSiteRows={handleReorderSiteRows}

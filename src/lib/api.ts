@@ -270,6 +270,18 @@ export const adminApi = {
     apiRequest(`/surveys/${surveyId}/confirm-verify`, {
       method: "POST",
     }),
+  reopenSurvey: (
+    surveyId: string,
+    payload: { title?: string; note: string }
+  ) =>
+    apiRequest("/surveys/reopen", {
+      method: "POST",
+      body: JSON.stringify({
+        survey_id: surveyId,
+        title: payload.title || "",
+        note: payload.note,
+      }),
+    }),
   adminApproval: (id: string, status: "Approved" | "Rejected") => apiRequest(`/customer/${id}/admin-approval`, {
     method: "POST",
     body: JSON.stringify({ status }),

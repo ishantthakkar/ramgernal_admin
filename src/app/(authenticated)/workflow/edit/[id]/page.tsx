@@ -19,7 +19,7 @@ import addStyles from "../../../leads/add/leads-add.module.css";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
-import { SiteSurveyVerifyControl } from "@/components/workflow/site-survey-verify-control";
+import { SiteSurveyActionControls } from "@/components/workflow/site-survey-action-controls";
 import {
   mapNotes,
   mapSiteDetailGroups,
@@ -278,14 +278,23 @@ function SiteDetailsEditCards({
   groups,
   onFieldChange,
   canVerify,
+  canReopen,
   verifyingSurveyId,
+  reopeningSurveyId,
   onVerifySurvey,
+  onReopenSurvey,
 }: {
   groups: SiteDetailSurveyGroup[];
   onFieldChange: (rowId: string, field: keyof SiteDetailRow, value: string) => void;
   canVerify: boolean;
+  canReopen: boolean;
   verifyingSurveyId: string | null;
+  reopeningSurveyId: string | null;
   onVerifySurvey: (surveyId: string, surveyName: string) => void;
+  onReopenSurvey: (
+    surveyId: string,
+    payload: { title: string; note: string }
+  ) => Promise<void>;
 }) {
   const hasAreas = groups.some((g) => g.areas.length > 0);
 
@@ -303,13 +312,17 @@ function SiteDetailsEditCards({
               {group.surveyName}
               {group.surveyDate ? ` · ${formatDate(group.surveyDate)}` : ""}
             </div>
-            <SiteSurveyVerifyControl
+            <SiteSurveyActionControls
               surveyId={group.surveyId}
               surveyName={group.surveyName}
               isVerified={group.isVerified}
+              surveyStatus={group.status}
               canVerify={canVerify}
+              canReopen={canReopen}
               verifying={verifyingSurveyId === group.surveyId}
+              reopening={reopeningSurveyId === group.surveyId}
               onVerify={onVerifySurvey}
+              onReopen={onReopenSurvey}
               compact
             />
           </div>
@@ -344,6 +357,7 @@ export default function WorkflowEditPage() {
   const [saving, setSaving] = useState(false);
   const [approvingInspection, setApprovingInspection] = useState(false);
   const [verifyingSurveyId, setVerifyingSurveyId] = useState<string | null>(null);
+  const [reopeningSurveyId, setReopeningSurveyId] = useState<string | null>(null);
   const [customer, setCustomer] = useState<any>(null);
   const [rawSurveyRecords, setRawSurveyRecords] = useState<any[]>([]);
   const [siteRows, setSiteRows] = useState<SiteDetailRow[]>([]);
@@ -600,6 +614,32 @@ export default function WorkflowEditPage() {
       toast.error(message);
     } finally {
       setVerifyingSurveyId(null);
+    }
+  };
+
+  const handleReopenSurvey = async (
+    targetSurveyId: string,
+    payload: { title: string; note: string }
+  ) => {
+    setReopeningSurveyId(targetSurveyId);
+    try {
+      const response = await adminApi.reopenSurvey(targetSurveyId, payload);
+      toast.success(response.message || "Survey reopened successfully!");
+      const result = await adminApi.getCustomerWorkflowDetails(id);
+      const raw = (result.surveys || []).slice().sort(
+        (a: { createdAt?: string; surveyDate?: string }, b: { createdAt?: string; surveyDate?: string }) =>
+          new Date(b.createdAt || b.surveyDate || 0).getTime() -
+          new Date(a.createdAt || a.surveyDate || 0).getTime()
+      );
+      setCustomer(result.customer);
+      setRawSurveyRecords(raw);
+      setSiteRows(mapSiteDetails(raw));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to reopen survey.";
+      toast.error(message);
+      throw err;
+    } finally {
+      setReopeningSurveyId(null);
     }
   };
 
@@ -900,8 +940,11 @@ export default function WorkflowEditPage() {
                   groups={siteDetailGroups}
                   onFieldChange={handleSiteRowChangeById}
                   canVerify={isSurveyEdit && hasPermission("Surveys", "create")}
+                  canReopen={isSurveyEdit && hasPermission("Surveys", "edit")}
                   verifyingSurveyId={verifyingSurveyId}
+                  reopeningSurveyId={reopeningSurveyId}
                   onVerifySurvey={handleVerifySurvey}
+                  onReopenSurvey={handleReopenSurvey}
                 />
               </section>
 

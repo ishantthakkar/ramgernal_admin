@@ -77,6 +77,14 @@ interface SurveyNoteRecord {
   writtenByName?: string;
 }
 
+interface SurveyReopenNoteRecord {
+  _id?: string;
+  title?: string;
+  note?: string;
+  createdAt?: unknown;
+  writtenByName?: string;
+}
+
 export interface SurveyRecord {
   _id?: string;
   id?: string;
@@ -90,6 +98,7 @@ export interface SurveyRecord {
   status?: string;
   note?: unknown;
   notes?: unknown;
+  reopenNote?: SurveyReopenNoteRecord[];
   areas?: SurveyArea[];
 }
 
@@ -392,6 +401,16 @@ export function resolveSurveyWorkflowDisplayStatus(survey: SurveyRecord): string
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+export function canReopenSurveyStatus(input: {
+  isVerified: boolean;
+  status?: string;
+}): boolean {
+  if (input.isVerified) return false;
+
+  const status = normalizeSurveyStatus(input.status);
+  return ["submitted", "reopen", "reopened"].includes(status);
+}
+
 export interface SiteDetailSurveyGroup {
   surveyId: string;
   surveyIndex: number;
@@ -572,6 +591,22 @@ export function mapNotes(
   };
 
   for (const survey of surveys) {
+    const surveyId = resolveSurveyId(survey);
+
+    (survey.reopenNote || []).forEach((entry, index) => {
+      const noteText = normalizeNoteText(entry.note);
+      if (!noteText) return;
+
+      add({
+        id: entry._id || `${surveyId}-reopen-${index}`,
+        text: noteText,
+        timestamp: parseApiDate(entry.createdAt),
+        source: "survey",
+        title: normalizeNoteText(entry.title) || "Reopen Note",
+        authorName: normalizeNoteText(entry.writtenByName) || defaultAuthor || undefined,
+      });
+    });
+
     addSurveyNotes(survey, customer, defaultAuthor, add);
     addSurveySingleNote(survey, customer, defaultAuthor, add);
   }
