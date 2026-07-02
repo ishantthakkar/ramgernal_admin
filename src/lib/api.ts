@@ -564,4 +564,27 @@ export const adminApi = {
     apiRequest(`/products/${id}`, {
       method: "DELETE",
     }),
+  replaceProducts: (
+    productType: string,
+    products: Array<
+      | {
+          sku: string;
+          name: string;
+          description?: string;
+          isComboItem?: boolean;
+          comboAccessoryIds?: string[];
+          utilityPrice: number;
+          directPrice: number;
+          agentCommission: number;
+          managerCommission: number;
+          installationCost: number;
+        }
+      | { name: string }
+      | { name: string; accessoryType: string }
+    >
+  ) =>
+    apiRequest("/products/replace", {
+      method: "POST",
+      body: JSON.stringify({ productType, products }),
+    }),
 };

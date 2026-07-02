@@ -12,7 +12,6 @@ import {
   Loader2,
   Download,
   Upload,
-  FileSpreadsheet,
   RefreshCw,
   Save,
   Hammer,
@@ -32,13 +31,12 @@ import {
 } from "@/components/modals/ProductUploadDuplicateModal";
 import { adminApi } from "@/lib/api";
 import {
-  downloadProductTemplate,
-  exportProductsToExcel,
   parseProductExcelFile,
   isProposedExcelRow,
   type ParsedProductExcelRow,
   type ProductExcelParseError,
 } from "@/lib/product-excel";
+import { downloadProductsCsv } from "../../../lib/product-csv";
 import {
   PRODUCT_FIXTURE_TABS,
   fixtureTypeSlug,
@@ -79,6 +77,7 @@ interface PendingUpload {
 }
 
 type DataSource = "api" | "upload";
+type UploadMode = "replace";
 
 const PROPOSED_TABLE_COLUMNS = [
   "SKU",
@@ -267,6 +266,8 @@ export default function ProductsPage() {
   const searchParams = useSearchParams();
   const canCreateProducts = hasPermission("Products", "create");
   const canEditProducts = hasPermission("Products", "edit");
+  const canReplaceProducts =
+    hasPermission("Products", "delete") || hasPermission("Products", "edit");
 
   useEffect(() => {
     if (!canViewModule("Products")) {
@@ -282,6 +283,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [serverProducts, setServerProducts] = useState<Product[]>([]);
   const [dataSource, setDataSource] = useState<DataSource>("api");
+  const [uploadMode, setUploadMode] = useState<UploadMode>("replace");
   const [pendingUpload, setPendingUpload] = useState<PendingUpload | null>(null);
   const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
   const [duplicateQueueIndex, setDuplicateQueueIndex] = useState(0);
@@ -480,45 +482,11 @@ export default function ProductsPage() {
 
   function handleDownloadTemplate() {
     const slug = fixtureTypeSlug(activeTab);
-    downloadProductTemplate(`${slug}-template.xlsx`, activeTab);
-    toast.success("Template downloaded.");
-  }
-
-  function handleExport() {
-    if (products.length === 0) {
-      toast.warn("No products to export.");
-      return;
-    }
-
-    const payload = isExistingFixtureType(activeTab)
-      ? products.map(({ name }) => ({ name }))
-      : products.map(
-          ({
-            sku,
-            name,
-            utilityPrice,
-            directPrice,
-            agentCommission,
-            managerCommission,
-            installationCost,
-          }) => ({
-            sku,
-            name,
-            utilityPrice,
-            directPrice,
-            agentCommission,
-            managerCommission,
-            installationCost,
-          })
-        );
-
-    const suffix = new Date().toISOString().slice(0, 10);
-    exportProductsToExcel(
-      payload,
-      `${fixtureTypeSlug(activeTab)}-export-${suffix}.xlsx`,
-      activeTab
-    );
-    toast.success("Products exported to Excel.");
+    const comboAccessoryNameById = new Map(accessoryCatalog.map((a) => [a.id, a.name]));
+    downloadProductsCsv(products, `${slug}-export.csv`, activeTab, {
+      comboAccessoryNameById,
+    });
+    toast.success("CSV downloaded.");
   }
 
   function applyUploadedProducts(
@@ -722,6 +690,11 @@ export default function ProductsPage() {
       return;
     }
 
+    if (!canReplaceProducts) {
+      toast.error("You do not have permission to replace products via upload.");
+      return;
+    }
+
     setIsUploading(true);
     try {
       const { rows, errors } = await parseProductExcelFile(file, activeTab);
@@ -734,10 +707,8 @@ export default function ProductsPage() {
         return;
       }
 
-      const serverLookup = buildProductLookup(serverProducts, activeTab);
-      const duplicates: DuplicateUploadItem[] = [];
-      const newRows: ParsedProductExcelRow[] = [];
       const namePriceErrors: { rowNumber: number; message: string }[] = [];
+      const allowedRows: ParsedProductExcelRow[] = [];
 
       for (const row of rows) {
         if (!isExistingFixtureType(activeTab) && isProposedExcelRow(row)) {
@@ -754,42 +725,32 @@ export default function ProductsPage() {
             continue;
           }
         }
-
-        const rowName = isProposedExcelRow(row) ? row.name : row.name;
-        const rowKey = isExistingFixtureType(activeTab)
-          ? rowName.trim().toLowerCase()
-          : isProposedExcelRow(row)
-            ? row.sku.trim().toLowerCase()
-            : rowName.trim().toLowerCase();
-        const existing = serverLookup.get(rowKey);
-
-        if (existing) {
-          duplicates.push({
-            rowNumber: row.rowNumber,
-            sku: isProposedExcelRow(row) ? row.sku : rowName,
-            uploadedName: rowName,
-            existingName: existing.name,
-            utilityPrice: isProposedExcelRow(row) ? row.utilityPrice : 0,
-            directPrice: isProposedExcelRow(row) ? row.directPrice : 0,
-            agentCommission: isProposedExcelRow(row) ? row.agentCommission : 0,
-            managerCommission: isProposedExcelRow(row) ? row.managerCommission : 0,
-            installationCost: isProposedExcelRow(row) ? row.installationCost : 0,
-            existingId: existing.id,
-          });
-        } else {
-          newRows.push(row);
-        }
+        allowedRows.push(row);
       }
 
-      if (duplicates.length > 0) {
-        setPendingUpload({ rows, errors: [...errors, ...namePriceErrors], duplicates, newRows });
-        setDuplicateQueueIndex(0);
-        setDuplicateResolutions(new Map());
-        setDuplicateModalOpen(true);
+      const uploadedProducts = allowedRows.map((row, index) =>
+        mapUploadRow(row, index, activeTab)
+      );
+
+      setProducts(uploadedProducts);
+      setDataSource("upload");
+      setUploadMode("replace");
+      setUploadErrors([...errors, ...namePriceErrors]);
+      setCurrentPage(1);
+      setSearchQuery("");
+      setPendingUpload(null);
+      setDuplicateModalOpen(false);
+      setDuplicateQueueIndex(0);
+      setDuplicateResolutions(new Map());
+
+      if (uploadedProducts.length === 0) {
+        toast.warn("No products were loaded from the sheet.");
         return;
       }
 
-      applyUploadedProducts(newRows, [], [], [], [...errors, ...namePriceErrors]);
+      toast.warn(
+        `Loaded ${uploadedProducts.length} row(s). Saving will DELETE all existing ${activeTab} products and replace them.`
+      );
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to read Excel file.";
@@ -822,6 +783,88 @@ export default function ProductsPage() {
     let updated = 0;
     let failed = 0;
     const failDetails: string[] = [];
+
+    if (dataSource === "upload" && uploadMode === "replace") {
+      if (!canReplaceProducts) {
+        toast.error("You do not have permission to replace products.");
+        setIsSavingBulk(false);
+        setBulkSaveProgress("");
+        return;
+      }
+
+      try {
+        setBulkSaveProgress("Replacing on server…");
+
+        if (isExistingFixtureType(activeTab)) {
+          await adminApi.replaceProducts(
+            activeTab,
+            toSave.map((p) => ({ name: p.name }))
+          );
+        } else {
+          const payload = [];
+          for (const product of toSave) {
+            const { ids: resolvedComboIds, missingNames } = resolveComboAccessoryIds(
+              product.comboAccessoryIds
+            );
+            if (Boolean(product.isComboItem) && missingNames.length > 0) {
+              failed += 1;
+              failDetails.push(
+                `${product.sku}: combo accessories not found: ${missingNames
+                  .slice(0, 3)
+                  .join(", ")}`
+              );
+              continue;
+            }
+
+            payload.push({
+              sku: product.sku,
+              name: product.name,
+              description: product.description ?? "",
+              isComboItem: Boolean(product.isComboItem),
+              comboAccessoryIds: Array.isArray(product.comboAccessoryIds)
+                ? resolvedComboIds
+                : [],
+              utilityPrice: product.utilityPrice,
+              directPrice: product.directPrice,
+              agentCommission: product.agentCommission,
+              managerCommission: product.managerCommission,
+              installationCost: product.installationCost,
+            });
+          }
+
+          if (payload.length === 0) {
+            throw new Error("No valid products to replace after validation.");
+          }
+
+          await adminApi.replaceProducts(activeTab, payload as any);
+        }
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Failed to replace products";
+        toast.error(message);
+        setBulkSaveProgress("");
+        setIsSavingBulk(false);
+        return;
+      }
+
+      setBulkSaveProgress("");
+      setIsSavingBulk(false);
+
+      toast.success(`Replaced ${activeTab} products on the server.`);
+      await fetchProducts(activeTab);
+
+      if (failed > 0) {
+        toast.error(
+          `${failed} product(s) could not be included. ${failDetails.slice(0, 3).join(" ")}`
+        );
+      }
+
+      if (failed === 0) {
+        await fetchProducts(activeTab);
+      }
+
+      return;
+    }
 
     for (let i = 0; i < toSave.length; i++) {
       const product = toSave[i];
@@ -1064,7 +1107,7 @@ export default function ProductsPage() {
             className={productStyles.secondaryBtn}
             onClick={handleDownloadTemplate}
           >
-            <Download size={18} /> Template
+            <Download size={18} /> Export CSV
           </button>
           <button
             type="button"
@@ -1105,14 +1148,7 @@ export default function ProductsPage() {
             Reload
           </button>
           {!isAccessoriesTab(activeTab) && (
-          <button
-            type="button"
-            className={productStyles.secondaryBtn}
-            onClick={handleExport}
-            disabled={products.length === 0}
-          >
-            <FileSpreadsheet size={18} /> Export
-          </button>
+          null
           )}
           {isExistingFixtureType(activeTab) && (
             <button

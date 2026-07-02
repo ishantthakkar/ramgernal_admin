@@ -113,7 +113,7 @@ export default function DashboardLayout({
       <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.sidebarCollapsed : ""}`}>
         <div className={styles.logoArea}>
           <Image
-            src="/ram-logo.png"
+            src="/ram-logo-1.png"
             alt="RAM"
             width={isSidebarCollapsed ? 40 : 180}
             height={60}
