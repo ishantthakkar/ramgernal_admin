@@ -85,6 +85,9 @@ export default function LeadDetailsPage() {
   const router = useRouter();
   const id = params.id as string;
   const [lead, setLead] = useState<any>(null);
+  const [salesManagers, setSalesManagers] = useState<Array<{ id: string; fullName?: string; email?: string }>>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [converting, setConverting] = useState(false);
   const [markingLost, setMarkingLost] = useState(false);
@@ -110,8 +113,24 @@ export default function LeadDetailsPage() {
   useEffect(() => {
     const fetchLead = async () => {
       try {
-        const response = await adminApi.getLeadById(id);
-        setLead(response.lead || response.data || response);
+        const [leadRes, salesManagersRes] = await Promise.all([
+          adminApi.getLeadById(id),
+          adminApi.getUserList("sales manager"),
+        ]);
+        const resolvedLead = leadRes.lead || leadRes.data || leadRes;
+        setLead(resolvedLead);
+
+        const rawSalesManagers =
+          salesManagersRes.users ||
+          salesManagersRes.data ||
+          (Array.isArray(salesManagersRes) ? salesManagersRes : []);
+        setSalesManagers(
+          rawSalesManagers.map((u: any) => ({
+            id: String(u._id || u.id),
+            fullName: u.fullName,
+            email: u.email,
+          }))
+        );
       } catch (err) {
         console.error("Failed to fetch lead details:", err);
         toast.error("Failed to load lead details.");
@@ -121,6 +140,25 @@ export default function LeadDetailsPage() {
     };
     if (id) fetchLead();
   }, [id]);
+
+  const salesManagerName = useMemo(() => {
+    const directName =
+      lead?.salesManager?.fullName ||
+      lead?.salesManagerName ||
+      lead?.salesManagerId?.fullName ||
+      lead?.user_id?.reportsTo?.fullName;
+    if (directName) return String(directName);
+
+    const salesManagerId =
+      lead?.salesManagerId ||
+      lead?.salesManager?._id ||
+      lead?.salesManager?.id ||
+      lead?.salesManagerId?._id;
+    if (!salesManagerId) return "";
+
+    const match = salesManagers.find((m) => m.id === String(salesManagerId));
+    return match?.fullName || match?.email || "";
+  }, [lead, salesManagers]);
 
   const convertNeedsMobile = lead ? !leadHasPhoneOrMobile(lead) : false;
 
@@ -439,6 +477,11 @@ export default function LeadDetailsPage() {
             valueClassName={emailDisplay !== "—" ? viewStyles.readonlyFieldLink : viewStyles.readonlyFieldMuted}
           >
             {emailDisplay}
+          </ReadOnlyField>
+          <ReadOnlyField label="Assign to Sales Manager" icon={<Briefcase size={16} color={MUTED_ICON} />}>
+            {displayValue(
+              salesManagerName || "Unassigned"
+            )}
           </ReadOnlyField>
           <ReadOnlyField label="Assign to Sales Person" icon={<UserCheck size={16} color={MUTED_ICON} />}>
             {displayValue(lead.user_id?.fullName || "Unassigned")}

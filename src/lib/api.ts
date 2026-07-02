@@ -19,12 +19,12 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     // If token is invalid or expired, clear it and redirect to login
-    if (response.status === 401) {
-      localStorage.removeItem("auth_token");
-      if (typeof window !== "undefined") {
-        window.location.href = "/";
-      }
-    }
+    // if (response.status === 401) {
+    //   localStorage.removeItem("auth_token");
+    //   if (typeof window !== "undefined") {
+    //     window.location.href = "/";
+    //   }
+    // }
     throw new Error(data.message || "Something went wrong");
   }
 

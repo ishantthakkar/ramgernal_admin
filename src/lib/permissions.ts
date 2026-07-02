@@ -92,12 +92,12 @@ export function isSuperAdmin(): boolean {
   return localStorage.getItem("is_super_admin") === "true";
 }
 
-export function getUserInfo(): { userRole?: string; fullName?: string } | null {
+export function getUserInfo(): Record<string, unknown> | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem("user_info");
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as { userRole?: string; fullName?: string };
+    return JSON.parse(raw) as Record<string, unknown>;
   } catch {
     return null;
   }
@@ -108,13 +108,28 @@ function normalizeUserRole(role?: string): string {
 }
 
 export function isSalesPersonUser(): boolean {
-  return normalizeUserRole(getUserInfo()?.userRole) === "sales person";
+  const userRole = (getUserInfo()?.userRole as string | undefined) ?? undefined;
+  return normalizeUserRole(userRole) === "sales person";
+}
+
+export function isSalesManagerUser(): boolean {
+  const userRole = (getUserInfo()?.userRole as string | undefined) ?? undefined;
+  return normalizeUserRole(userRole) === "sales manager";
+}
+
+export function getCurrentUserId(): string | null {
+  const info = getUserInfo();
+  const id =
+    (info?._id as string | undefined) ??
+    (info?.id as string | undefined) ??
+    (info?.userId as string | undefined);
+  return id ? String(id) : null;
 }
 
 /** Site Details area reorder — super admin, Admin role, or Sales Person only */
 export function canReorderSiteDetails(): boolean {
   if (isSuperAdmin()) return true;
-  const role = normalizeUserRole(getUserInfo()?.userRole);
+  const role = normalizeUserRole((getUserInfo()?.userRole as string | undefined) ?? undefined);
   return role === "sales person" || role === "admin";
 }
 

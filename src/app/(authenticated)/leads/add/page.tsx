@@ -44,6 +44,7 @@ import { persistLeadActivities, persistLeadNotes } from "@/lib/leadPersistence";
 import { toast } from "react-toastify";
 import { UsaAddressFields } from "@/components/address/usa-address-fields";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
+import { getCurrentUserId, isSalesManagerUser } from "@/lib/permissions";
 
 interface LeadSourceOption {
   code: string;
@@ -51,6 +52,13 @@ interface LeadSourceOption {
 }
 
 interface SalesPersonOption {
+  id: string;
+  fullName?: string;
+  email?: string;
+  reportsToId?: string;
+}
+
+interface SalesManagerOption {
   id: string;
   fullName?: string;
   email?: string;
@@ -101,10 +109,13 @@ const ADDRESS_TITLE_OPTIONS = [
 
 export default function AddLeadPage() {
   const router = useRouter();
+  const isSalesManager = isSalesManagerUser();
+  const currentUserId = getCurrentUserId();
   const [loading, setLoading] = useState(false);
   const [showCreateConfirmModal, setShowCreateConfirmModal] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [leadSources, setLeadSources] = useState<LeadSourceOption[]>([]);
+  const [salesManagers, setSalesManagers] = useState<SalesManagerOption[]>([]);
   const [salesPersons, setSalesPersons] = useState<SalesPersonOption[]>([]);
   const billInputRef = useRef<HTMLInputElement>(null);
   const contactCardInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +130,7 @@ export default function AddLeadPage() {
     electricCompany: "",
     billDate: "",
     leadSource: "",
+    salesManagerId: "",
     salesPersonId: "",
   });
   const [billFiles, setBillFiles] = useState<File[]>([]);
@@ -341,12 +353,37 @@ export default function AddLeadPage() {
     async function loadOptions() {
       setLoadingOptions(true);
       try {
-        const [sourcesRes, salesRes] = await Promise.all([
+        const [sourcesRes, salesManagersRes, salesPersonsRes] = await Promise.all([
           adminApi.getLeadSources(),
-          adminApi.getLeadSalesPersons(),
+          adminApi.getUserList("sales manager"),
+          adminApi.getUserList("sales person"),
         ]);
         setLeadSources(sourcesRes.leadSources || []);
-        setSalesPersons(salesRes.salesPersons || []);
+
+        const rawSalesManagers =
+          salesManagersRes.users ||
+          salesManagersRes.data ||
+          (Array.isArray(salesManagersRes) ? salesManagersRes : []);
+        setSalesManagers(
+          rawSalesManagers.map((u: any) => ({
+            id: String(u._id || u.id),
+            fullName: u.fullName,
+            email: u.email,
+          }))
+        );
+
+        const rawSalesPersons =
+          salesPersonsRes.users ||
+          salesPersonsRes.data ||
+          (Array.isArray(salesPersonsRes) ? salesPersonsRes : []);
+        setSalesPersons(
+          rawSalesPersons.map((u: any) => ({
+            id: String(u._id || u.id),
+            fullName: u.fullName,
+            email: u.email,
+            reportsToId: u.reportsTo?._id ? String(u.reportsTo._id) : undefined,
+          }))
+        );
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Failed to load form options";
         toast.error(message);
@@ -357,12 +394,33 @@ export default function AddLeadPage() {
     loadOptions();
   }, []);
 
+  useEffect(() => {
+    if (!isSalesManager) return;
+    if (!currentUserId) return;
+    setFormData((prev) =>
+      prev.salesManagerId ? prev : { ...prev, salesManagerId: currentUserId }
+    );
+  }, [currentUserId, isSalesManager]);
+
+  const filteredSalesPersons = useMemo(() => {
+    if (!formData.salesManagerId) return [];
+    return salesPersons.filter((p) => p.reportsToId === formData.salesManagerId);
+  }, [formData.salesManagerId, salesPersons]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     if (name === "mobileNumber") {
       setFormData((prev) => ({ ...prev, mobileNumber: formatUsPhone(value) }));
+      return;
+    }
+    if (name === "salesManagerId") {
+      setFormData((prev) => ({
+        ...prev,
+        salesManagerId: value,
+        salesPersonId: "",
+      }));
       return;
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -405,6 +463,9 @@ export default function AddLeadPage() {
 
       if (formData.salesPersonId) {
         data.append("salesPersonId", formData.salesPersonId);
+      }
+      if (formData.salesManagerId) {
+        data.append("salesManagerId", formData.salesManagerId);
       }
 
       const cleanedAddresses = addresses
@@ -799,6 +860,38 @@ export default function AddLeadPage() {
                 onChange={handleChange}
               />
             </div>
+            {!isSalesManager && (
+              <div className={styles.formGroup}>
+                <label>Assign to Sales Manager</label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    name="salesManagerId"
+                    className={styles.formSelect}
+                    value={formData.salesManagerId}
+                    onChange={handleChange}
+                  >
+                    <option value="">Unassigned</option>
+                    {salesManagers.map((manager) => (
+                      <option key={manager.id} value={manager.id}>
+                        {manager.fullName || "Unnamed"}
+                        {manager.email ? ` — ${manager.email}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={18}
+                    style={{
+                      position: "absolute",
+                      right: "1rem",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      color: "#64748b",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className={styles.formGroup}>
               <label>Assign to Sales Person</label>
               <div style={{ position: "relative" }}>
@@ -807,9 +900,16 @@ export default function AddLeadPage() {
                   className={styles.formSelect}
                   value={formData.salesPersonId}
                   onChange={handleChange}
+                  disabled={!formData.salesManagerId}
                 >
-                  <option value="">Unassigned (admin-owned)</option>
-                  {salesPersons.map((person) => (
+                  <option value="">
+                    {!formData.salesManagerId
+                      ? "Select a sales manager first"
+                      : filteredSalesPersons.length === 0
+                        ? "No sales persons under this manager"
+                        : "Select sales person"}
+                  </option>
+                  {filteredSalesPersons.map((person) => (
                     <option key={person.id} value={person.id}>
                       {person.fullName || "Unnamed"}
                       {person.email ? ` — ${person.email}` : ""}

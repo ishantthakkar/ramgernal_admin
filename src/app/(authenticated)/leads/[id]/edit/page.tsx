@@ -57,6 +57,7 @@ import { UsaAddressFields } from "@/components/address/usa-address-fields";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import modalStyles from "@/components/modals/ConfirmationModal.module.css";
 import { formatDateTime } from "@/lib/dateUtils";
+import { getCurrentUserId, isSalesManagerUser } from "@/lib/permissions";
 
 interface LeadSourceOption {
   code: string;
@@ -64,6 +65,13 @@ interface LeadSourceOption {
 }
 
 interface SalesPersonOption {
+  id: string;
+  fullName?: string;
+  email?: string;
+  reportsToId?: string;
+}
+
+interface SalesManagerOption {
   id: string;
   fullName?: string;
   email?: string;
@@ -158,6 +166,8 @@ export default function EditLeadPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const isSalesManager = isSalesManagerUser();
+  const currentUserId = getCurrentUserId();
   const [saving, setSaving] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [converting, setConverting] = useState(false);
@@ -179,6 +189,7 @@ export default function EditLeadPage() {
     btnType: "info" as "danger" | "success" | "warning" | "info",
   });
   const [leadSources, setLeadSources] = useState<LeadSourceOption[]>([]);
+  const [salesManagers, setSalesManagers] = useState<SalesManagerOption[]>([]);
   const [salesPersons, setSalesPersons] = useState<SalesPersonOption[]>([]);
   const billInputRef = useRef<HTMLInputElement>(null);
   const contactCardInputRef = useRef<HTMLInputElement>(null);
@@ -193,6 +204,7 @@ export default function EditLeadPage() {
     accountNumber: "",
     electricCompany: "",
     leadSource: "",
+    salesManagerId: "",
     salesPersonId: "",
   });
   const [billFiles, setBillFiles] = useState<File[]>([]);
@@ -434,16 +446,52 @@ export default function EditLeadPage() {
       setLoadingOptions(true);
       setFetching(true);
       try {
-        const [leadRes, sourcesRes, salesRes] = await Promise.all([
+        const [leadRes, sourcesRes, salesManagersRes, salesPersonsRes] = await Promise.all([
           adminApi.getLeadById(id),
           adminApi.getLeadSources(),
-          adminApi.getLeadSalesPersons(),
+          adminApi.getUserList("sales manager"),
+          adminApi.getUserList("sales person"),
         ]);
         const lead = leadRes.lead || leadRes.data || leadRes;
         setLeadSources(sourcesRes.leadSources || []);
-        setSalesPersons(salesRes.salesPersons || []);
+
+        const rawSalesManagers =
+          salesManagersRes.users ||
+          salesManagersRes.data ||
+          (Array.isArray(salesManagersRes) ? salesManagersRes : []);
+        setSalesManagers(
+          rawSalesManagers.map((u: any) => ({
+            id: String(u._id || u.id),
+            fullName: u.fullName,
+            email: u.email,
+          }))
+        );
+
+        const rawSalesPersons =
+          salesPersonsRes.users ||
+          salesPersonsRes.data ||
+          (Array.isArray(salesPersonsRes) ? salesPersonsRes : []);
+        setSalesPersons(
+          rawSalesPersons.map((u: any) => ({
+            id: String(u._id || u.id),
+            fullName: u.fullName,
+            email: u.email,
+            reportsToId: u.reportsTo?._id ? String(u.reportsTo._id) : undefined,
+          }))
+        );
+
         setStatus(lead.status || "");
         const salesId = lead.user_id?._id || lead.user_id || "";
+        const managerId =
+          lead.salesManagerId?._id ||
+          lead.salesManagerId?.id ||
+          lead.salesManagerId ||
+          lead.salesManager?._id ||
+          lead.salesManager?.id ||
+          lead.salesManager ||
+          lead.user_id?.reportsTo?._id ||
+          lead.user_id?.reportsTo?.id ||
+          "";
         setInitialSalesPersonId(salesId ? String(salesId) : "");
         setFormData({
           email: lead.email || "",
@@ -455,6 +503,12 @@ export default function EditLeadPage() {
           accountNumber: lead.accountNumber || "",
           electricCompany: lead.electricCompany || "",
           leadSource: lead.leadSource || "",
+          salesManagerId:
+            isSalesManager && currentUserId
+              ? currentUserId
+              : managerId
+                ? String(managerId)
+                : "",
           salesPersonId: salesId ? String(salesId) : "",
         });
         setExistingBills(
@@ -502,12 +556,35 @@ export default function EditLeadPage() {
     loadData();
   }, [id]);
 
+  const filteredSalesPersons = useMemo(() => {
+    if (!formData.salesManagerId) return [];
+    return salesPersons.filter((p) => p.reportsToId === formData.salesManagerId);
+  }, [formData.salesManagerId, salesPersons]);
+
+  useEffect(() => {
+    if (!isSalesManager) return;
+    if (!currentUserId) return;
+    setFormData((prev) =>
+      prev.salesManagerId === currentUserId
+        ? prev
+        : { ...prev, salesManagerId: currentUserId, salesPersonId: "" }
+    );
+  }, [currentUserId, isSalesManager]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     if (name === "mobileNumber") {
       setFormData((prev) => ({ ...prev, mobileNumber: formatUsPhone(value) }));
+      return;
+    }
+    if (name === "salesManagerId") {
+      setFormData((prev) => ({
+        ...prev,
+        salesManagerId: value,
+        salesPersonId: "",
+      }));
       return;
     }
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -544,6 +621,10 @@ export default function EditLeadPage() {
       if (formData.electricCompany.trim()) data.append("electricCompany", formData.electricCompany.trim());
 
       data.append("lastActivity", new Date().toISOString());
+
+      if (formData.salesManagerId) {
+        data.append("salesManagerId", formData.salesManagerId);
+      }
 
       const cleanedAddresses = addresses
         .map((a) => ({
@@ -1161,6 +1242,38 @@ export default function EditLeadPage() {
                 onChange={handleChange}
               />
             </div>
+            {!isSalesManager && (
+              <div className={styles.formGroup}>
+                <label>Assign to Sales Manager</label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    name="salesManagerId"
+                    className={styles.formSelect}
+                    value={formData.salesManagerId}
+                    onChange={handleChange}
+                  >
+                    <option value="">Unassigned</option>
+                    {salesManagers.map((manager) => (
+                      <option key={manager.id} value={manager.id}>
+                        {manager.fullName || "Unnamed"}
+                        {manager.email ? ` — ${manager.email}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={18}
+                    style={{
+                      position: "absolute",
+                      right: "1rem",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      color: "#64748b",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
             <div className={styles.formGroup}>
               <label>Assign to Sales Person</label>
               <div style={{ position: "relative" }}>
@@ -1169,9 +1282,16 @@ export default function EditLeadPage() {
                   className={styles.formSelect}
                   value={formData.salesPersonId}
                   onChange={handleChange}
+                  disabled={!formData.salesManagerId}
                 >
-                  <option value="">Unassigned (admin-owned)</option>
-                  {salesPersons.map((person) => (
+                  <option value="">
+                    {!formData.salesManagerId
+                      ? "Select a sales manager first"
+                      : filteredSalesPersons.length === 0
+                        ? "No sales persons under this manager"
+                        : "Select sales person"}
+                  </option>
+                  {filteredSalesPersons.map((person) => (
                     <option key={person.id} value={person.id}>
                       {person.fullName || "Unnamed"}
                       {person.email ? ` — ${person.email}` : ""}
