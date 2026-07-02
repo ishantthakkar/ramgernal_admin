@@ -15,7 +15,11 @@ import {
   MoreVertical,
   UserPlus,
   FileText,
-  Loader2
+  Loader2,
+  Receipt,
+  Wallet,
+  Settings,
+  User,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { canViewModule } from "@/lib/permissions";
@@ -129,6 +133,13 @@ export default function DashboardPage() {
                   case 'customer': return { icon: Handshake, color: "#10b981", bg: "#ecfdf5" };
                   case 'survey': return { icon: FileText, color: "#f59e0b", bg: "#fffbeb" };
                   case 'assignment': return { icon: ClipboardList, color: "#8b5cf6", bg: "#f5f3ff" };
+                  case 'quotation': return { icon: FileText, color: "#6366f1", bg: "#eef2ff" };
+                  case 'invoice': return { icon: Receipt, color: "#0ea5e9", bg: "#f0f9ff" };
+                  case 'payables': return { icon: Wallet, color: "#14b8a6", bg: "#ecfdf5" };
+                  case 'installation': return { icon: Settings, color: "#f97316", bg: "#fff7ed" };
+                  case 'inspection': return { icon: Search, color: "#a855f7", bg: "#faf5ff" };
+                  case 'user': return { icon: User, color: "#64748b", bg: "#f1f5f9" };
+                  case 'role': return { icon: ShieldCheck, color: "#475569", bg: "#f8fafc" };
                   default: return { icon: FileText, color: "#64748b", bg: "#f1f5f9" };
                 }
               };

@@ -1348,6 +1348,7 @@ export default function WorkflowViewPage() {
 
   const canReopenInstallation =
     isInspectionView &&
+    !isInstallationView &&
     canReopenInstallationForInspection(inspectionStatusRaw) &&
     (canEditInspections || canCreateInspections);
 
@@ -1727,66 +1728,68 @@ export default function WorkflowViewPage() {
         </div>
       )}
 
-      <div
-        className={styles.actionFooter}
-        style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}
-      >
-        <button
-          type="button"
-          className={styles.cancelBtn}
-          onClick={() => router.push(backUrl)}
-          style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
-          disabled={approvingInspection || reopeningInstallation}
+      {(isInspectionView || isInstallationView || isSurveyView) ? (
+        <div
+          className={styles.actionFooter}
+          style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}
         >
-          <X size={20} /> Close
-        </button>
-        {isInspectionView && canReopenInstallation ? (
           <button
             type="button"
-            className={styles.assignBtn}
+            className={styles.cancelBtn}
+            onClick={() => router.push(backUrl)}
+            style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
             disabled={approvingInspection || reopeningInstallation}
-            onClick={() => setShowReopenInstallationModal(true)}
-            style={{
-              padding: "0.875rem 3rem",
-              background: "#f59e0b",
-              color: "#ffffff",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              border: "none",
-            }}
           >
-            {reopeningInstallation ? (
-              <Loader2 size={18} className={styles.spinner} />
-            ) : null}
-            {reopeningInstallation ? "Reopening..." : "Reopen Installation"}
+            <X size={20} /> Close
           </button>
-        ) : null}
-        {isInspectionView && canApproveInspection ? (
-          <button
-            type="button"
-            className={styles.createBtn}
-            disabled={approvingInspection || reopeningInstallation}
-            onClick={handleApproveInspection}
-            style={{
-              padding: "0.875rem 3rem",
-              background: "#10b981",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            {approvingInspection ? (
-              <Loader2 size={18} className={styles.spinner} />
-            ) : (
-              <CheckCircle2 size={18} />
-            )}
-            {approvingInspection ? "Approving..." : "Approve Inspection"}
-          </button>
-        ) : null}
-      </div>
+          {isInspectionView && canReopenInstallation ? (
+            <button
+              type="button"
+              className={styles.assignBtn}
+              disabled={approvingInspection || reopeningInstallation}
+              onClick={() => setShowReopenInstallationModal(true)}
+              style={{
+                padding: "0.875rem 3rem",
+                background: "#f59e0b",
+                color: "#ffffff",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                border: "none",
+              }}
+            >
+              {reopeningInstallation ? (
+                <Loader2 size={18} className={styles.spinner} />
+              ) : null}
+              {reopeningInstallation ? "Reopening..." : "Reopen Installation"}
+            </button>
+          ) : null}
+          {isInspectionView && canApproveInspection ? (
+            <button
+              type="button"
+              className={styles.createBtn}
+              disabled={approvingInspection || reopeningInstallation}
+              onClick={handleApproveInspection}
+              style={{
+                padding: "0.875rem 3rem",
+                background: "#10b981",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              {approvingInspection ? (
+                <Loader2 size={18} className={styles.spinner} />
+              ) : (
+                <CheckCircle2 size={18} />
+              )}
+              {approvingInspection ? "Approving..." : "Approve Inspection"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      {showReopenInstallationModal ? (
+      {isInspectionView && showReopenInstallationModal ? (
         <SiteSurveyReopenModal
           surveyName={resolveInspectionProjectTitle(installationSurvey, customer)}
           modalTitle="Reopen Installation"

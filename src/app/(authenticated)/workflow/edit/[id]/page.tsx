@@ -710,6 +710,7 @@ export default function WorkflowEditPage() {
 
   const canReopenInstallation =
     isInspectionEdit &&
+    !isInstallationEdit &&
     canReopenInstallationForInspection(inspectionStatusRaw) &&
     (canEditInspections || canCreateInspections);
 
@@ -1042,7 +1043,7 @@ export default function WorkflowEditPage() {
         >
           <X size={20} /> Cancel
         </button>
-        {canReopenInstallation ? (
+        {isInspectionEdit && canReopenInstallation ? (
           <button
             type="button"
             className={styles.assignBtn}
@@ -1061,7 +1062,7 @@ export default function WorkflowEditPage() {
             {reopeningInstallation ? "Reopening..." : "Reopen Installation"}
           </button>
         ) : null}
-        {canApproveInspection ? (
+        {isInspectionEdit && canApproveInspection ? (
           <button
             type="button"
             className={styles.addBtn}
@@ -1089,7 +1090,7 @@ export default function WorkflowEditPage() {
         </button>
       </div>
 
-      {showReopenInstallationModal ? (
+      {isInspectionEdit && showReopenInstallationModal ? (
         <SiteSurveyReopenModal
           surveyName={resolveInspectionProjectTitle(installationSurvey, customer)}
           modalTitle="Reopen Installation"
