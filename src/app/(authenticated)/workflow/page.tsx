@@ -425,7 +425,7 @@ export default function WorkflowPage() {
                   <td colSpan={tableColSpan} style={{ textAlign: "center", padding: "4rem" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", color: "#94a3b8" }}>
                       <Loader2 size={32} className={styles.spinner} />
-                      <span style={{ fontWeight: 600 }}>Synchronizing workflow data...</span>
+                      <span style={{ fontWeight: 600 }}>Loading workflow data...</span>
                     </div>
                   </td>
                 </tr>

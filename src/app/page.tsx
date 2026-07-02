@@ -98,23 +98,20 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      <header className={styles.logoWrapper}>
-        <Image
-          src="/ram-logo.png"
-          alt="RAM General Supply"
-          width={280}
-          height={100}
-          className={styles.logo}
-          priority
-        />
-      </header>
-
       <div className={styles.cardWrapper}>
-        <form 
-          className={styles.card} 
-          onSubmit={handleLogin}
-        >
-          <h1 className={styles.heading}>Admin Login</h1>
+        <form className={styles.card} onSubmit={handleLogin}>
+          <div className={styles.logoWrapper}>
+            <Image
+              src="/ram-logo.png"
+              alt="RAM General Supply"
+              width={340}
+              height={120}
+              className={styles.logo}
+              priority
+            />
+          </div>
+
+          <h1 className={styles.heading}>User Login</h1>
 
           {error && (
             <div className={styles.errorAlert}>

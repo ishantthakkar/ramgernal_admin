@@ -312,7 +312,7 @@ export default function UsersPage() {
                       }}
                     >
                       <Loader2 size={32} className={styles.spinner} />
-                      <span style={{ fontWeight: 600 }}>Synchronizing user database...</span>
+                      <span style={{ fontWeight: 600 }}>Loading users...</span>
                     </div>
                   </td>
                 </tr>
