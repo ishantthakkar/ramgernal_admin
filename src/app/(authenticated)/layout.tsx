@@ -52,6 +52,10 @@ function getCustomAvatarUrl(userInfo: Record<string, unknown> | null): string | 
   return null;
 }
 
+function isNavItemActive(pathname: string, itemPath: string): boolean {
+  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -136,7 +140,7 @@ export default function DashboardLayout({
             <Link
               key={item.name}
               href={item.path}
-              className={`${styles.navItem} ${pathname === item.path || ((item.path === "/users" || item.path === "/products" || item.path === "/leads" || item.path === "/customers" || item.path === "/workflow" || item.path === "/services" || item.path === "/commissions" || item.path === "/roles" || item.path === "/audit") && pathname.startsWith(item.path)) ? styles.navActive : ""}`}
+              className={`${styles.navItem} ${isNavItemActive(pathname, item.path) ? styles.navActive : ""}`}
               title={isSidebarCollapsed ? item.name : ""}
             >
               <item.icon size={22} strokeWidth={2.5} />
