@@ -36,13 +36,16 @@ const TAB_ICONS: Record<string, LucideIcon> = {
 };
 
 const SCOPE_ICONS: Record<string, LucideIcon> = {
+  all_users: User,
+  sales_person: User,
+  contractor: User,
+  project_manager: ClipboardCheck,
+  sales_manager: User,
+  admin: User,
   surveys: ClipboardCheck,
   quotations: Receipt,
   installation: Zap,
   inspection: SearchIcon,
-  sales_person: User,
-  sales_manager: User,
-  contractor: User,
 };
 
 interface PermissionTabsMatrixProps {

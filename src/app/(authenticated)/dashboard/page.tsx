@@ -22,7 +22,7 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { canViewModule } from "@/lib/permissions";
+import { canViewModule, canViewDashboardRecentActivities } from "@/lib/permissions";
 import { mapDashboardStats, type DashboardStats } from "@/lib/mappers/dashboard";
 
 export default function DashboardPage() {
@@ -50,6 +50,8 @@ export default function DashboardPage() {
 
     fetchStats();
   }, [router]);
+
+  const canViewRecentActivities = canViewDashboardRecentActivities();
 
   if (loading) {
     return (
@@ -117,6 +119,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Recent Activities Section */}
+      {canViewRecentActivities && (
       <section>
         <div className={styles.sectionHeader}>
           <h2 className={styles.welcomeText}>Recent Activities</h2>
@@ -173,6 +176,7 @@ export default function DashboardPage() {
           )}
         </div>
       </section>
+      )}
     </div>
   );
 }

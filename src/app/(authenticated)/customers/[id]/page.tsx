@@ -12,6 +12,7 @@ import {
   XCircle,
   FileText,
   Edit2,
+  ClipboardCheck,
   Calendar,
   Users,
   Phone,
@@ -22,11 +23,19 @@ import {
   Zap,
   Activity,
   User,
+  Plus,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { formatDateTime } from "@/lib/dateUtils";
 import { formatNoteAuthorLabel } from "@/lib/leadNotes";
-import { hasPermission } from "@/lib/permissions";
+import { canManageCustomerSurveys, hasPermission } from "@/lib/permissions";
+import {
+  customerHasServiceAddress,
+  formatSurveyStatusLabel,
+  getSurveyStatusColor,
+  resolveSurveyId,
+} from "@/lib/customer-survey";
+import { CreateSurveyModal } from "@/components/customers/survey/create-survey-modal";
 import { toast } from "react-toastify";
 
 const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
@@ -99,8 +108,12 @@ export default function CustomerDetailsPage() {
   const [activities, setActivities] = useState<Record<string, unknown>[]>([]);
   const [leadSourceMap, setLeadSourceMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [surveys, setSurveys] = useState<Record<string, unknown>[]>([]);
+  const [showCreateSurveyModal, setShowCreateSurveyModal] = useState(false);
+  const [creatingSurvey, setCreatingSurvey] = useState(false);
 
   const canEdit = hasPermission("Customers", "edit");
+  const canAddSurvey = canManageCustomerSurveys();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -111,6 +124,11 @@ export default function CustomerDetailsPage() {
         ]);
 
         setCustomer((customerRes.customer as Record<string, unknown>) || null);
+        setSurveys(
+          Array.isArray(customerRes.surveys)
+            ? (customerRes.surveys as Record<string, unknown>[])
+            : []
+        );
 
         const activityList = Array.isArray(customerRes.activities)
           ? customerRes.activities
@@ -227,6 +245,47 @@ export default function CustomerDetailsPage() {
   const statusColor = getStatusColor(statusLabel);
   const emailDisplay = displayValue(customer.email);
   const mobileDisplay = displayValue(customer.mobileNumber);
+  const hasAddress = customerHasServiceAddress(customer);
+
+  const handleAddSurveyClick = () => {
+    if (!hasAddress) {
+      toast.error("Please add a service address before creating a survey.");
+      if (canEdit) {
+        router.push(`/customers/${id}/edit`);
+      }
+      return;
+    }
+    setShowCreateSurveyModal(true);
+  };
+
+  const handleCreateSurvey = async (payload: {
+    surveyName: string;
+    surveyType: "utility" | "direct";
+    electricCompany: string;
+  }) => {
+    setCreatingSurvey(true);
+    try {
+      const response = await adminApi.createNewSurvey({
+        customer_id: id,
+        surveyName: payload.surveyName,
+        surveyType: payload.surveyType,
+        electricCompany: payload.electricCompany,
+      });
+      const survey = response.survey as Record<string, unknown> | undefined;
+      const surveyId = resolveSurveyId(survey || {});
+      if (!surveyId) {
+        throw new Error("Survey was created but no survey id was returned.");
+      }
+      toast.success(response.message || "Survey created successfully.");
+      setShowCreateSurveyModal(false);
+      router.push(`/customers/${id}/survey/${surveyId}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create survey.";
+      toast.error(message);
+    } finally {
+      setCreatingSurvey(false);
+    }
+  };
 
   return (
     <div className={styles.addUserPage}>
@@ -301,7 +360,20 @@ export default function CustomerDetailsPage() {
           <MapPin size={22} color={PRIMARY_ICON} /> Address Information
         </div>
         {addresses.length === 0 ? (
-          <div className={viewStyles.emptyState}>No addresses on file.</div>
+          <div className={viewStyles.emptyState}>
+            No addresses on file.
+            {canEdit ? (
+              <div style={{ marginTop: "0.75rem" }}>
+                <button
+                  type="button"
+                  className={styles.assignBtn}
+                  onClick={() => router.push(`/customers/${id}/edit`)}
+                >
+                  Add Address
+                </button>
+              </div>
+            ) : null}
+          </div>
         ) : (
           <div className={styles.userTableContainer}>
             <table className={viewStyles.detailTable}>
@@ -451,6 +523,114 @@ export default function CustomerDetailsPage() {
         )}
       </div>
 
+      <div className={styles.formSection}>
+        <div className={viewStyles.sectionTitleRow}>
+          <div className={`${styles.sectionTitle} ${viewStyles.viewSectionTitle}`}>
+            <ClipboardCheck size={22} color={PRIMARY_ICON} /> Surveys
+          </div>
+          {canAddSurvey && surveys.length > 0 && (
+            <button
+              type="button"
+              className={styles.addBtn}
+              onClick={handleAddSurveyClick}
+              disabled={creatingSurvey}
+            >
+              {creatingSurvey ? (
+                <>
+                  <Loader2 size={18} className={styles.spinner} />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus size={18} /> Add Survey
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
+        {surveys.length === 0 ? (
+          <div className={viewStyles.emptyState}>
+            No surveys yet.
+            {canAddSurvey ? (
+              <div style={{ marginTop: "0.75rem" }}>
+                <button
+                  type="button"
+                  className={styles.addBtn}
+                  onClick={handleAddSurveyClick}
+                  disabled={creatingSurvey}
+                >
+                  {creatingSurvey ? (
+                    <>
+                      <Loader2 size={18} className={styles.spinner} />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={18} /> Add Survey
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className={styles.userTableContainer}>
+            <table className={viewStyles.detailTable}>
+              <thead>
+                <tr>
+                  <th>Survey Name</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {surveys.map((survey, index) => {
+                  const surveyId = resolveSurveyId(survey);
+                  const status = formatSurveyStatusLabel(survey.status);
+                  const statusColor = getSurveyStatusColor(survey.status);
+                  const surveyType = String(survey.surveyType || "direct").toLowerCase();
+                  const typeLabel = surveyType === "utility" ? "Utility" : "Direct";
+
+                  return (
+                    <tr key={surveyId || index}>
+                      <td className={viewStyles.detailTableName}>
+                        {String(survey.surveyName || "Survey")}
+                      </td>
+                      <td className={viewStyles.detailTableMuted}>
+                        {survey.createdAt ? formatDateTime(survey.createdAt) : "—"}
+                      </td>
+                      <td>
+                        <span className={viewStyles.surveyTypeBadge}>{typeLabel}</span>
+                      </td>
+                      <td>
+                        <span
+                          className={viewStyles.surveyStatusBadge}
+                          style={{ background: `${statusColor}22`, color: statusColor }}
+                        >
+                          {status}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.assignBtn}
+                          onClick={() => router.push(`/customers/${id}/survey/${surveyId}`)}
+                        >
+                          Open
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div
         className={styles.actionFooter}
         style={{ background: "#f1f5f9", padding: "2.5rem", borderRadius: "16px", marginTop: "3rem", justifyContent: "flex-end" }}
@@ -464,6 +644,14 @@ export default function CustomerDetailsPage() {
           <X size={20} /> Close
         </button>
       </div>
+
+      <CreateSurveyModal
+        open={showCreateSurveyModal}
+        saving={creatingSurvey}
+        initialElectricCompany={electricCompanyDisplay}
+        onClose={() => setShowCreateSurveyModal(false)}
+        onSubmit={handleCreateSurvey}
+      />
     </div>
   );
 }

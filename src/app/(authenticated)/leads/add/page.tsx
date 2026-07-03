@@ -44,7 +44,7 @@ import { persistLeadActivities, persistLeadNotes } from "@/lib/leadPersistence";
 import { toast } from "react-toastify";
 import { UsaAddressFields } from "@/components/address/usa-address-fields";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
-import { getCurrentUserId, isSalesManagerUser } from "@/lib/permissions";
+import { getCurrentUserId, isSalesManagerUser, isSalesPersonUser } from "@/lib/permissions";
 
 interface LeadSourceOption {
   code: string;
@@ -110,6 +110,9 @@ const ADDRESS_TITLE_OPTIONS = [
 export default function AddLeadPage() {
   const router = useRouter();
   const isSalesManager = isSalesManagerUser();
+  const isSalesPerson = isSalesPersonUser();
+  const canAssignSalesManager = !isSalesManager && !isSalesPerson;
+  const canAssignSalesPerson = !isSalesPerson;
   const currentUserId = getCurrentUserId();
   const [loading, setLoading] = useState(false);
   const [showCreateConfirmModal, setShowCreateConfirmModal] = useState(false);
@@ -355,8 +358,8 @@ export default function AddLeadPage() {
       try {
         const [sourcesRes, salesManagersRes, salesPersonsRes] = await Promise.all([
           adminApi.getLeadSources(),
-          adminApi.getUserList("sales manager"),
-          adminApi.getUserList("sales person"),
+          canAssignSalesManager ? adminApi.getUserList("sales manager") : Promise.resolve({ users: [] }),
+          canAssignSalesPerson ? adminApi.getUserList("sales person") : Promise.resolve({ users: [] }),
         ]);
         setLeadSources(sourcesRes.leadSources || []);
 
@@ -392,7 +395,7 @@ export default function AddLeadPage() {
       }
     }
     loadOptions();
-  }, []);
+  }, [canAssignSalesManager, canAssignSalesPerson]);
 
   useEffect(() => {
     if (!isSalesManager) return;
@@ -461,11 +464,13 @@ export default function AddLeadPage() {
 
       data.append("lastActivity", new Date().toISOString());
 
-      if (formData.salesPersonId) {
-        data.append("salesPersonId", formData.salesPersonId);
-      }
-      if (formData.salesManagerId) {
-        data.append("salesManagerId", formData.salesManagerId);
+      if (!isSalesPerson) {
+        if (formData.salesPersonId) {
+          data.append("salesPersonId", formData.salesPersonId);
+        }
+        if (formData.salesManagerId) {
+          data.append("salesManagerId", formData.salesManagerId);
+        }
       }
 
       const cleanedAddresses = addresses
@@ -860,7 +865,7 @@ export default function AddLeadPage() {
                 onChange={handleChange}
               />
             </div>
-            {!isSalesManager && (
+            {canAssignSalesManager && (
               <div className={styles.formGroup}>
                 <label>Assign to Sales Manager</label>
                 <div style={{ position: "relative" }}>
@@ -892,6 +897,7 @@ export default function AddLeadPage() {
                 </div>
               </div>
             )}
+            {canAssignSalesPerson && (
             <div className={styles.formGroup}>
               <label>Assign to Sales Person</label>
               <div style={{ position: "relative" }}>
@@ -929,6 +935,7 @@ export default function AddLeadPage() {
                 />
               </div>
             </div>
+            )}
           </div>
         </section>
 

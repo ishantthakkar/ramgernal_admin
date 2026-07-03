@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
-import { canViewModule, hasPermission } from "@/lib/permissions";
+import { canViewModule, canEditUserByRole, hasPermission, isSalesManagerUser, getCurrentUserId } from "@/lib/permissions";
+import { getUserScopeFromRole } from "@/lib/role-modules";
 import { normalizeRoleName, getSupervisorTargetRole, getSupervisorLabel, createDefaultSchedule, scheduleToApiPayload, validateWorkingSchedule } from "../user-form-utils";
 import type { DayScheduleEntry } from "../user-form-utils";
 import { WorkingScheduleEditor } from "../components/WorkingScheduleEditor";
@@ -96,11 +97,19 @@ export default function AddUserPage() {
         const response = await adminApi.getUserList();
         const allUsers: SupervisorOption[] =
           response.users || response.data || (Array.isArray(response) ? response : []);
-        const filtered = allUsers.filter(
-          (user) => normalizeRoleName(user.userRole) === supervisorTarget
-        );
+        const managerId = getCurrentUserId();
+        const filtered = allUsers.filter((user) => {
+          if (normalizeRoleName(user.userRole) !== supervisorTarget) return false;
+          if (isSalesManagerUser() && managerId) {
+            return String(user._id) === managerId;
+          }
+          return true;
+        });
         if (!cancelled) {
           setSupervisorOptions(filtered);
+          if (isSalesManagerUser() && managerId) {
+            setReportsToId(managerId);
+          }
         }
       } catch {
         if (!cancelled) {
@@ -129,7 +138,11 @@ export default function AddUserPage() {
   const fetchRoles = async () => {
     try {
       const data = await adminApi.getRoles();
-      const fetchedRoles = data.roles || [];
+      const fetchedRoles = (data.roles || []).filter((role: RoleOption) => {
+        const scope = getUserScopeFromRole(role.roleName);
+        if (!scope) return hasPermission("User", "edit");
+        return canEditUserByRole(role.roleName);
+      });
       setRoles(fetchedRoles);
 
       const salesPersonRole = fetchedRoles.find(

@@ -270,6 +270,55 @@ export const adminApi = {
     apiRequest(`/surveys/${surveyId}/confirm-verify`, {
       method: "POST",
     }),
+  createNewSurvey: (payload: {
+    customer_id: string;
+    surveyName?: string;
+    surveyType?: string;
+    electricCompany?: string;
+  }) =>
+    apiRequest("/create-surveys", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  getSurvey: (surveyId: string) =>
+    apiRequest(`/surveys/${surveyId}`, {
+      method: "GET",
+    }),
+  getSurveyProducts: (customerId: string) =>
+    apiRequest(`/surveys/products?customer_id=${encodeURIComponent(customerId)}`, {
+      method: "GET",
+    }),
+  addSurveyArea: (formData: FormData) =>
+    apiRequest("/add-area", {
+      method: "POST",
+      body: formData,
+    }),
+  updateSurveyName: (surveyId: string, surveyName: string) =>
+    apiRequest("/surveys/name", {
+      method: "POST",
+      body: JSON.stringify({ survey_id: surveyId, surveyName }),
+    }),
+  updateSurveyNotes: (surveyId: string, payload: { title?: string; note: string }) =>
+    apiRequest("/surveys/notes", {
+      method: "POST",
+      body: JSON.stringify({
+        survey_id: surveyId,
+        title: payload.title || "",
+        note: payload.note,
+      }),
+    }),
+  updateSurveyDetails: (
+    surveyId: string,
+    payload: Record<string, unknown>
+  ) =>
+    apiRequest(`/surveys/${surveyId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  submitCustomerSurveyStatus: (surveyId: string, status: string) =>
+    apiRequest(`/customer/${surveyId}/${status}/update-status`, {
+      method: "POST",
+    }),
   reopenSurvey: (
     surveyId: string,
     payload: { title?: string; note: string }

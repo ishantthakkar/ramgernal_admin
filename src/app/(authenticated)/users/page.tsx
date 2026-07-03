@@ -17,8 +17,14 @@ import {
   Briefcase,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
-import { hasPermission } from "@/lib/permissions";
+import {
+  canEditUserByRole,
+  canEditUserTab,
+  canViewUserTab,
+  hasPermission,
+} from "@/lib/permissions";
 import { USER_TABS, type UserTab, parseUserTabFromParam, withUserTab } from "./user-tabs";
+import { filterUsersForCurrentActor } from "./user-scope";
 import { WorkingHoursCell } from "./components/WorkingHoursCell";
 
 function normalizeRole(role?: string): string {
@@ -57,16 +63,37 @@ export default function UsersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const canCreateUsers = hasPermission("User", "create");
-  const canEditUsers = hasPermission("User", "edit");
-
-  const [activeTab, setActiveTab] = useState<UserTab>(() =>
-    parseUserTabFromParam(searchParams.get("tab"))
+  const visibleTabs = useMemo(
+    () => USER_TABS.filter((tab) => canViewUserTab(tab)),
+    []
   );
 
+  const canCreateUsers = hasPermission("User", "create");
+
+  const [activeTab, setActiveTab] = useState<UserTab>(() => {
+    const requested = parseUserTabFromParam(searchParams.get("tab"));
+    if (canViewUserTab(requested)) return requested;
+    return visibleTabs[0] || "All Users";
+  });
+
   useEffect(() => {
-    setActiveTab(parseUserTabFromParam(searchParams.get("tab")));
-  }, [searchParams]);
+    const requested = parseUserTabFromParam(searchParams.get("tab"));
+    if (canViewUserTab(requested)) {
+      setActiveTab(requested);
+      return;
+    }
+    if (visibleTabs.length > 0) {
+      setActiveTab(visibleTabs[0]);
+    }
+  }, [searchParams, visibleTabs]);
+
+  useEffect(() => {
+    if (visibleTabs.length === 0) {
+      router.replace("/dashboard");
+    }
+  }, [router, visibleTabs.length]);
+
+  const canCreateOnActiveTab = canEditUserTab(activeTab);
 
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +113,8 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const response = await adminApi.getUserList();
-      const results = response.users || response.data || (Array.isArray(response) ? response : []);
+      const rawResults = response.users || response.data || (Array.isArray(response) ? response : []);
+      const results = filterUsersForCurrentActor(rawResults as Array<{ _id?: string; userRole?: string; reportsTo?: { _id?: string } | string | null }>);
       setAllUsers(results);
 
       setStats({
@@ -239,7 +267,7 @@ export default function UsersPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>Users</h1>
-        {canCreateUsers && (
+        {canCreateUsers && canCreateOnActiveTab && (
           <button className={styles.addBtn} onClick={() => router.push("/users/add")}>
             <Plus size={20} /> Add User
           </button>
@@ -264,7 +292,7 @@ export default function UsersPage() {
       <div className={styles.tableCard}>
         <div className={styles.tableHeader}>
           <div className={userStyles.usersTabs}>
-            {USER_TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <div
                 key={tab}
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
@@ -460,7 +488,7 @@ export default function UsersPage() {
                     )}
 
                     <td>
-                      {canEditUsers && (
+                      {canEditUserByRole(user.userRole) && (
                         <button
                           className={styles.assignBtn}
                           onClick={() =>

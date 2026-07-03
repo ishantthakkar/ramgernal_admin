@@ -18,7 +18,14 @@ import {
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
-import { canViewModule, hasPermission } from "@/lib/permissions";
+import {
+  canViewModule,
+  canEditUserByRole,
+  canViewUserByRole,
+  getCurrentUserId,
+  isSalesManagerUser,
+} from "@/lib/permissions";
+import { getUserScopeFromRole } from "@/lib/role-modules";
 import {
   normalizeRoleName,
   resolveRoleId,
@@ -56,7 +63,6 @@ export default function EditUserPage() {
   const searchParams = useSearchParams();
   const id = params.id as string;
   const tabFromUrl = parseUserTabFromParam(searchParams.get("tab"));
-  const canEditUsers = hasPermission("User", "edit");
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -101,7 +107,7 @@ export default function EditUserPage() {
   }, [profilePreview]);
 
   useEffect(() => {
-    if (!canViewModule("User") || !canEditUsers) {
+    if (!canViewModule("User")) {
       toast.error("You do not have permission to edit users.");
       router.push(getUsersListPath(tabFromUrl));
       return;
@@ -116,10 +122,20 @@ export default function EditUserPage() {
           adminApi.getUserById(id),
         ]);
 
-        const fetchedRoles: RoleOption[] = rolesRes.roles || [];
+        const user = userRes.user || userRes.data || userRes;
+        if (!canEditUserByRole(user.userRole)) {
+          toast.error("You do not have permission to edit this user.");
+          router.push(getUsersListPath(tabFromUrl));
+          return;
+        }
+
+        const fetchedRoles: RoleOption[] = (rolesRes.roles || []).filter((role: RoleOption) => {
+          const scope = getUserScopeFromRole(role.roleName);
+          if (!scope) return canEditUserByRole(role.roleName);
+          return canEditUserByRole(role.roleName);
+        });
         setRoles(fetchedRoles);
 
-        const user = userRes.user || userRes.data || userRes;
         const roleId = resolveRoleId(fetchedRoles, user);
 
         setFormData({
@@ -153,7 +169,7 @@ export default function EditUserPage() {
     }
 
     loadUser();
-  }, [id, router, tabFromUrl, canEditUsers]);
+  }, [id, router, tabFromUrl]);
 
   useEffect(() => {
     if (!supervisorTarget) {
@@ -179,12 +195,20 @@ export default function EditUserPage() {
         const response = await adminApi.getUserList();
         const allUsers: SupervisorOption[] =
           response.users || response.data || (Array.isArray(response) ? response : []);
-        const filtered = allUsers.filter(
-          (user) =>
-            normalizeRoleName(user.userRole) === supervisorTarget && String(user._id) !== id
-        );
+        const managerId = getCurrentUserId();
+        const filtered = allUsers.filter((user) => {
+          if (normalizeRoleName(user.userRole) !== supervisorTarget) return false;
+          if (String(user._id) === id) return false;
+          if (isSalesManagerUser() && managerId) {
+            return String(user._id) === managerId;
+          }
+          return true;
+        });
         if (!cancelled) {
           setSupervisorOptions(filtered);
+          if (isSalesManagerUser() && managerId && !preserveSupervisorRef.current) {
+            setReportsToId(managerId);
+          }
         }
       } catch {
         if (!cancelled) {

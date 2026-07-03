@@ -16,7 +16,16 @@ export interface UserPermissions {
   [module: string]: Permission | Record<string, NestedPermissionScope>;
 }
 
+import {
+  USER_SCOPE_NAMES,
+  USER_TAB_SCOPE_MAP,
+  getUserScopeFromRole,
+  type UserRoleTabLabel,
+  type UserScopeName,
+} from "@/lib/role-modules";
+
 const WORKFLOW_MODULES = ["Surveys", "Quotations", "Installation", "Inspection"] as const;
+const USER_SCOPES = USER_SCOPE_NAMES;
 const PAYABLES_SCOPES = ["Sales Person", "Sales Manager", "Contractor"] as const;
 
 function isNestedScope(value: unknown): value is Record<string, NestedPermissionScope> {
@@ -54,6 +63,17 @@ function getWorkflowScope(
   const legacy = permissions[scopeName];
   if (legacy && !isNestedScope(legacy)) {
     return legacy as NestedPermissionScope;
+  }
+  return undefined;
+}
+
+function getUserScope(
+  permissions: UserPermissions,
+  scopeName: string
+): NestedPermissionScope | undefined {
+  const userPerms = permissions.User || permissions.Users;
+  if (isNestedScope(userPerms)) {
+    return userPerms[scopeName];
   }
   return undefined;
 }
@@ -117,6 +137,11 @@ export function isSalesManagerUser(): boolean {
   return normalizeUserRole(userRole) === "sales manager";
 }
 
+export function canViewDashboardRecentActivities(): boolean {
+  if (isSuperAdmin()) return true;
+  return !isSalesManagerUser() && !isSalesPersonUser();
+}
+
 export function getCurrentUserId(): string | null {
   const info = getUserInfo();
   const id =
@@ -133,6 +158,13 @@ export function canReorderSiteDetails(): boolean {
   return role === "sales person" || role === "admin";
 }
 
+export function canManageCustomerSurveys(): boolean {
+  if (isSuperAdmin()) return true;
+  const role = normalizeUserRole((getUserInfo()?.userRole as string | undefined) ?? undefined);
+  if (role === "admin") return true;
+  return isSalesPersonUser() || hasWorkflowScopePermission("Surveys", "edit");
+}
+
 export function hasWorkflowScopePermission(
   scopeName: (typeof WORKFLOW_MODULES)[number],
   action: "view" | "create" | "edit" | "delete"
@@ -142,6 +174,43 @@ export function hasWorkflowScopePermission(
   if (!permissions) return false;
   const normalized = normalizeAction(action);
   return scopeHasAction(getWorkflowScope(permissions, scopeName), normalized);
+}
+
+export function hasUserScopePermission(
+  scopeName: UserScopeName,
+  action: "view" | "create" | "edit" | "delete"
+): boolean {
+  if (isSuperAdmin()) return true;
+  const permissions = getPermissions();
+  if (!permissions) return false;
+  const normalized = normalizeAction(action);
+  const scopePerms = getUserScope(permissions, scopeName);
+  if (scopePerms) {
+    return scopeHasAction(scopePerms, normalized);
+  }
+  return flatHasAction(resolveFlatModule("User", permissions), normalized);
+}
+
+export function canViewUserTab(tab: keyof typeof USER_TAB_SCOPE_MAP): boolean {
+  return hasUserScopePermission(USER_TAB_SCOPE_MAP[tab], "view");
+}
+
+export function canEditUserTab(tab: keyof typeof USER_TAB_SCOPE_MAP): boolean {
+  return hasUserScopePermission(USER_TAB_SCOPE_MAP[tab], "edit");
+}
+
+export function canEditUserByRole(role?: string): boolean {
+  if (hasUserScopePermission("All Users", "edit")) return true;
+  const scope = getUserScopeFromRole(role);
+  if (!scope) return hasPermission("User", "edit");
+  return hasUserScopePermission(scope, "edit");
+}
+
+export function canViewUserByRole(role?: string): boolean {
+  if (hasUserScopePermission("All Users", "view")) return true;
+  const scope = getUserScopeFromRole(role);
+  if (!scope) return hasPermission("User", "view");
+  return hasUserScopePermission(scope, "view");
 }
 
 export function hasPayablesScopePermission(
@@ -174,6 +243,17 @@ export function hasPermission(moduleName: string, action: "view" | "create" | "e
 
   if ((WORKFLOW_MODULES as readonly string[]).includes(moduleName)) {
     return scopeHasAction(getWorkflowScope(permissions, moduleName), normalized);
+  }
+
+  if (moduleName === "User") {
+    const userPerms = permissions.User || permissions.Users;
+    if (isNestedScope(userPerms)) {
+      if (normalized === "view") {
+        return USER_SCOPES.some((scope) => hasUserScopePermission(scope, "view"));
+      }
+      return USER_SCOPES.some((scope) => hasUserScopePermission(scope, "edit"));
+    }
+    return flatHasAction(resolveFlatModule("User", permissions), normalized);
   }
 
   if (moduleName === "Payables" || moduleName === "Commission") {

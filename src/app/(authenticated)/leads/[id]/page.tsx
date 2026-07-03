@@ -34,6 +34,7 @@ import { formatNoteAuthorLabel } from "@/lib/leadNotes";
 import { getActivityDisplayText } from "@/lib/leadPersistence";
 import { formatUsPhone } from "@/lib/format-us-phone";
 import { leadCanConvertToCustomer, leadHasPhoneOrMobile } from "@/lib/lead-validation";
+import { isSalesPersonUser } from "@/lib/permissions";
 
 function resolveUploadsUrl(filename: string): string {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "";
@@ -85,9 +86,6 @@ export default function LeadDetailsPage() {
   const router = useRouter();
   const id = params.id as string;
   const [lead, setLead] = useState<any>(null);
-  const [salesManagers, setSalesManagers] = useState<Array<{ id: string; fullName?: string; email?: string }>>(
-    []
-  );
   const [loading, setLoading] = useState(true);
   const [converting, setConverting] = useState(false);
   const [markingLost, setMarkingLost] = useState(false);
@@ -113,24 +111,9 @@ export default function LeadDetailsPage() {
   useEffect(() => {
     const fetchLead = async () => {
       try {
-        const [leadRes, salesManagersRes] = await Promise.all([
-          adminApi.getLeadById(id),
-          adminApi.getUserList("sales manager"),
-        ]);
+        const leadRes = await adminApi.getLeadById(id);
         const resolvedLead = leadRes.lead || leadRes.data || leadRes;
         setLead(resolvedLead);
-
-        const rawSalesManagers =
-          salesManagersRes.users ||
-          salesManagersRes.data ||
-          (Array.isArray(salesManagersRes) ? salesManagersRes : []);
-        setSalesManagers(
-          rawSalesManagers.map((u: any) => ({
-            id: String(u._id || u.id),
-            fullName: u.fullName,
-            email: u.email,
-          }))
-        );
       } catch (err) {
         console.error("Failed to fetch lead details:", err);
         toast.error("Failed to load lead details.");
@@ -143,22 +126,31 @@ export default function LeadDetailsPage() {
 
   const salesManagerName = useMemo(() => {
     const directName =
-      lead?.salesManager?.fullName ||
       lead?.salesManagerName ||
+      lead?.salesManager?.fullName ||
       lead?.salesManagerId?.fullName ||
       lead?.user_id?.reportsTo?.fullName;
     if (directName) return String(directName);
 
-    const salesManagerId =
-      lead?.salesManagerId ||
-      lead?.salesManager?._id ||
-      lead?.salesManager?.id ||
-      lead?.salesManagerId?._id;
-    if (!salesManagerId) return "";
+    if (isSalesPersonUser()) {
+      const userInfoRaw = typeof window !== "undefined" ? localStorage.getItem("user_info") : null;
+      if (userInfoRaw) {
+        try {
+          const userInfo = JSON.parse(userInfoRaw) as {
+            reportsTo?: { fullName?: string } | string;
+          };
+          const reportsTo = userInfo.reportsTo;
+          if (reportsTo && typeof reportsTo === "object" && reportsTo.fullName) {
+            return reportsTo.fullName;
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+    }
 
-    const match = salesManagers.find((m) => m.id === String(salesManagerId));
-    return match?.fullName || match?.email || "";
-  }, [lead, salesManagers]);
+    return "";
+  }, [lead]);
 
   const convertNeedsMobile = lead ? !leadHasPhoneOrMobile(lead) : false;
 

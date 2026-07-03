@@ -18,9 +18,62 @@ export const SYSTEM_ROLE_NAMES = ["Admin", "Sales Manager", "Project Manager", "
 /** Mobile-only roles — hidden from admin Roles & Permissions table */
 export const MOBILE_USER_ROLE_NAMES = ["Contractor", "Contractors"] as const;
 
+export const USER_SCOPE_NAMES = [
+  "All Users",
+  "Sales Person",
+  "Contractor",
+  "Project Manager",
+  "Sales Manager",
+  "Admin",
+] as const;
+
+export type UserScopeName = (typeof USER_SCOPE_NAMES)[number];
+
+/** Maps users page tab labels to User permission scope names */
+export const USER_TAB_SCOPE_MAP = {
+  "All Users": "All Users",
+  "Sales Person": "Sales Person",
+  Contractors: "Contractor",
+  "Project Manager": "Project Manager",
+  "Sales Manager": "Sales Manager",
+  Admin: "Admin",
+} as const;
+
+export type UserRoleTabLabel = keyof typeof USER_TAB_SCOPE_MAP;
+
+export function getUserScopeFromRole(role?: string): UserScopeName | null {
+  const normalized = role?.trim().toLowerCase().replace(/_/g, " ") || "";
+  switch (normalized) {
+    case "sales person":
+      return "Sales Person";
+    case "contractor":
+      return "Contractor";
+    case "project manager":
+      return "Project Manager";
+    case "sales manager":
+      return "Sales Manager";
+    case "admin":
+      return "Admin";
+    default:
+      return null;
+  }
+}
+
 export const PERMISSION_TABS: PermissionTabDefinition[] = [
   { id: "dashboard", name: "Dashboard", allowed: ["view"] },
-  { id: "user", name: "User", allowed: ["view", "edit"] },
+  {
+    id: "user",
+    name: "User",
+    allowed: [],
+    scopes: [
+      { id: "all_users", name: "All Users", allowed: ["view", "edit"] },
+      { id: "sales_person", name: "Sales Person", allowed: ["view", "edit"] },
+      { id: "contractor", name: "Contractor", allowed: ["view", "edit"] },
+      { id: "project_manager", name: "Project Manager", allowed: ["view", "edit"] },
+      { id: "sales_manager", name: "Sales Manager", allowed: ["view", "edit"] },
+      { id: "admin", name: "Admin", allowed: ["view", "edit"] },
+    ],
+  },
   { id: "products", name: "Products", allowed: ["view", "edit"] },
   { id: "leads", name: "Leads", allowed: ["view", "edit"] },
   { id: "customers", name: "Customers", allowed: ["view", "edit"] },
@@ -155,13 +208,16 @@ function applyNestedPerms(
     const key = permissionKey(tab.id, scope.id);
     const fromNested = nestedSource?.[scope.name];
     const legacyNames: Record<string, string[]> = {
+      all_users: ["All Users", "User", "Users"],
+      sales_person: ["Sales Person", "Sales Persons"],
+      contractor: ["Contractor", "Contractors"],
+      project_manager: ["Project Manager"],
+      sales_manager: ["Sales Manager"],
+      admin: ["Admin"],
       surveys: ["Surveys"],
       quotations: ["Quotations", "Surveys"],
       installation: ["Installation", "Installations"],
       inspection: ["Inspection", "Inspections"],
-      sales_person: ["Sales Person", "Sales Persons"],
-      sales_manager: ["Sales Manager"],
-      contractor: ["Contractor", "Contractors"],
     };
     const fromLegacy = legacyFlat
       ? readLegacyFlat(legacyFlat, legacyNames[scope.id] || [])
@@ -179,6 +235,14 @@ function applyNestedPerms(
     tab.scopes.forEach((scope) => {
       const key = permissionKey(tab.id, scope.id);
       applyFlatPerms(parsed[key], legacyPayables, scope.allowed);
+    });
+  }
+
+  const legacyUser = readLegacyFlat(legacyFlat || {}, ["User", "Users"]);
+  if (tab.id === "user" && legacyUser && !nestedSource) {
+    tab.scopes.forEach((scope) => {
+      const key = permissionKey(tab.id, scope.id);
+      applyFlatPerms(parsed[key], legacyUser, scope.allowed);
     });
   }
 }

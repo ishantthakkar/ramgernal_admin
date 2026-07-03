@@ -22,7 +22,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
-import { canViewModule, hasPermission } from "@/lib/permissions";
+import { canViewModule, canEditUserByRole, canViewUserByRole } from "@/lib/permissions";
 import { getSupervisorFieldLabel } from "../../user-form-utils";
 import { WorkingScheduleView } from "../../components/WorkingScheduleView";
 import { WorkingHoursCell } from "../../components/WorkingHoursCell";
@@ -89,7 +89,6 @@ export default function ViewUserPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const id = params.id as string;
-  const canEditUsers = hasPermission("User", "edit");
   const canViewUsers = canViewModule("User");
   const tabFromUrl = parseUserTabFromParam(searchParams.get("tab"));
 
@@ -108,6 +107,11 @@ export default function ViewUserPage() {
       try {
         const response = await adminApi.getUserById(id);
         const userData: UserProfile = response.user || response.data || response;
+        if (!canViewUserByRole(userData.userRole)) {
+          toast.error("You do not have permission to view this user.");
+          router.push(getUsersListPath(tabFromUrl));
+          return;
+        }
         setUser(userData);
         setDirectReports(
           Array.isArray(response.directReports) ? response.directReports : []
@@ -165,7 +169,7 @@ export default function ViewUserPage() {
 
       <div className={styles.pageHeader}>
         <h1 className={styles.welcomeText}>View User Profile</h1>
-        {canEditUsers && (
+        {canEditUserByRole(user.userRole) && (
           <button
             type="button"
             className={styles.addBtn}

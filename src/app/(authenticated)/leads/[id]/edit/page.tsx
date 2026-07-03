@@ -57,7 +57,7 @@ import { UsaAddressFields } from "@/components/address/usa-address-fields";
 import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import modalStyles from "@/components/modals/ConfirmationModal.module.css";
 import { formatDateTime } from "@/lib/dateUtils";
-import { getCurrentUserId, isSalesManagerUser } from "@/lib/permissions";
+import { getCurrentUserId, isSalesManagerUser, isSalesPersonUser } from "@/lib/permissions";
 
 interface LeadSourceOption {
   code: string;
@@ -167,6 +167,9 @@ export default function EditLeadPage() {
   const params = useParams();
   const id = params.id as string;
   const isSalesManager = isSalesManagerUser();
+  const isSalesPerson = isSalesPersonUser();
+  const canAssignSalesManager = !isSalesManager && !isSalesPerson;
+  const canAssignSalesPerson = !isSalesPerson;
   const currentUserId = getCurrentUserId();
   const [saving, setSaving] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -449,8 +452,8 @@ export default function EditLeadPage() {
         const [leadRes, sourcesRes, salesManagersRes, salesPersonsRes] = await Promise.all([
           adminApi.getLeadById(id),
           adminApi.getLeadSources(),
-          adminApi.getUserList("sales manager"),
-          adminApi.getUserList("sales person"),
+          canAssignSalesManager ? adminApi.getUserList("sales manager") : Promise.resolve({ users: [] }),
+          canAssignSalesPerson ? adminApi.getUserList("sales person") : Promise.resolve({ users: [] }),
         ]);
         const lead = leadRes.lead || leadRes.data || leadRes;
         setLeadSources(sourcesRes.leadSources || []);
@@ -622,7 +625,7 @@ export default function EditLeadPage() {
 
       data.append("lastActivity", new Date().toISOString());
 
-      if (formData.salesManagerId) {
+      if (!isSalesPerson && formData.salesManagerId) {
         data.append("salesManagerId", formData.salesManagerId);
       }
 
@@ -701,6 +704,7 @@ export default function EditLeadPage() {
       await persistLeadActivities(id, cleanedActivities);
 
       if (
+        !isSalesPerson &&
         formData.salesPersonId &&
         formData.salesPersonId !== initialSalesPersonId
       ) {
@@ -1242,7 +1246,7 @@ export default function EditLeadPage() {
                 onChange={handleChange}
               />
             </div>
-            {!isSalesManager && (
+            {canAssignSalesManager && (
               <div className={styles.formGroup}>
                 <label>Assign to Sales Manager</label>
                 <div style={{ position: "relative" }}>
@@ -1274,6 +1278,7 @@ export default function EditLeadPage() {
                 </div>
               </div>
             )}
+            {canAssignSalesPerson && (
             <div className={styles.formGroup}>
               <label>Assign to Sales Person</label>
               <div style={{ position: "relative" }}>
@@ -1311,6 +1316,7 @@ export default function EditLeadPage() {
                 />
               </div>
             </div>
+            )}
           </div>
         </section>
 
