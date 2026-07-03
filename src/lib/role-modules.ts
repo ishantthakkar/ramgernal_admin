@@ -77,6 +77,7 @@ export const PERMISSION_TABS: PermissionTabDefinition[] = [
   { id: "products", name: "Products", allowed: ["view", "edit"] },
   { id: "leads", name: "Leads", allowed: ["view", "edit"] },
   { id: "customers", name: "Customers", allowed: ["view", "edit"] },
+  { id: "survey", name: "Create Survey", allowed: ["view", "edit"] },
   {
     id: "workflow",
     name: "Workflow",
@@ -272,7 +273,9 @@ export function parsePermissionsFromApi(
         ? ["User", "Users"]
         : tab.id === "products"
           ? ["Products", "Product"]
-          : [tab.name];
+          : tab.id === "survey"
+            ? ["Create Survey", "Survey"]
+            : [tab.name];
     const modulePerms = readLegacyFlat(flat as Record<string, Record<string, number>>, legacyNames);
     parsed[tab.id] = emptyActions();
     applyFlatPerms(parsed[tab.id], modulePerms, tab.allowed);

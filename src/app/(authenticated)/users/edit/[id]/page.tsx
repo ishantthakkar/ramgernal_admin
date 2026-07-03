@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import styles from "../../../dashboard.module.css";
 import addStyles from "../../add/user-add.module.css";
 import {
@@ -11,8 +10,6 @@ import {
   X,
   ChevronDown,
   Clock,
-  Upload,
-  User,
   Save,
   Loader2,
 } from "lucide-react";
@@ -38,6 +35,7 @@ import {
 } from "../../user-form-utils";
 import type { DayScheduleEntry } from "../../user-form-utils";
 import { WorkingScheduleEditor } from "../../components/WorkingScheduleEditor";
+import { ProfilePictureUpload } from "@/components/users/profile-picture-upload";
 import {
   getUserTabFromRole,
   getUsersListPath,
@@ -71,7 +69,6 @@ export default function EditUserPage() {
   const [reportsToId, setReportsToId] = useState("");
   const [loadingSupervisors, setLoadingSupervisors] = useState(false);
   const preserveSupervisorRef = useRef(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
@@ -105,6 +102,11 @@ export default function EditUserPage() {
       }
     };
   }, [profilePreview]);
+
+  function handleProfilePictureChange(file: File | null, previewUrl: string | null) {
+    setProfilePicture(file);
+    setProfilePreview(previewUrl);
+  }
 
   useEffect(() => {
     if (!canViewModule("User")) {
@@ -244,29 +246,6 @@ export default function EditUserPage() {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
-
-  function handleProfilePictureChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be smaller than 5MB.");
-      return;
-    }
-    if (profilePreview?.startsWith("blob:")) URL.revokeObjectURL(profilePreview);
-    setProfilePicture(file);
-    setProfilePreview(URL.createObjectURL(file));
-  }
-
-  function removeProfilePicture() {
-    if (profilePreview?.startsWith("blob:")) URL.revokeObjectURL(profilePreview);
-    setProfilePicture(null);
-    setProfilePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
 
   const returnTab = searchParams.has("tab")
     ? tabFromUrl
@@ -495,59 +474,11 @@ export default function EditUserPage() {
           </p>
 
           <div className={styles.formGrid}>
-            <div className={`${styles.formGroup} ${addStyles.profileUploadGroup}`}>
-              <label>Profile Picture</label>
-              <div className={addStyles.profileUploadArea}>
-                <div className={addStyles.profilePreview}>
-                  {profilePreview ? (
-                    <Image
-                      src={profilePreview}
-                      alt="Profile preview"
-                      width={88}
-                      height={88}
-                      className={addStyles.profilePreviewImg}
-                      unoptimized
-                    />
-                  ) : (
-                    <User size={36} color="#64748b" />
-                  )}
-                </div>
-                <div className={addStyles.profileUploadControls}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className={addStyles.hiddenFileInput}
-                    onChange={handleProfilePictureChange}
-                  />
-                  <button
-                    type="button"
-                    className={addStyles.uploadBtn}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload size={18} /> Choose Image
-                  </button>
-                  {profilePreview && (
-                    <button
-                      type="button"
-                      onClick={removeProfilePicture}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#ef4444",
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        textAlign: "left",
-                      }}
-                    >
-                      Remove photo
-                    </button>
-                  )}
-                  <span className={addStyles.uploadHint}>JPG, PNG or WEBP. Max 5MB.</span>
-                </div>
-              </div>
-            </div>
+            <ProfilePictureUpload
+              previewUrl={profilePreview}
+              onChange={handleProfilePictureChange}
+              label="Profile Picture"
+            />
 
             <div className={styles.formGroup}>
               <label>

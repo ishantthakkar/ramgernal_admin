@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import styles from "../../dashboard.module.css";
 import addStyles from "./user-add.module.css";
 import {
@@ -11,8 +10,6 @@ import {
   X,
   ChevronDown,
   Clock,
-  Upload,
-  User,
 } from "lucide-react";
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
@@ -21,6 +18,7 @@ import { getUserScopeFromRole } from "@/lib/role-modules";
 import { normalizeRoleName, getSupervisorTargetRole, getSupervisorLabel, createDefaultSchedule, scheduleToApiPayload, validateWorkingSchedule } from "../user-form-utils";
 import type { DayScheduleEntry } from "../user-form-utils";
 import { WorkingScheduleEditor } from "../components/WorkingScheduleEditor";
+import { ProfilePictureUpload } from "@/components/users/profile-picture-upload";
 import { formatUsPhone } from "@/lib/format-us-phone";
 
 interface RoleOption {
@@ -43,7 +41,6 @@ export default function AddUserPage() {
   const [supervisorOptions, setSupervisorOptions] = useState<SupervisorOption[]>([]);
   const [reportsToId, setReportsToId] = useState("");
   const [loadingSupervisors, setLoadingSupervisors] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
@@ -131,9 +128,16 @@ export default function AddUserPage() {
 
   useEffect(() => {
     return () => {
-      if (profilePreview) URL.revokeObjectURL(profilePreview);
+      if (profilePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(profilePreview);
+      }
     };
   }, [profilePreview]);
+
+  function handleProfilePictureChange(file: File | null, previewUrl: string | null) {
+    setProfilePicture(file);
+    setProfilePreview(previewUrl);
+  }
 
   const fetchRoles = async () => {
     try {
@@ -175,29 +179,6 @@ export default function AddUserPage() {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
-
-  function handleProfilePictureChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be smaller than 5MB.");
-      return;
-    }
-    if (profilePreview) URL.revokeObjectURL(profilePreview);
-    setProfilePicture(file);
-    setProfilePreview(URL.createObjectURL(file));
-  }
-
-  function removeProfilePicture() {
-    if (profilePreview) URL.revokeObjectURL(profilePreview);
-    setProfilePicture(null);
-    setProfilePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -396,59 +377,10 @@ export default function AddUserPage() {
           </p>
 
           <div className={styles.formGrid}>
-            <div className={`${styles.formGroup} ${addStyles.profileUploadGroup}`}>
-              <label>Upload Profile Picture</label>
-              <div className={addStyles.profileUploadArea}>
-                <div className={addStyles.profilePreview}>
-                  {profilePreview ? (
-                    <Image
-                      src={profilePreview}
-                      alt="Profile preview"
-                      width={88}
-                      height={88}
-                      className={addStyles.profilePreviewImg}
-                      unoptimized
-                    />
-                  ) : (
-                    <User size={36} color="#64748b" />
-                  )}
-                </div>
-                <div className={addStyles.profileUploadControls}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className={addStyles.hiddenFileInput}
-                    onChange={handleProfilePictureChange}
-                  />
-                  <button
-                    type="button"
-                    className={addStyles.uploadBtn}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload size={18} /> Choose Image
-                  </button>
-                  {profilePreview && (
-                    <button
-                      type="button"
-                      onClick={removeProfilePicture}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#ef4444",
-                        fontSize: "0.8rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        textAlign: "left",
-                      }}
-                    >
-                      Remove photo
-                    </button>
-                  )}
-                  <span className={addStyles.uploadHint}>JPG, PNG or WEBP. Max 5MB.</span>
-                </div>
-              </div>
-            </div>
+            <ProfilePictureUpload
+              previewUrl={profilePreview}
+              onChange={handleProfilePictureChange}
+            />
 
             <div className={styles.formGroup}>
               <label>

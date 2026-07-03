@@ -1,5 +1,19 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
 export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
 
@@ -18,14 +32,31 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const data = await response.json();
 
   if (!response.ok) {
-    // If token is invalid or expired, clear it and redirect to login
-    // if (response.status === 401) {
-    //   localStorage.removeItem("auth_token");
-    //   if (typeof window !== "undefined") {
-    //     window.location.href = "/";
-    //   }
-    // }
-    throw new Error(data.message || "Something went wrong");
+    const message = data.message || "Something went wrong";
+
+    if (response.status === 401 && token && typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("user_permissions");
+      localStorage.removeItem("user_info");
+      localStorage.removeItem("is_super_admin");
+      if (window.location.pathname !== "/") {
+        window.location.href = "/";
+      }
+    }
+
+    if (response.status === 403 && token && typeof window !== "undefined") {
+      const isInactive =
+        typeof message === "string" &&
+        message.toLowerCase().includes("inactive");
+      if (isInactive) {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user_permissions");
+        localStorage.removeItem("user_info");
+        localStorage.removeItem("is_super_admin");
+      }
+    }
+
+    throw new ApiError(message, response.status);
   }
 
   return data;
@@ -59,7 +90,7 @@ export async function apiBlobRequest(endpoint: string, options: RequestInit = {}
         window.location.href = "/";
       }
     }
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   return response.blob();

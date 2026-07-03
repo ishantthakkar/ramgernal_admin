@@ -36,6 +36,7 @@ import {
 } from "@/lib/workflow-survey-view";
 import detailStyles from "../../workflow-details.module.css";
 import { hasPermission, canReopenWorkflowSurvey, canVerifyWorkflowSurvey } from "@/lib/permissions";
+import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
 import {
   buildVerificationEditsFromSurvey,
@@ -373,6 +374,11 @@ export default function WorkflowEditPage() {
   const [verificationEdits, setVerificationEdits] = useState<
     Record<string, InspectionVerificationEdit>
   >({});
+  const [showVerifyConfirmModal, setShowVerifyConfirmModal] = useState(false);
+  const [pendingVerifySurvey, setPendingVerifySurvey] = useState<{
+    surveyId: string;
+    surveyName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!isQuotationEdit || !id) return;
@@ -608,15 +614,22 @@ export default function WorkflowEditPage() {
     }
   };
 
-  const handleVerifySurvey = async (surveyId: string, surveyName: string) => {
-    if (!window.confirm(`Are you sure you want to verify "${surveyName}"?`)) {
-      return;
-    }
+  const handleVerifySurvey = (surveyId: string, surveyName: string) => {
+    setPendingVerifySurvey({ surveyId, surveyName });
+    setShowVerifyConfirmModal(true);
+  };
 
-    setVerifyingSurveyId(surveyId);
+  const handleConfirmVerifySurvey = async () => {
+    if (!pendingVerifySurvey) return;
+
+    const { surveyId: targetSurveyId, surveyName } = pendingVerifySurvey;
+
+    setVerifyingSurveyId(targetSurveyId);
     try {
-      const response = await adminApi.verifySurveyConfirm(surveyId);
-      toast.success(response.message || "Survey verified successfully!");
+      const response = await adminApi.verifySurveyConfirm(targetSurveyId);
+      toast.success(response.message || `Survey "${surveyName}" verified successfully!`);
+      setShowVerifyConfirmModal(false);
+      setPendingVerifySurvey(null);
       const result = await adminApi.getCustomerWorkflowDetails(id);
       const raw = (result.surveys || []).slice().sort(
         (a: { createdAt?: string; surveyDate?: string }, b: { createdAt?: string; surveyDate?: string }) =>
@@ -1112,6 +1125,27 @@ export default function WorkflowEditPage() {
           onSubmit={handleReopenInstallation}
         />
       ) : null}
+
+      <ConfirmationModal
+        isOpen={showVerifyConfirmModal}
+        onClose={() => {
+          if (!verifyingSurveyId) {
+            setShowVerifyConfirmModal(false);
+            setPendingVerifySurvey(null);
+          }
+        }}
+        onConfirm={handleConfirmVerifySurvey}
+        title="Verify survey?"
+        message={
+          pendingVerifySurvey
+            ? `Are you sure you want to verify "${pendingVerifySurvey.surveyName}"?`
+            : "Are you sure you want to verify this survey?"
+        }
+        confirmText="OK"
+        cancelText="Cancel"
+        type="warning"
+        isLoading={Boolean(verifyingSurveyId)}
+      />
 
       {selectedImages ? (
         <div className={detailStyles.imgModalOverlay} onClick={() => setSelectedImages(null)}>

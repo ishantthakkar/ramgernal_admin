@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import styles from "./login.module.css";
 import { ArrowRight, Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { authApi } from "@/lib/api";
+import { authApi, isApiError } from "@/lib/api";
 import { toast } from "react-toastify";
 
 export default function Home() {
@@ -55,9 +55,7 @@ export default function Home() {
 
     try {
       const response = await authApi.login({ email, password });
-      console.log("Full API Response:", response);
 
-      // Look for token in all common locations
       const token =
         response.token ||
         response.accessToken ||
@@ -68,16 +66,14 @@ export default function Home() {
 
       if (token) {
         localStorage.setItem("auth_token", token);
-        
-        // Store permissions and user info
+
         if (response.permissions) {
           localStorage.setItem("user_permissions", JSON.stringify(response.permissions));
         }
-        
+
         const userInfo = response.admin || response.user;
         if (userInfo) {
           localStorage.setItem("user_info", JSON.stringify(userInfo));
-          // Mark if super admin (response has 'admin' object)
           localStorage.setItem("is_super_admin", response.admin ? "true" : "false");
         }
 
@@ -86,11 +82,18 @@ export default function Home() {
       } else {
         setError("Authentication failed: No access token received.");
       }
-    } catch (err: any) {
-      console.error("Login Error:", err);
-      const errorMessage = err.message || "Invalid email or password. Please try again.";
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Invalid email or password. Please try again.";
       setError(errorMessage);
-      toast.error(errorMessage);
+
+      if (isApiError(err) && err.status === 403) {
+        toast.warn(errorMessage);
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

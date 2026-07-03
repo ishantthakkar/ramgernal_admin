@@ -152,18 +152,14 @@ export function canReopenWorkflowSurvey(): boolean {
   return isSuperAdmin() || isAdminUser() || isSalesManagerUser();
 }
 
-function isQuotationWorkflowRole(): boolean {
-  return isSuperAdmin() || isAdminUser() || isSalesManagerUser() || isSalesPersonUser();
-}
-
-/** Workflow Quotations tab / list — role-based or Workflow › Quotations view permission */
+/** Workflow Quotations tab / list — Workflow › Quotations view permission */
 export function canAccessWorkflowQuotations(): boolean {
-  return isQuotationWorkflowRole() || hasWorkflowScopePermission("Quotations", "view");
+  return hasWorkflowScopePermission("Quotations", "view");
 }
 
-/** Generate quotation PDF — Admin, Sales Manager, Sales Person, or Workflow › Quotations edit */
+/** Generate quotation PDF — Workflow › Quotations edit permission */
 export function canGenerateQuotation(): boolean {
-  return isQuotationWorkflowRole() || hasWorkflowScopePermission("Quotations", "edit");
+  return hasWorkflowScopePermission("Quotations", "edit");
 }
 
 /** Edit quotation SKUs, upload signed PDF — same as generate */
@@ -202,11 +198,26 @@ export function canReorderSiteDetails(): boolean {
   return role === "sales person" || role === "admin";
 }
 
-export function canManageCustomerSurveys(): boolean {
+export function canCreateCustomerSurvey(): boolean {
   if (isSuperAdmin()) return true;
-  const role = normalizeUserRole((getUserInfo()?.userRole as string | undefined) ?? undefined);
-  if (role === "admin") return true;
-  return isSalesPersonUser() || hasWorkflowScopePermission("Surveys", "edit");
+
+  const permissions = getPermissions();
+  if (!permissions) return false;
+
+  const moduleNames = ["Create Survey", "Survey"];
+  return moduleNames.some((name) =>
+    flatHasAction(resolveFlatModule(name, permissions), "edit")
+  );
+}
+
+/** Add Survey on customer view — Create Survey edit permission (Super Admin always) */
+export function canManageCustomerSurveys(): boolean {
+  return canCreateCustomerSurvey();
+}
+
+/** Roles & Permissions management — Super Admin only */
+export function canManageRoles(): boolean {
+  return isSuperAdmin();
 }
 
 export function hasWorkflowScopePermission(

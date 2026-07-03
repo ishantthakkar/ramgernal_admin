@@ -28,6 +28,7 @@ import {
 } from "@/lib/quotation-utils";
 import { CheckCircle2, Download, FileText, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
+import ConfirmationModal from "@/components/modals/ConfirmationModal";
 
 const PRIMARY_ICON = "var(--admin-primary, #004d4d)";
 
@@ -225,6 +226,7 @@ export function QuotationPdfPreview({
   const [fixtureRows, setFixtureRows] = useState<QuotationFixtureRow[]>([]);
   const [productOptions, setProductOptions] = useState<QuotationProductOption[]>([]);
   const [savingSkus, setSavingSkus] = useState(false);
+  const [showGenerateConfirmModal, setShowGenerateConfirmModal] = useState(false);
 
   const isQuotationsTab = fromTab === "Quotations";
   const canViewFixtureTable = canViewQuotationFixtureTable();
@@ -399,12 +401,19 @@ export function QuotationPdfPreview({
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerateClick = () => {
     if (!resolvedSurveyId) {
       toast.error("Survey ID is missing for this quotation.");
       return;
     }
-    if (!window.confirm(`Generate quotation for ${customerName}?`)) return;
+    setShowGenerateConfirmModal(true);
+  };
+
+  const handleConfirmGenerate = async () => {
+    if (!resolvedSurveyId) {
+      toast.error("Survey ID is missing for this quotation.");
+      return;
+    }
 
     try {
       setGenerating(true);
@@ -415,6 +424,7 @@ export function QuotationPdfPreview({
 
       const response = await adminApi.createQuotation(resolvedSurveyId);
       toast.success(response.message || "Quotation generated successfully.");
+      setShowGenerateConfirmModal(false);
       await fetchQuotationDetails();
       if (!isQuotationsTab) {
         await loadPreviewAmount(resolvedSurveyId);
@@ -520,7 +530,7 @@ export function QuotationPdfPreview({
                 <button
                   type="button"
                   className={styles.createBtn}
-                  onClick={handleGenerate}
+                  onClick={handleGenerateClick}
                   disabled={generating || !resolvedSurveyId}
                   style={{ marginTop: "0.75rem" }}
                 >
@@ -619,6 +629,20 @@ export function QuotationPdfPreview({
           </button>
         ) : null}
       </div>
+
+      <ConfirmationModal
+        isOpen={showGenerateConfirmModal}
+        onClose={() => {
+          if (!generating) setShowGenerateConfirmModal(false);
+        }}
+        onConfirm={handleConfirmGenerate}
+        title="Generate quotation?"
+        message={`Are you sure you want to generate a quotation for ${customerName}?`}
+        confirmText="OK"
+        cancelText="Cancel"
+        type="warning"
+        isLoading={generating}
+      />
     </div>
   );
 }

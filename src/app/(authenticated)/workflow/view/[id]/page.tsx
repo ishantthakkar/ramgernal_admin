@@ -57,6 +57,7 @@ import {
 } from "@/lib/workflow-installation-details";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
 import { InspectionWorkflowSections } from "@/components/workflow/inspection-workflow-sections";
+import ConfirmationModal from "@/components/modals/ConfirmationModal";
 import { resolveCustomerDba, formatInspectionStatusLabel, formatAdminInspectionApprovalLabel, getAdminInspectionApprovalColor, isAdminInspectionVerified, isInspectionReadyForAdminVerify, canReopenInstallationForInspection } from "@/lib/workflow-installation";
 import {
   formatRelativeUpdated,
@@ -836,6 +837,8 @@ function SurveyViewSections({
   statusColor,
   showVerifiedBadge,
   verifiedDate,
+  canOpenQuotation,
+  onOpenQuotation,
 }: {
   surveyName: string;
   surveyDate: string | null;
@@ -861,8 +864,15 @@ function SurveyViewSections({
   statusColor?: string;
   showVerifiedBadge?: boolean;
   verifiedDate?: string | number | Date;
+  canOpenQuotation?: boolean;
+  onOpenQuotation?: () => void;
 }) {
   const singleGroup = siteDetailGroups.length === 1 ? siteDetailGroups[0] : null;
+  const actionGroup = useMemo(() => {
+    if (!siteDetailGroups.length) return null;
+    return singleGroup ?? siteDetailGroups[0] ?? null;
+  }, [siteDetailGroups, singleGroup]);
+  const canClickGenerateQuotation = Boolean(actionGroup?.isVerified);
   const [selectedArea, setSelectedArea] = useState<{
     row: SiteDetailRow;
     roomIndex: number;
@@ -913,33 +923,10 @@ function SurveyViewSections({
 
       <section className={styles.formSection}>
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "1rem",
-            flexWrap: "wrap",
-            marginBottom: "1.25rem",
-          }}
+          className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}
+          style={{ marginBottom: "1.25rem" }}
         >
-          <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`} style={{ marginBottom: 0 }}>
-            <MapPin size={22} color={PRIMARY_ICON} /> Site Details
-          </div>
-          {singleGroup ? (
-            <SiteSurveyActionControls
-              surveyId={singleGroup.surveyId}
-              surveyName={singleGroup.surveyName}
-              isVerified={singleGroup.isVerified}
-              surveyStatus={singleGroup.status}
-              canVerify={canVerify}
-              canReopen={canReopen}
-              verifying={verifyingSurveyId === singleGroup.surveyId}
-              reopening={reopeningSurveyId === singleGroup.surveyId}
-              onVerify={onVerifySurvey}
-              onReopen={onReopenSurvey}
-              compact
-            />
-          ) : null}
+          <MapPin size={22} color={PRIMARY_ICON} /> Site Details
         </div>
 
         <SiteDetailsAreaList
@@ -972,6 +959,47 @@ function SurveyViewSections({
         </div>
         <NotesList entries={noteEntries} />
       </section>
+
+      {actionGroup || canOpenQuotation ? (
+        <div className={styles.actionFooter}>
+          {actionGroup ? (
+            <SiteSurveyActionControls
+              surveyId={actionGroup.surveyId}
+              surveyName={actionGroup.surveyName}
+              isVerified={actionGroup.isVerified}
+              surveyStatus={actionGroup.status}
+              canVerify={canVerify}
+              canReopen={canReopen}
+              verifying={verifyingSurveyId === actionGroup.surveyId}
+              reopening={reopeningSurveyId === actionGroup.surveyId}
+              onVerify={onVerifySurvey}
+              onReopen={onReopenSurvey}
+            />
+          ) : null}
+          {canOpenQuotation ? (
+            <button
+              type="button"
+              className={styles.createBtn}
+              onClick={onOpenQuotation}
+              disabled={!canClickGenerateQuotation}
+              title={
+                canClickGenerateQuotation
+                  ? "Open quotation page"
+                  : "Verify the survey before generating a quotation"
+              }
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                opacity: canClickGenerateQuotation ? 1 : 0.55,
+                cursor: canClickGenerateQuotation ? "pointer" : "not-allowed",
+              }}
+            >
+              <FileText size={18} /> Generate Quotation
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -1005,6 +1033,11 @@ export default function WorkflowViewPage() {
   const [savingSiteRow, setSavingSiteRow] = useState(false);
   const [reorderingAreas, setReorderingAreas] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [showVerifyConfirmModal, setShowVerifyConfirmModal] = useState(false);
+  const [pendingVerifySurvey, setPendingVerifySurvey] = useState<{
+    surveyId: string;
+    surveyName: string;
+  } | null>(null);
 
   const isSurveyView = fromTab === "Surveys";
   const isInspectionView = fromTab === "Inspections";
@@ -1196,15 +1229,22 @@ export default function WorkflowViewPage() {
     }
   };
 
-  const handleVerifySurvey = async (surveyId: string, surveyName: string) => {
-    if (!window.confirm(`Are you sure you want to verify "${surveyName}"?`)) {
-      return;
-    }
+  const handleVerifySurvey = (surveyId: string, surveyName: string) => {
+    setPendingVerifySurvey({ surveyId, surveyName });
+    setShowVerifyConfirmModal(true);
+  };
+
+  const handleConfirmVerifySurvey = async () => {
+    if (!pendingVerifySurvey) return;
+
+    const { surveyId, surveyName } = pendingVerifySurvey;
 
     try {
       setVerifyingSurveyId(surveyId);
       const response = await adminApi.verifySurveyConfirm(surveyId);
-      toast.success(response.message || "Survey verified successfully!");
+      toast.success(response.message || `Survey "${surveyName}" verified successfully!`);
+      setShowVerifyConfirmModal(false);
+      setPendingVerifySurvey(null);
       await refreshData();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to verify survey.";
@@ -1463,21 +1503,6 @@ export default function WorkflowViewPage() {
               </button>
             </>
           )}
-          {canOpenQuotation && (
-            <button
-              type="button"
-              className={styles.assignBtn}
-              onClick={() =>
-                router.push(
-                  `/workflow/quotations/${id}?surveyId=${quotationSurveyId}&from=Surveys`
-                )
-              }
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.65rem 1.25rem" }}
-            >
-              <FileText size={18} />
-              <span>Quotation</span>
-            </button>
-          )}
           {isSurveyView && canEditSurveys && (
             <button
               type="button"
@@ -1692,6 +1717,12 @@ export default function WorkflowViewPage() {
           statusColor={isSurveyView ? statusColor : undefined}
           showVerifiedBadge={isSurveyView ? showVerifiedBadge : undefined}
           verifiedDate={isSurveyView ? verifiedDate : undefined}
+          canOpenQuotation={canOpenQuotation}
+          onOpenQuotation={() =>
+            router.push(
+              `/workflow/quotations/${id}?surveyId=${quotationSurveyId}&from=Surveys`
+            )
+          }
         />
       ) : (
         <InstallationWorkflowSections
@@ -1824,6 +1855,27 @@ export default function WorkflowViewPage() {
           onSubmit={handleReopenInstallation}
         />
       ) : null}
+
+      <ConfirmationModal
+        isOpen={showVerifyConfirmModal}
+        onClose={() => {
+          if (!verifyingSurveyId) {
+            setShowVerifyConfirmModal(false);
+            setPendingVerifySurvey(null);
+          }
+        }}
+        onConfirm={handleConfirmVerifySurvey}
+        title="Verify survey?"
+        message={
+          pendingVerifySurvey
+            ? `Are you sure you want to verify "${pendingVerifySurvey.surveyName}"?`
+            : "Are you sure you want to verify this survey?"
+        }
+        confirmText="OK"
+        cancelText="Cancel"
+        type="warning"
+        isLoading={Boolean(verifyingSurveyId)}
+      />
 
       {selectedImages && (
         <div className={modalStyles.imgModalOverlay} onClick={() => setSelectedImages(null)}>

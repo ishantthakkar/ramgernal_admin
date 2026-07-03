@@ -29,6 +29,7 @@ const TAB_ICONS: Record<string, LucideIcon> = {
   products: Package,
   leads: BarChart2,
   customers: User,
+  survey: ClipboardCheck,
   workflow: Workflow,
   services: ClipboardCheck,
   payables: Wallet,

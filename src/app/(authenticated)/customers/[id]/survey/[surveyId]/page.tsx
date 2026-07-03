@@ -30,6 +30,7 @@ import {
   buildAddAreaFormData,
   mapAreaRecordToForm,
 } from "@/components/customers/survey/add-survey-area-modal";
+import ConfirmationModal from "@/components/modals/ConfirmationModal";
 
 const IMAGE_BASE = process.env.NEXT_PUBLIC_API_BASE_URL
   ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/$/, "")}/uploads/surveys/`
@@ -70,6 +71,7 @@ export default function CustomerStartSurveyPage() {
   const [editingAreaId, setEditingAreaId] = useState<string | undefined>();
   const [editingAreaForm, setEditingAreaForm] = useState<SurveyAreaForm | undefined>();
   const [submitting, setSubmitting] = useState(false);
+  const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
 
   const loadProposedProducts = useCallback(
     async (customerRecord: Record<string, unknown> | null) => {
@@ -248,17 +250,20 @@ export default function CustomerStartSurveyPage() {
     }
   };
 
-  const handleSubmitSurvey = async () => {
+  const handleSubmitSurveyClick = () => {
     if (!areas.length) {
       toast.error("Add at least one site area before submitting.");
       return;
     }
-    if (!window.confirm("Submit this survey?")) return;
+    setShowSubmitConfirmModal(true);
+  };
 
+  const handleConfirmSubmitSurvey = async () => {
     setSubmitting(true);
     try {
       await adminApi.submitCustomerSurveyStatus(surveyId, "submitted");
       toast.success("Survey submitted successfully.");
+      setShowSubmitConfirmModal(false);
       router.push(`/customers/${customerId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to submit survey.";
@@ -559,13 +564,27 @@ export default function CustomerStartSurveyPage() {
           <button
             type="button"
             className={surveyStyles.submitBtn}
-            onClick={handleSubmitSurvey}
+            onClick={handleSubmitSurveyClick}
             disabled={submitting}
           >
             {submitting ? "Submitting..." : "Submit Survey"}
           </button>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={showSubmitConfirmModal}
+        onClose={() => {
+          if (!submitting) setShowSubmitConfirmModal(false);
+        }}
+        onConfirm={handleConfirmSubmitSurvey}
+        title="Submit this survey?"
+        message="Are you sure you want to submit this survey? You will not be able to edit it unless it is reopened."
+        confirmText="OK"
+        cancelText="Cancel"
+        type="warning"
+        isLoading={submitting}
+      />
 
       <AddSurveyNoteModal
         open={showNoteModal}

@@ -249,7 +249,7 @@ export default function CustomerDetailsPage() {
 
   const handleAddSurveyClick = () => {
     if (!hasAddress) {
-      toast.error("Please add a service address before creating a survey.");
+      toast.error('Please add a "Service address" before creating a survey.');
       if (canEdit) {
         router.push(`/customers/${id}/edit`);
       }
@@ -263,6 +263,14 @@ export default function CustomerDetailsPage() {
     surveyType: "utility" | "direct";
     electricCompany: string;
   }) => {
+    if (!customerHasServiceAddress(customer)) {
+      toast.error('Please add a "Service address" before creating a survey.');
+      if (canEdit) {
+        router.push(`/customers/${id}/edit`);
+      }
+      return;
+    }
+
     setCreatingSurvey(true);
     try {
       const response = await adminApi.createNewSurvey({

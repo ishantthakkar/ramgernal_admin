@@ -126,6 +126,16 @@ export default function WorkflowPage() {
     }
   }, [router, validTabs.length]);
 
+  useEffect(() => {
+    if (validTabs.length > 0 && !validTabs.includes(activeTab)) {
+      const fallback = validTabs[0];
+      setActiveTab(fallback);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", fallback);
+      router.replace(`/workflow?${params.toString()}`, { scroll: false });
+    }
+  }, [activeTab, router, searchParams, validTabs]);
+
   const fetchWorkflowData = async () => {
     setLoading(true);
     setData([]);
@@ -258,7 +268,9 @@ export default function WorkflowPage() {
 
   const summaryStats = [
     { label: "Total Surveys", value: counts.totalSurveys, icon: ClipboardCheck, color: "#3b6fd9", bg: "#e8f0fe" },
-    { label: "Total Quotations", value: counts.totalQuotations, icon: FileText, color: "#7c3aed", bg: "#ede9fe" },
+    ...(canViewQuotations
+      ? [{ label: "Total Quotations", value: counts.totalQuotations, icon: FileText, color: "#7c3aed", bg: "#ede9fe" }]
+      : []),
     { label: "Total Installations", value: counts.totalInstallations, icon: Hammer, color: "#475569", bg: "#f1f5f9" },
     { label: "Total Inspections", value: counts.totalInspections, icon: ClipboardList, color: "#0d9488", bg: "#ccfbf1" },
   ];

@@ -39,6 +39,19 @@ export interface SurveyProductOption {
   directPrice?: number;
 }
 
+export function addressHasUsableData(address: Record<string, unknown> | null | undefined): boolean {
+  if (!address) return false;
+  const street = String(address.street || "").trim();
+  const city = String(address.city || "").trim();
+  const state = String(address.state || "").trim();
+  const zip = String(address.zip || "").trim();
+  return Boolean(street || city || state || zip);
+}
+
+export function isServiceAddressTitle(title: unknown): boolean {
+  return String(title || "").trim().toLowerCase() === "service address";
+}
+
 export function customerHasServiceAddress(customer: Record<string, unknown> | null): boolean {
   if (!customer) return false;
 
@@ -46,24 +59,17 @@ export function customerHasServiceAddress(customer: Record<string, unknown> | nu
     ? (customer.addresses as Record<string, unknown>[])
     : [];
 
-  const hasListedAddress = addresses.some((address) => {
-    const street = String(address.street || "").trim();
-    const city = String(address.city || "").trim();
-    const state = String(address.state || "").trim();
-    const zip = String(address.zip || "").trim();
-    return Boolean(street || city || state || zip);
-  });
+  const hasTitledServiceAddress = addresses.some(
+    (address) => isServiceAddressTitle(address.title) && addressHasUsableData(address)
+  );
+  if (hasTitledServiceAddress) return true;
 
-  if (hasListedAddress) return true;
+  if (addresses.length === 0) {
+    const primary = customer.address as Record<string, unknown> | undefined;
+    return addressHasUsableData(primary);
+  }
 
-  const primary = customer.address as Record<string, unknown> | undefined;
-  if (!primary) return false;
-
-  const street = String(primary.street || "").trim();
-  const city = String(primary.city || "").trim();
-  const state = String(primary.state || "").trim();
-  const zip = String(primary.zip || "").trim();
-  return Boolean(street || city || state || zip);
+  return false;
 }
 
 export function formatSurveyStatusLabel(status: unknown): string {
