@@ -157,6 +157,47 @@ export function findSurveyQuotationRow(
   return rows.find((row) => String(row.customerId) === customerId);
 }
 
+function extractQuotationUrls(items: unknown): string[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (typeof item === "string") return sanitizePdfUrl(item);
+      if (item && typeof item === "object") {
+        return sanitizePdfUrl(String((item as Record<string, unknown>).url || ""));
+      }
+      return "";
+    })
+    .filter(Boolean);
+}
+
+export function buildSurveyQuotationRowFromSurvey(
+  survey: Record<string, unknown>,
+  customer: Record<string, unknown>
+): SurveyQuotationApiRow {
+  const lead =
+    customer.leadId && typeof customer.leadId === "object"
+      ? (customer.leadId as Record<string, unknown>)
+      : undefined;
+  const salesUser =
+    customer.user_id && typeof customer.user_id === "object"
+      ? (customer.user_id as Record<string, unknown>)
+      : undefined;
+
+  return {
+    customerId: String(customer._id || customer.id || ""),
+    customerName: String(
+      customer.name || customer.legalName || lead?.leadName || lead?.name || "Customer"
+    ),
+    leadId: String(lead?.lead_id || ""),
+    salesPersonName: String(salesUser?.fullName || salesUser?.name || ""),
+    survey_id: String(survey._id || survey.id || ""),
+    surveyName: String(survey.surveyName || survey.areaName || ""),
+    quotationStatus: String(survey.quotationStatus || "pending"),
+    generateQuotation: extractQuotationUrls(survey.generateQuotation),
+    uploadSignedQuotation: extractQuotationUrls(survey.uploadSignedQuotation),
+  };
+}
+
 function resolveCustomerId(value: unknown): string {
   if (value && typeof value === "object") {
     const record = value as Record<string, unknown>;

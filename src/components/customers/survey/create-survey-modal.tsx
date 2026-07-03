@@ -52,11 +52,18 @@ export function CreateSurveyModal({
     event.preventDefault();
     const name = surveyName.trim();
     const company = electricCompany.trim();
-    if (!name || !company) return;
-    onSubmit({ surveyName: name, surveyType, electricCompany: company });
+    if (!name) return;
+    if (surveyType === "utility" && !company) return;
+    onSubmit({
+      surveyName: name,
+      surveyType,
+      electricCompany: surveyType === "utility" ? company : "",
+    });
   };
 
-  const canSubmit = surveyName.trim().length > 0 && electricCompany.trim().length > 0;
+  const canSubmit =
+    surveyName.trim().length > 0 &&
+    (surveyType === "direct" || electricCompany.trim().length > 0);
 
   return (
     <div className={addStyles.modalBackdrop} onClick={onClose}>
@@ -107,38 +114,40 @@ export function CreateSurveyModal({
               </div>
             </div>
 
-            <div className={addStyles.formGroup}>
-              <label htmlFor="electric-company">
-                Utility / Electric Company <span style={{ color: "#ef4444" }}>*</span>
-              </label>
-              <div style={{ position: "relative" }}>
-                <select
-                  id="electric-company"
-                  className={addStyles.formSelect}
-                  value={electricCompany}
-                  onChange={(event) => setElectricCompany(event.target.value)}
-                  required
-                >
-                  <option value="">Select electric company</option>
-                  {ELECTRIC_COMPANIES.map((company) => (
-                    <option key={company} value={company}>
-                      {company}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={18}
-                  style={{
-                    position: "absolute",
-                    right: "1rem",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    pointerEvents: "none",
-                    color: "#64748b",
-                  }}
-                />
+            {surveyType === "utility" ? (
+              <div className={addStyles.formGroup}>
+                <label htmlFor="electric-company">
+                  Utility / Electric Company <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    id="electric-company"
+                    className={addStyles.formSelect}
+                    value={electricCompany}
+                    onChange={(event) => setElectricCompany(event.target.value)}
+                    required
+                  >
+                    <option value="">Select electric company</option>
+                    {ELECTRIC_COMPANIES.map((company) => (
+                      <option key={company} value={company}>
+                        {company}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={18}
+                    style={{
+                      position: "absolute",
+                      right: "1rem",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      color: "#64748b",
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
 
           <div className={addStyles.modalFooter}>

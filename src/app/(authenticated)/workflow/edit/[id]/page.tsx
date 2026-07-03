@@ -22,6 +22,7 @@ import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
 import { SiteSurveyActionControls } from "@/components/workflow/site-survey-action-controls";
 import { SiteSurveyReopenModal } from "@/components/workflow/site-survey-reopen-modal";
 import {
+  filterWorkflowSurveysForCurrentUser,
   mapNotes,
   mapSiteDetailGroups,
   mapSiteDetails,
@@ -34,8 +35,7 @@ import {
   type SiteDetailSurveyGroup,
 } from "@/lib/workflow-survey-view";
 import detailStyles from "../../workflow-details.module.css";
-import { hasPermission } from "@/lib/permissions";
-import { QuotationPdfPreview } from "@/components/workflow/quotation-pdf-preview";
+import { hasPermission, canReopenWorkflowSurvey, canVerifyWorkflowSurvey } from "@/lib/permissions";
 import { InstallationWorkflowSections } from "@/components/workflow/installation-workflow-sections";
 import {
   buildVerificationEditsFromSurvey,
@@ -375,6 +375,15 @@ export default function WorkflowEditPage() {
   >({});
 
   useEffect(() => {
+    if (!isQuotationEdit || !id) return;
+
+    const params = new URLSearchParams();
+    if (surveyId) params.set("surveyId", surveyId);
+    params.set("from", fromTab || "Quotations");
+    router.replace(`/workflow/quotations/${id}?${params.toString()}`);
+  }, [isQuotationEdit, id, surveyId, fromTab, router]);
+
+  useEffect(() => {
     if (!id || isQuotationEdit) return;
 
     const fetchData = async () => {
@@ -384,10 +393,12 @@ export default function WorkflowEditPage() {
           : await adminApi.getCustomerWorkflowDetails(id);
         const raw = usesInstallationWorkflowApi
           ? [result.survey]
-          : (result.surveys || []).slice().sort(
-              (a: any, b: any) =>
-                new Date(b.createdAt || b.surveyDate || 0).getTime() -
-                new Date(a.createdAt || a.surveyDate || 0).getTime()
+          : filterWorkflowSurveysForCurrentUser(
+              (result.surveys || []).slice().sort(
+                (a: any, b: any) =>
+                  new Date(b.createdAt || b.surveyDate || 0).getTime() -
+                  new Date(a.createdAt || a.surveyDate || 0).getTime()
+              )
             );
         const recordsForSite =
           surveyId && !usesInstallationWorkflowApi
@@ -450,10 +461,12 @@ export default function WorkflowEditPage() {
       : await adminApi.getCustomerWorkflowDetails(id);
     const raw = usesInstallationWorkflowApi
       ? [result.survey]
-      : (result.surveys || []).slice().sort(
-          (a: any, b: any) =>
-            new Date(b.createdAt || b.surveyDate || 0).getTime() -
-            new Date(a.createdAt || a.surveyDate || 0).getTime()
+      : filterWorkflowSurveysForCurrentUser(
+          (result.surveys || []).slice().sort(
+            (a: any, b: any) =>
+              new Date(b.createdAt || b.surveyDate || 0).getTime() -
+              new Date(a.createdAt || a.surveyDate || 0).getTime()
+          )
         );
     const recordsForSite =
       surveyId && !usesInstallationWorkflowApi
@@ -649,12 +662,9 @@ export default function WorkflowEditPage() {
 
   if (isQuotationEdit) {
     return (
-      <QuotationPdfPreview
-        customerId={id}
-        surveyId={surveyId}
-        fromTab={fromTab || "Quotations"}
-        variant="edit"
-      />
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}>
+        <Loader2 size={48} className={styles.spinner} />
+      </div>
     );
   }
 
@@ -970,8 +980,8 @@ export default function WorkflowEditPage() {
                 <SiteDetailsEditCards
                   groups={siteDetailGroups}
                   onFieldChange={handleSiteRowChangeById}
-                  canVerify={isSurveyEdit && hasPermission("Surveys", "create")}
-                  canReopen={isSurveyEdit && hasPermission("Surveys", "edit")}
+                  canVerify={isSurveyEdit && canVerifyWorkflowSurvey()}
+                  canReopen={isSurveyEdit && canReopenWorkflowSurvey()}
                   verifyingSurveyId={verifyingSurveyId}
                   reopeningSurveyId={reopeningSurveyId}
                   onVerifySurvey={handleVerifySurvey}

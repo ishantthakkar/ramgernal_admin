@@ -8,8 +8,14 @@ import modalStyles from "@/app/(authenticated)/workflow/workflow-details.module.
 import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";
 import { QuotationFixtureTable, type QuotationProductOption } from "@/components/workflow/quotation-fixture-table";
 import { adminApi } from "@/lib/api";
-import { hasPermission } from "@/lib/permissions";
 import {
+  canApproveQuotation,
+  canGenerateQuotation,
+  canManageWorkflowQuotation,
+  canViewQuotationFixtureTable,
+} from "@/lib/permissions";
+import {
+  buildSurveyQuotationRowFromSurvey,
   findSurveyQuotationRow,
   formatQuotationCardDate,
   formatQuotationStatusLabel,
@@ -113,6 +119,32 @@ function QuotationDocumentCard({
   );
 }
 
+function formatPreviewAmount(amount: number | null): string {
+  if (amount === null || !Number.isFinite(amount)) return "—";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+}
+
+function QuotationPreviewAmount({ amount, loading }: { amount: number | null; loading: boolean }) {
+  return (
+    <section className={docStyles.previewAmountCard}>
+      <div className={docStyles.previewAmountLabel}>Quotation Preview Amount</div>
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#64748b" }}>
+          <Loader2 size={20} className={styles.spinner} />
+          <span>Calculating total...</span>
+        </div>
+      ) : (
+        <>
+          <div className={docStyles.previewAmountValue}>{formatPreviewAmount(amount)}</div>
+        </>
+      )}
+    </section>
+  );
+}
+
 interface QuotationPageHeaderProps {
   statusLabel: string;
   statusColor: string;
@@ -123,7 +155,7 @@ function QuotationPageHeader({ statusLabel, statusColor, company }: QuotationPag
   return (
     <div className={styles.pageHeader} style={{ marginBottom: "2rem" }}>
       <div>
-        <h1 className={styles.welcomeText}>View Quotation Profile</h1>
+        <h1 className={styles.welcomeText}>Quotation</h1>
         <div
           style={{
             display: "flex",
@@ -170,14 +202,12 @@ interface QuotationPdfPreviewProps {
   customerId: string;
   surveyId?: string;
   fromTab?: string;
-  variant?: "view" | "edit";
 }
 
 export function QuotationPdfPreview({
   customerId,
   surveyId,
   fromTab = "Quotations",
-  variant = "view",
 }: QuotationPdfPreviewProps) {
   const router = useRouter();
 
@@ -189,27 +219,50 @@ export function QuotationPdfPreview({
   const [quotationStatus, setQuotationStatus] = useState("pending");
   const [generatedFile, setGeneratedFile] = useState<QuotationFile | null>(null);
   const [signedFile, setSignedFile] = useState<QuotationFile | null>(null);
-  const [activePdf, setActivePdf] = useState<"generated" | "signed">("generated");
   const [resolvedSurveyId, setResolvedSurveyId] = useState(surveyId || "");
+  const [previewAmount, setPreviewAmount] = useState<number | null>(null);
+  const [loadingPreviewAmount, setLoadingPreviewAmount] = useState(false);
   const [fixtureRows, setFixtureRows] = useState<QuotationFixtureRow[]>([]);
   const [productOptions, setProductOptions] = useState<QuotationProductOption[]>([]);
   const [savingSkus, setSavingSkus] = useState(false);
 
-  const canUploadSign = hasPermission("Quotations", "edit");
-  const canVerify = hasPermission("Quotations", "edit");
-  const canGenerate = hasPermission("Quotations", "edit");
+  const isQuotationsTab = fromTab === "Quotations";
+  const canViewFixtureTable = canViewQuotationFixtureTable();
+  const showFixtureTable = isQuotationsTab && canViewFixtureTable;
 
-  const backUrl = `/workflow?tab=${fromTab}`;
+  const canUploadSign = canManageWorkflowQuotation();
+  const canVerify = canApproveQuotation();
+  const canGenerate = canGenerateQuotation();
+
+  const backUrl =
+    fromTab === "Surveys" && customerId && surveyId
+      ? `/workflow/view/${customerId}?from=Surveys&surveyId=${surveyId}`
+      : `/workflow?tab=${fromTab}`;
   const statusLabel = formatQuotationStatusLabel(quotationStatus);
   const statusColor = getQuotationStatusColor(quotationStatus);
   const isApproved = quotationStatus.toLowerCase() === "approved";
-  const breadcrumbLabel = "VIEW QUOTATION";
+  const breadcrumbLabel = "QUOTATION";
 
-  const displayFile = useMemo(() => {
-    if (activePdf === "signed" && signedFile) return signedFile;
-    if (generatedFile) return generatedFile;
-    return signedFile;
-  }, [activePdf, generatedFile, signedFile]);
+  const displayFile = useMemo(() => signedFile || generatedFile, [signedFile, generatedFile]);
+
+  const loadPreviewAmount = async (activeSurveyId: string) => {
+    if (isQuotationsTab || !activeSurveyId) {
+      setPreviewAmount(null);
+      return;
+    }
+
+    setLoadingPreviewAmount(true);
+    try {
+      const previewRes = await adminApi.previewQuotation(activeSurveyId);
+      const estimate = previewRes.estimate as Record<string, unknown> | undefined;
+      const total = Number(estimate?.grandTotal ?? 0);
+      setPreviewAmount(Number.isFinite(total) ? total : null);
+    } catch {
+      setPreviewAmount(null);
+    } finally {
+      setLoadingPreviewAmount(false);
+    }
+  };
 
   const fetchProductOptions = async () => {
     try {
@@ -234,33 +287,59 @@ export function QuotationPdfPreview({
   const fetchQuotationDetails = async () => {
     setLoading(true);
     try {
-      const quotationsRes = await adminApi.getQuotationsAdmin();
-      const quotations = (quotationsRes.quotations || []) as SurveyQuotationApiRow[];
-      const quotation = findSurveyQuotationRow(quotations, customerId, surveyId);
+      const customerRes = await adminApi.getCustomerWorkflowDetails(customerId);
+      const customer = (customerRes.customer as Record<string, unknown>) || {};
+      const surveys = (customerRes.surveys || []) as Record<string, unknown>[];
+
+      let activeSurveyId = String(surveyId || resolvedSurveyId || "").trim();
+      let surveyRecord = activeSurveyId
+        ? surveys.find((item) => String(item._id || item.id || "") === activeSurveyId)
+        : undefined;
+
+      if (!surveyRecord && surveys.length === 1) {
+        surveyRecord = surveys[0];
+        activeSurveyId = String(surveyRecord._id || surveyRecord.id || "");
+      }
+
+      let quotation: SurveyQuotationApiRow | undefined = surveyRecord
+        ? buildSurveyQuotationRowFromSurvey(surveyRecord, customer)
+        : undefined;
 
       if (!quotation) {
-        toast.error("Quotation record not found for this survey.");
+        const quotationsRes = await adminApi.getQuotationsAdmin();
+        const quotations = (quotationsRes.quotations || []) as SurveyQuotationApiRow[];
+        quotation = findSurveyQuotationRow(quotations, customerId, activeSurveyId || surveyId);
+
+        if (quotation && !surveyRecord && activeSurveyId) {
+          surveyRecord = surveys.find(
+            (item) => String(item._id || item.id || "") === activeSurveyId
+          );
+        }
+      }
+
+      if (!quotation) {
+        toast.error("Survey not found for this quotation.");
         router.push(backUrl);
         return;
       }
 
       const files = mapSurveyQuotationFiles(quotation);
-      const activeSurveyId = String(quotation.survey_id || surveyId || "");
+      const resolvedId = String(quotation.survey_id || activeSurveyId || "");
 
-      const customerRes = await adminApi.getCustomerWorkflowDetails(customerId);
-      const surveys = (customerRes.surveys || []) as Record<string, unknown>[];
-      const surveyRecord = surveys.find(
-        (item) => String(item._id || item.id || "") === activeSurveyId
+      if (!surveyRecord && resolvedId) {
+        surveyRecord = surveys.find((item) => String(item._id || item.id || "") === resolvedId);
+      }
+
+      setResolvedSurveyId(resolvedId);
+      setCustomerName(quotation.customerName || String(customer.name || "Customer"));
+      setCompany(
+        String(customer.company || customer.dba || "").trim() || "—"
       );
-
-      setResolvedSurveyId(activeSurveyId);
-      setCustomerName(quotation.customerName || "Customer");
-      setCompany(String((customerRes.customer as Record<string, unknown> | undefined)?.company || "").trim() || "—");
       setQuotationStatus((quotation.quotationStatus as string) || "pending");
-      setFixtureRows(mapQuotationFixtureRows(surveyRecord));
+      setFixtureRows(showFixtureTable ? mapQuotationFixtureRows(surveyRecord) : []);
       setGeneratedFile(files.generated);
       setSignedFile(files.signed);
-      setActivePdf(files.generated ? "generated" : "signed");
+      await loadPreviewAmount(resolvedId);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load quotation details.";
       toast.error(message);
@@ -273,9 +352,11 @@ export function QuotationPdfPreview({
   useEffect(() => {
     if (customerId) {
       fetchQuotationDetails();
-      fetchProductOptions();
+      if (showFixtureTable) {
+        fetchProductOptions();
+      }
     }
-  }, [customerId, surveyId]);
+  }, [customerId, surveyId, showFixtureTable]);
 
   const handleSkuChange = (rowId: string, sku: string) => {
     setFixtureRows((current) =>
@@ -296,13 +377,8 @@ export function QuotationPdfPreview({
         sku: row.sku.trim(),
       }));
 
-    if (!updates.length) {
-      toast.error("Set a valid SKU for each proposed fixture before verifying.");
-      return false;
-    }
-
-    if (updates.length !== fixtureRows.length) {
-      toast.error("Set a valid SKU for each proposed fixture before verifying.");
+    if (!updates.length || updates.length !== fixtureRows.length) {
+      toast.error("Set a valid SKU for each proposed fixture before continuing.");
       return false;
     }
 
@@ -332,9 +408,17 @@ export function QuotationPdfPreview({
 
     try {
       setGenerating(true);
+      if (showFixtureTable && fixtureRows.length > 0) {
+        const skusSaved = await saveFixtureSkus({ silent: true });
+        if (!skusSaved) return;
+      }
+
       const response = await adminApi.createQuotation(resolvedSurveyId);
       toast.success(response.message || "Quotation generated successfully.");
       await fetchQuotationDetails();
+      if (!isQuotationsTab) {
+        await loadPreviewAmount(resolvedSurveyId);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to generate quotation.";
       toast.error(message);
@@ -361,8 +445,10 @@ export function QuotationPdfPreview({
         return;
       }
 
-      const skusSaved = await saveFixtureSkus({ silent: true });
-      if (!skusSaved) return;
+      if (showFixtureTable && fixtureRows.length > 0) {
+        const skusSaved = await saveFixtureSkus({ silent: true });
+        if (!skusSaved) return;
+      }
 
       const response = await adminApi.approveQuotation(resolvedSurveyId);
       toast.success(response.message || "Quotation verified successfully.");
@@ -402,220 +488,137 @@ export function QuotationPdfPreview({
         <span className={styles.breadcrumbCurrent}>{breadcrumbLabel}</span>
       </div>
 
-      {variant === "edit" ? (
-        <>
-          <QuotationPageHeader
-            statusLabel={statusLabel}
-            statusColor={statusColor}
-            company={company}
+      <QuotationPageHeader
+        statusLabel={statusLabel}
+        statusColor={statusColor}
+        company={company}
+      />
+
+      {showFixtureTable ? (
+        <QuotationFixtureTable
+          rows={fixtureRows}
+          editable={!isApproved}
+          productOptions={productOptions}
+          onSkuChange={handleSkuChange}
+        />
+      ) : !isQuotationsTab ? (
+        <QuotationPreviewAmount amount={previewAmount} loading={loadingPreviewAmount} />
+      ) : null}
+
+      <section className={styles.formSection}>
+        <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
+          <FileText size={22} color={PRIMARY_ICON} /> Quotation Documents
+        </div>
+
+        <div className={docStyles.documentList}>
+          <QuotationDocumentCard
+            title="Generated Quotation"
+            file={generatedFile}
+            emptyLabel="No generated quotation PDF yet."
+            emptyAction={
+              canGenerate && !generatedFile ? (
+                <button
+                  type="button"
+                  className={styles.createBtn}
+                  onClick={handleGenerate}
+                  disabled={generating || !resolvedSurveyId}
+                  style={{ marginTop: "0.75rem" }}
+                >
+                  {generating ? (
+                    <Loader2 size={18} className={styles.spinner} />
+                  ) : (
+                    <FileText size={18} />
+                  )}
+                  {generating ? "Generating..." : "Generate Quotation"}
+                </button>
+              ) : undefined
+            }
           />
 
-          <QuotationFixtureTable
-            rows={fixtureRows}
-            editable={!isApproved}
-            productOptions={productOptions}
-            onSkuChange={handleSkuChange}
+          <QuotationDocumentCard
+            title="Signed Quotation"
+            file={signedFile}
+            emptyLabel="No signed quotation uploaded yet."
+            emptyAction={
+              canUploadSign ? (
+                <SignedQuotationUpload
+                  customerId={customerId}
+                  surveyId={resolvedSurveyId}
+                  onUploaded={fetchQuotationDetails}
+                />
+              ) : undefined
+            }
+            trailingAction={
+              canUploadSign && signedFile ? (
+                <SignedQuotationUpload
+                  customerId={customerId}
+                  surveyId={resolvedSurveyId}
+                  onUploaded={fetchQuotationDetails}
+                  hasSignedFile
+                  variant="outline"
+                />
+              ) : undefined
+            }
           />
+        </div>
 
-          <section className={styles.formSection}>
-            <div className={`${styles.sectionTitle} ${modalStyles.viewSectionTitle}`}>
-              <FileText size={22} color={PRIMARY_ICON} /> Quotation Documents
-            </div>
+        {!generatedFile && !signedFile ? (
+          <div className={modalStyles.viewEmptyState} style={{ marginTop: "1rem" }}>
+            No quotation documents available for this customer.
+          </div>
+        ) : null}
+      </section>
 
-            <div className={docStyles.documentList}>
-              <QuotationDocumentCard
-                title="Generated Quotation"
-                file={generatedFile}
-                emptyLabel="No generated quotation PDF yet."
-                emptyAction={
-                  canGenerate && !generatedFile ? (
-                    <button
-                      type="button"
-                      className={styles.createBtn}
-                      onClick={handleGenerate}
-                      disabled={generating || !resolvedSurveyId}
-                      style={{ marginTop: "0.75rem" }}
-                    >
-                      {generating ? (
-                        <Loader2 size={18} className={styles.spinner} />
-                      ) : (
-                        <FileText size={18} />
-                      )}
-                      {generating ? "Generating..." : "Generate Quotation"}
-                    </button>
-                  ) : undefined
-                }
-              />
+      <div
+        className={styles.actionFooter}
+        style={{
+          background: "#f1f5f9",
+          padding: "2.5rem",
+          borderRadius: "16px",
+          marginTop: "3rem",
+          justifyContent: "flex-end",
+        }}
+      >
+        <button
+          type="button"
+          className={styles.cancelBtn}
+          onClick={() => router.push(backUrl)}
+          style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
+        >
+          <X size={20} /> Close
+        </button>
 
-              <QuotationDocumentCard
-                title="Signed Quotation"
-                file={signedFile}
-                emptyLabel="No signed quotation uploaded yet."
-                emptyAction={
-                  canUploadSign ? (
-                    <SignedQuotationUpload
-                      customerId={customerId}
-                      surveyId={resolvedSurveyId}
-                      onUploaded={fetchQuotationDetails}
-                    />
-                  ) : undefined
-                }
-                trailingAction={
-                  canUploadSign && signedFile ? (
-                    <SignedQuotationUpload
-                      customerId={customerId}
-                      surveyId={resolvedSurveyId}
-                      onUploaded={fetchQuotationDetails}
-                      hasSignedFile
-                      variant="outline"
-                    />
-                  ) : undefined
-                }
-              />
-            </div>
+        {displayFile ? (
+          <button
+            type="button"
+            className={styles.assignBtn}
+            onClick={handleDownload}
+            style={{ padding: "0.875rem 3rem" }}
+          >
+            <Download size={18} /> Download
+          </button>
+        ) : null}
 
-            {!generatedFile && !signedFile ? (
-              <div className={modalStyles.viewEmptyState} style={{ marginTop: "1rem" }}>
-                No quotation documents available for this customer.
-              </div>
-            ) : null}
-          </section>
-
-          <div
-            className={styles.actionFooter}
+        {canVerify ? (
+          <button
+            type="button"
+            className={styles.createBtn}
+            onClick={handleVerify}
+            disabled={verifying || savingSkus || isApproved || !signedFile}
             style={{
-              background: "#f1f5f9",
-              padding: "2.5rem",
-              borderRadius: "16px",
-              marginTop: "3rem",
-              justifyContent: "flex-end",
+              padding: "0.875rem 3rem",
+              background: isApproved ? "#94a3b8" : "#10b981",
             }}
           >
-            <button
-              type="button"
-              className={styles.cancelBtn}
-              onClick={() => router.push(backUrl)}
-              style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
-            >
-              <X size={20} /> Close
-            </button>
-
-            {canVerify ? (
-              <button
-                type="button"
-                className={styles.createBtn}
-                onClick={handleVerify}
-                disabled={verifying || savingSkus || isApproved || !signedFile}
-                style={{
-                  padding: "0.875rem 3rem",
-                  background: isApproved ? "#94a3b8" : "#10b981",
-                }}
-              >
-                {verifying || savingSkus ? (
-                  <Loader2 size={18} className={styles.spinner} />
-                ) : (
-                  <CheckCircle2 size={18} />
-                )}
-                {verifying || savingSkus ? "Verifying..." : isApproved ? "Verified" : "Verify"}
-              </button>
-            ) : null}
-          </div>
-        </>
-      ) : (
-        <>
-          <QuotationPageHeader
-            statusLabel={statusLabel}
-            statusColor={statusColor}
-            company={company}
-          />
-
-          <QuotationFixtureTable
-            rows={fixtureRows}
-            editable={!isApproved}
-            productOptions={productOptions}
-            onSkuChange={handleSkuChange}
-          />
-
-          {generatedFile && signedFile ? (
-            <div className={docStyles.pdfTabs}>
-              <button
-                type="button"
-                className={`${docStyles.pdfTab} ${activePdf === "generated" ? docStyles.pdfTabActive : ""}`}
-                onClick={() => setActivePdf("generated")}
-              >
-                Generated PDF
-              </button>
-              <button
-                type="button"
-                className={`${docStyles.pdfTab} ${activePdf === "signed" ? docStyles.pdfTabActive : ""}`}
-                onClick={() => setActivePdf("signed")}
-              >
-                Signed PDF
-              </button>
-            </div>
-          ) : null}
-
-          <section className={docStyles.pdfViewerSection}>
-            {displayFile ? (
-              <iframe
-                title={`Quotation PDF - ${customerName}`}
-                src={displayFile.url}
-                className={docStyles.pdfFrame}
-              />
+            {verifying || savingSkus ? (
+              <Loader2 size={18} className={styles.spinner} />
             ) : (
-              <div className={modalStyles.viewEmptyState}>
-                <p style={{ margin: 0 }}>No quotation PDF available for this customer.</p>
-              </div>
+              <CheckCircle2 size={18} />
             )}
-          </section>
-
-          <div
-            className={styles.actionFooter}
-            style={{
-              background: "#f1f5f9",
-              padding: "2.5rem",
-              borderRadius: "16px",
-              marginTop: "3rem",
-              justifyContent: "flex-end",
-            }}
-          >
-            <button
-              type="button"
-              className={styles.cancelBtn}
-              onClick={() => router.push(backUrl)}
-              style={{ padding: "0.875rem 3rem", background: "#64748b", color: "#ffffff" }}
-            >
-              <X size={20} /> Close
-            </button>
-
-            {canVerify ? (
-              <button
-                type="button"
-                className={styles.createBtn}
-                onClick={handleVerify}
-                disabled={verifying || savingSkus || isApproved || !signedFile}
-                style={{ background: isApproved ? "#94a3b8" : "#10b981" }}
-              >
-                {verifying || savingSkus ? (
-                  <Loader2 size={18} className={styles.spinner} />
-                ) : (
-                  <CheckCircle2 size={18} />
-                )}
-                {verifying || savingSkus ? "Verifying..." : isApproved ? "Verified" : "Verify"}
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              className={styles.createBtn}
-              onClick={handleDownload}
-              disabled={!displayFile}
-            >
-              <Download size={18} /> Download
-            </button>
-          </div>
-        </>
-      )}
+            {verifying || savingSkus ? "Verifying..." : isApproved ? "Verified" : "Verify"}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

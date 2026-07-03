@@ -1,5 +1,7 @@
 /** Maps GET /customer/:id response to workflow survey view (no backend changes). */
 
+import { getCurrentUserId, isSalesPersonUser } from "@/lib/permissions";
+
 export interface SiteDetailRow {
   _id: string;
   area: string;
@@ -88,6 +90,7 @@ interface SurveyReopenNoteRecord {
 export interface SurveyRecord {
   _id?: string;
   id?: string;
+  user_id?: string | { _id?: string; id?: string };
   surveyName?: string;
   surveyDate?: unknown;
   confirmDate?: unknown;
@@ -138,6 +141,22 @@ export function resolveSurveyId(survey: SurveyRecord): string {
     return String((raw as { $oid: string }).$oid);
   }
   return String(raw);
+}
+
+export function resolveSurveyUserId(survey: SurveyRecord): string {
+  const userRef = survey.user_id;
+  if (userRef && typeof userRef === "object") {
+    const record = userRef as Record<string, unknown>;
+    return String(record._id || record.id || "").trim();
+  }
+  return String(userRef || "").trim();
+}
+
+export function filterWorkflowSurveysForCurrentUser<T extends SurveyRecord>(surveys: T[]): T[] {
+  if (!isSalesPersonUser()) return surveys;
+  const userId = getCurrentUserId();
+  if (!userId) return [];
+  return surveys.filter((survey) => resolveSurveyUserId(survey) === userId);
 }
 
 export function resolveSurveyDate(

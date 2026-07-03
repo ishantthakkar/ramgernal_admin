@@ -137,6 +137,50 @@ export function isSalesManagerUser(): boolean {
   return normalizeUserRole(userRole) === "sales manager";
 }
 
+export function isAdminUser(): boolean {
+  const role = normalizeUserRole((getUserInfo()?.userRole as string | undefined) ?? undefined);
+  return role === "admin";
+}
+
+/** Workflow survey Verify — Super Admin, Admin, or Sales Manager only */
+export function canVerifyWorkflowSurvey(): boolean {
+  return isSuperAdmin() || isAdminUser() || isSalesManagerUser();
+}
+
+/** Workflow survey Reopen — Super Admin, Admin, or Sales Manager only */
+export function canReopenWorkflowSurvey(): boolean {
+  return isSuperAdmin() || isAdminUser() || isSalesManagerUser();
+}
+
+function isQuotationWorkflowRole(): boolean {
+  return isSuperAdmin() || isAdminUser() || isSalesManagerUser() || isSalesPersonUser();
+}
+
+/** Workflow Quotations tab / list — role-based or Workflow › Quotations view permission */
+export function canAccessWorkflowQuotations(): boolean {
+  return isQuotationWorkflowRole() || hasWorkflowScopePermission("Quotations", "view");
+}
+
+/** Generate quotation PDF — Admin, Sales Manager, Sales Person, or Workflow › Quotations edit */
+export function canGenerateQuotation(): boolean {
+  return isQuotationWorkflowRole() || hasWorkflowScopePermission("Quotations", "edit");
+}
+
+/** Edit quotation SKUs, upload signed PDF — same as generate */
+export function canManageWorkflowQuotation(): boolean {
+  return canGenerateQuotation();
+}
+
+/** Approve / verify quotation — Super Admin or Admin only */
+export function canApproveQuotation(): boolean {
+  return isSuperAdmin() || isAdminUser();
+}
+
+/** Proposed Fixtures SKU table on quotation page — Super Admin or Admin only */
+export function canViewQuotationFixtureTable(): boolean {
+  return isSuperAdmin() || isAdminUser();
+}
+
 export function canViewDashboardRecentActivities(): boolean {
   if (isSuperAdmin()) return true;
   return !isSalesManagerUser() && !isSalesPersonUser();

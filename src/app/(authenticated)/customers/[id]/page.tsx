@@ -269,7 +269,9 @@ export default function CustomerDetailsPage() {
         customer_id: id,
         surveyName: payload.surveyName,
         surveyType: payload.surveyType,
-        electricCompany: payload.electricCompany,
+        ...(payload.surveyType === "utility" && payload.electricCompany
+          ? { electricCompany: payload.electricCompany }
+          : {}),
       });
       const survey = response.survey as Record<string, unknown> | undefined;
       const surveyId = resolveSurveyId(survey || {});

@@ -29,12 +29,13 @@ import {
 } from "lucide-react";
 import assignModalStyles from "../../assign-modal.module.css";
 import { adminApi } from "@/lib/api";
-import { canReorderSiteDetails, hasPermission } from "@/lib/permissions";
+import { canAccessWorkflowQuotations, canReorderSiteDetails, canReopenWorkflowSurvey, canVerifyWorkflowSurvey, hasPermission } from "@/lib/permissions";
 import { toast } from "react-toastify";
 import { formatDate, formatNoteListDateTime } from "@/lib/dateUtils";
 import { SiteSurveyActionControls } from "@/components/workflow/site-survey-action-controls";
 import { SiteSurveyReopenModal } from "@/components/workflow/site-survey-reopen-modal";
 import {
+  filterWorkflowSurveysForCurrentUser,
   mapNotes,
   mapSiteDetailGroups,
   mapSiteDetails,
@@ -1038,7 +1039,8 @@ export default function WorkflowViewPage() {
     }
     const list = data?.surveys;
     if (!Array.isArray(list)) return [];
-    return [...list].sort((a, b) => {
+    const scoped = filterWorkflowSurveysForCurrentUser(list);
+    return [...scoped].sort((a, b) => {
       const timeA = new Date(a.createdAt || a.surveyDate || 0).getTime();
       const timeB = new Date(b.createdAt || b.surveyDate || 0).getTime();
       return timeA - timeB;
@@ -1288,7 +1290,13 @@ export default function WorkflowViewPage() {
   const canEditInspections = hasPermission("Inspection", "edit");
   const canCreateInstallations = hasPermission("Installation", "create");
   const canCreateInspections = hasPermission("Inspection", "create");
-  const canVerifySurveys = hasPermission("Surveys", "create");
+  const canVerifySurveys = canVerifyWorkflowSurvey();
+  const canReopenSurveys = canReopenWorkflowSurvey();
+  const quotationSurveyId =
+    focusedSurveyId ||
+    (focusedSurveyRecords[0] ? resolveSurveyId(focusedSurveyRecords[0]) : "");
+  const canOpenQuotation =
+    isSurveyView && canAccessWorkflowQuotations() && Boolean(quotationSurveyId);
   const workflowTab = fromTab || (isSurveyView ? "Surveys" : "Installations");
   const backUrl = `/workflow?tab=${workflowTab}`;
   const focusedSurvey = focusedSurveyRecords[0] as Record<string, unknown> | undefined;
@@ -1454,6 +1462,21 @@ export default function WorkflowViewPage() {
                 <span>Export PDF</span>
               </button>
             </>
+          )}
+          {canOpenQuotation && (
+            <button
+              type="button"
+              className={styles.assignBtn}
+              onClick={() =>
+                router.push(
+                  `/workflow/quotations/${id}?surveyId=${quotationSurveyId}&from=Surveys`
+                )
+              }
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.65rem 1.25rem" }}
+            >
+              <FileText size={18} />
+              <span>Quotation</span>
+            </button>
           )}
           {isSurveyView && canEditSurveys && (
             <button
@@ -1653,7 +1676,7 @@ export default function WorkflowViewPage() {
           siteDetailGroups={siteDetailGroups}
           noteEntries={noteEntries}
           canVerify={isSurveyView && canVerifySurveys}
-          canReopen={isSurveyView && canEditSurveys}
+          canReopen={isSurveyView && canReopenSurveys}
           canEdit={isSurveyView && canEditSurveys}
           canReorder={isSurveyView && canReorderSiteDetails()}
           savingSiteRow={savingSiteRow}

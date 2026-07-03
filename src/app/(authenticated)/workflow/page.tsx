@@ -20,7 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { SignedQuotationUpload } from "@/components/workflow/signed-quotation-upload";
 import { adminApi } from "@/lib/api";
-import { hasWorkflowScopePermission } from "@/lib/permissions";
+import { canAccessWorkflowQuotations, canManageWorkflowQuotation, hasWorkflowScopePermission } from "@/lib/permissions";
 import modalStyles from "./assign-modal.module.css";
 import {
   fetchWorkflowTabData,
@@ -73,7 +73,7 @@ export default function WorkflowPage() {
   const searchParams = useSearchParams();
 
   const canViewSurveys = hasWorkflowScopePermission("Surveys", "view");
-  const canViewQuotations = hasWorkflowScopePermission("Quotations", "view");
+  const canViewQuotations = canAccessWorkflowQuotations();
   const canViewInstallations = hasWorkflowScopePermission("Installation", "view");
   const canViewInspections = hasWorkflowScopePermission("Inspection", "view");
 
@@ -97,7 +97,7 @@ export default function WorkflowPage() {
   const canEditSurveys = hasWorkflowScopePermission("Surveys", "edit");
   const canEditInstallations = hasWorkflowScopePermission("Installation", "edit");
   const canEditInspections = hasWorkflowScopePermission("Inspection", "edit");
-  const canEditQuotations = hasWorkflowScopePermission("Quotations", "edit");
+  const canEditQuotations = canManageWorkflowQuotation();
 
   const canCreateSurveys = hasWorkflowScopePermission("Surveys", "edit");
   const canCreateInstallations = hasWorkflowScopePermission("Installation", "edit");
@@ -558,7 +558,7 @@ export default function WorkflowPage() {
                               className={styles.assignBtn}
                               onClick={() =>
                                 router.push(
-                                  `/workflow/edit/${r.customerId}?surveyId=${r.surveyId}&from=Quotations`
+                                  `/workflow/quotations/${r.customerId}?surveyId=${r.surveyId}&from=Quotations`
                                 )
                               }
                             >

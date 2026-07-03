@@ -15,7 +15,6 @@ export default function QuotationViewPage() {
       customerId={customerId}
       surveyId={surveyId}
       fromTab={fromTab}
-      variant="edit"
     />
   );
 }

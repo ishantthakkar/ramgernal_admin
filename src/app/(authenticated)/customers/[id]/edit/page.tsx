@@ -31,6 +31,14 @@ const ELECTRIC_COMPANIES = [
   "ATLANTIC CITY ENERGY",
 ] as const;
 
+const ADDRESS_TITLE_OPTIONS = [
+  "Service address",
+  "Billing address",
+  "Office",
+  "Home",
+  "Other",
+] as const;
+
 interface LeadSourceOption {
   code: string;
   name: string;
@@ -167,7 +175,7 @@ export default function EditCustomerPage() {
       setTempAddress(addresses[index]);
       setEditingIndex(index);
     } else {
-      setTempAddress({ title: "Office", street: "", city: "", state: "", zip: "" });
+      setTempAddress({ title: "", street: "", city: "", state: "", zip: "" });
       setEditingIndex(null);
     }
     setActiveModal("address");
@@ -175,7 +183,7 @@ export default function EditCustomerPage() {
 
   const saveAddress = () => {
     if (!tempAddress.title.trim()) {
-      toast.error("Please enter an address title.");
+      toast.error("Please select an address title.");
       return;
     }
     if (!tempAddress.street.trim() && !tempAddress.city.trim()) {
@@ -901,14 +909,41 @@ export default function EditCustomerPage() {
             </div>
             <div className={addStyles.modalBody}>
               <div className={styles.formGroup}>
-                <label>Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Office, Warehouse"
-                  className={styles.formInput}
-                  value={tempAddress.title}
-                  onChange={(e) => setTempAddress({ ...tempAddress, title: e.target.value })}
-                />
+                <label>
+                  Title <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div style={{ position: "relative" }}>
+                  <select
+                    className={styles.formSelect}
+                    value={tempAddress.title}
+                    onChange={(e) => setTempAddress({ ...tempAddress, title: e.target.value })}
+                    required
+                  >
+                    <option value="">Select title</option>
+                    {(tempAddress.title &&
+                    !ADDRESS_TITLE_OPTIONS.includes(
+                      tempAddress.title as (typeof ADDRESS_TITLE_OPTIONS)[number]
+                    )
+                      ? [tempAddress.title, ...ADDRESS_TITLE_OPTIONS]
+                      : ADDRESS_TITLE_OPTIONS
+                    ).map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={18}
+                    style={{
+                      position: "absolute",
+                      right: "1rem",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                      color: "#64748b",
+                    }}
+                  />
+                </div>
               </div>
               <div className={styles.formGroup}>
                 <label>Street</label>
