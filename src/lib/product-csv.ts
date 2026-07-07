@@ -51,9 +51,9 @@ export function downloadProductsCsv(
   const rows: string[][] = [];
 
   if (isAccessoriesTab(fixtureType)) {
-    rows.push(["Name", "Type"]);
+    rows.push(["SKU", "Name", "Type"]);
     for (const p of products) {
-      rows.push([p.name ?? "", p.accessoryType ?? ""]);
+      rows.push([p.sku ?? "", p.name ?? "", p.accessoryType ?? ""]);
     }
     downloadTextFile(toCsv(rows), filename, "text/csv;charset=utf-8");
     return;

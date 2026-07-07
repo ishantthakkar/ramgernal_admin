@@ -24,7 +24,6 @@ export default function EditRolePage() {
   const [roleName, setRoleName] = useState("");
   const [note, setNote] = useState("");
   const [isSystemRole, setIsSystemRole] = useState(false);
-  const [isAdminRole, setIsAdminRole] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [permissions, setPermissions] = useState(buildEmptyPermissionsState);
@@ -44,7 +43,6 @@ export default function EditRolePage() {
       setRoleName(role.roleName);
       setNote(role.notes || "");
       setIsSystemRole(Boolean(role.isSystemRole));
-      setIsAdminRole(role.roleName === "Admin");
       setPermissions(parsePermissionsFromApi(role.permissions));
     } catch (error: any) {
       toast.error(error.message || "Failed to fetch role details");
@@ -54,8 +52,6 @@ export default function EditRolePage() {
   };
 
   const togglePermission = (key: string, action: PermissionAction) => {
-    if (isAdminRole) return;
-
     setPermissions((prev) => ({
       ...prev,
       [key]: {
@@ -144,11 +140,6 @@ export default function EditRolePage() {
               disabled={isSystemRole}
               readOnly={isSystemRole}
             />
-            {isAdminRole && (
-              <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#64748b" }}>
-                Admin has full access to all modules. Permissions cannot be changed.
-              </p>
-            )}
           </div>
 
           <div className={styles.formGroup}>
@@ -168,7 +159,6 @@ export default function EditRolePage() {
           <PermissionAllMatrix
             permissions={permissions}
             onToggle={togglePermission}
-            readOnly={isAdminRole}
           />
         </div>
       </div>

@@ -94,7 +94,7 @@ const PROPOSED_TABLE_COLUMNS = [
 
 const EXISTING_TABLE_COLUMNS = ["Name", "Actions"] as const;
 
-const ACCESSORIES_TABLE_COLUMNS = ["Name", "Type", "Actions"] as const;
+const ACCESSORIES_TABLE_COLUMNS = ["SKU", "Name", "Type", "Actions"] as const;
 
 function getTableColumns(fixtureType: ProductFixtureType) {
   if (isAccessoriesTab(fixtureType)) return ACCESSORIES_TABLE_COLUMNS;
@@ -424,6 +424,7 @@ export default function ProductsPage() {
     return products.filter((product) => {
       if (isAccessoriesTab(activeTab)) {
         return (
+          product.sku.toLowerCase().includes(query) ||
           product.name.toLowerCase().includes(query) ||
           (product.accessoryType ?? "").toLowerCase().includes(query)
         );
@@ -964,6 +965,17 @@ export default function ProductsPage() {
     try {
       if (isAccessoriesTab(activeTab)) {
         const accessoryData = data as AccessoryProductFormData;
+        const existingSku = buildProductLookup(serverProducts, activeTab).get(
+          accessoryData.sku.trim().toLowerCase()
+        );
+
+        if (existingSku) {
+          toast.error(
+            `SKU "${accessoryData.sku}" already exists. Edit the accessory or choose a different SKU.`
+          );
+          return;
+        }
+
         const existing = serverProducts.find(
           (product) =>
             product.name.trim().toLowerCase() === accessoryData.name.trim().toLowerCase() &&
@@ -978,6 +990,7 @@ export default function ProductsPage() {
         }
 
         await adminApi.createProduct({
+          sku: accessoryData.sku,
           name: accessoryData.name,
           accessoryType: accessoryData.accessoryType,
           productType: activeTab,
@@ -1046,7 +1059,19 @@ export default function ProductsPage() {
     try {
       if (isAccessoriesTab(editingProduct.productType)) {
         const accessoryData = data as AccessoryProductFormData;
+        const existingSku = serverProducts.find(
+          (product) =>
+            product.id !== editingProduct.id &&
+            product.sku.trim().toLowerCase() === accessoryData.sku.trim().toLowerCase()
+        );
+
+        if (existingSku) {
+          toast.error(`SKU "${accessoryData.sku}" already exists.`);
+          return;
+        }
+
         await adminApi.updateProduct(editingProduct.id, {
+          sku: accessoryData.sku,
           name: accessoryData.name,
           accessoryType: accessoryData.accessoryType,
           productType: editingProduct.productType,
@@ -1302,6 +1327,7 @@ export default function ProductsPage() {
                     <tr key={product.id}>
                       {isAccessoriesTab(activeTab) ? (
                         <>
+                          <td className={productStyles.skuCell}>{product.sku}</td>
                           <td className={productStyles.nameCell}>{product.name}</td>
                           <td>
                             <span
@@ -1472,6 +1498,7 @@ export default function ProductsPage() {
         initialData={
           editingProduct && isAccessoriesTab(editingProduct.productType)
             ? {
+                sku: editingProduct.sku,
                 name: editingProduct.name,
                 accessoryType: editingProduct.accessoryType ?? "Independent",
               }

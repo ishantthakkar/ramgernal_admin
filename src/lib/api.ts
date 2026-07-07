@@ -604,6 +604,7 @@ export const adminApi = {
           productType: string;
         }
       | {
+          sku: string;
           name: string;
           accessoryType: string;
           productType: string;
@@ -631,6 +632,7 @@ export const adminApi = {
           productType?: string;
         }
       | {
+          sku: string;
           name: string;
           accessoryType: string;
           productType?: string;
@@ -660,7 +662,7 @@ export const adminApi = {
           installationCost: number;
         }
       | { name: string }
-      | { name: string; accessoryType: string }
+      | { name: string; sku: string; accessoryType: string }
     >
   ) =>
     apiRequest("/products/replace", {

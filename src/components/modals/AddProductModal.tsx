@@ -30,6 +30,7 @@ export interface ExistingProductFormData {
 }
 
 export interface AccessoryProductFormData {
+  sku: string;
   name: string;
   accessoryType: AccessoryType;
 }
@@ -71,6 +72,7 @@ const emptyExistingForm = {
 };
 
 const emptyAccessoryForm = {
+  sku: "",
   name: "",
   accessoryType: "Independent" as AccessoryType,
 };
@@ -88,6 +90,24 @@ function toProposedFormValues(data: ProposedProductFormData) {
     managerCommission: String(data.managerCommission),
     installationCost: String(data.installationCost),
   };
+}
+
+function isProposedProductData(
+  data: ProposedProductFormData | ExistingProductFormData | AccessoryProductFormData
+): data is ProposedProductFormData {
+  return "utilityPrice" in data;
+}
+
+function isAccessoryProductData(
+  data: ProposedProductFormData | ExistingProductFormData | AccessoryProductFormData
+): data is AccessoryProductFormData {
+  return "accessoryType" in data;
+}
+
+function isExistingProductData(
+  data: ProposedProductFormData | ExistingProductFormData | AccessoryProductFormData
+): data is ExistingProductFormData {
+  return "name" in data && !("sku" in data) && !("accessoryType" in data);
 }
 
 function validateMoneyField(
@@ -143,24 +163,26 @@ export function ProductFormModal({
     if (!isOpen) return;
 
     if (isAccessory) {
-      if (isEdit && initialData && "accessoryType" in initialData) {
+      if (isEdit && initialData && isAccessoryProductData(initialData)) {
         setAccessoryForm({
+          sku: initialData.sku ?? "",
           name: initialData.name,
           accessoryType: initialData.accessoryType,
         });
       } else {
         setAccessoryForm({
+          sku: "",
           name: "",
           accessoryType: defaultAccessoryType,
         });
       }
     } else if (isExisting) {
-      if (isEdit && initialData && "name" in initialData) {
+      if (isEdit && initialData && isExistingProductData(initialData)) {
         setExistingForm({ name: initialData.name });
       } else {
         setExistingForm(emptyExistingForm);
       }
-    } else if (isEdit && initialData && "sku" in initialData) {
+    } else if (isEdit && initialData && isProposedProductData(initialData)) {
       setProposedForm(toProposedFormValues(initialData));
     } else {
       setProposedForm(emptyProposedForm);
@@ -230,6 +252,9 @@ export function ProductFormModal({
   function validateAccessoryForm(): AccessoryProductFormData | null {
     const next: Record<string, string> = {};
 
+    if (!accessoryForm.sku.trim()) {
+      next.sku = "SKU is required.";
+    }
     if (!accessoryForm.name.trim()) {
       next.name = "Name is required.";
     }
@@ -242,6 +267,7 @@ export function ProductFormModal({
     if (Object.keys(next).length > 0) return null;
 
     return {
+      sku: accessoryForm.sku.trim(),
       name: accessoryForm.name.trim(),
       accessoryType: accessoryForm.accessoryType,
     };
@@ -328,7 +354,7 @@ export function ProductFormModal({
 
     if (!isEdit) {
       if (isAccessory) {
-        setAccessoryForm({ name: "", accessoryType: defaultAccessoryType });
+        setAccessoryForm({ sku: "", name: "", accessoryType: defaultAccessoryType });
       } else if (isExisting) {
         setExistingForm(emptyExistingForm);
       } else {
@@ -373,6 +399,29 @@ export function ProductFormModal({
             {isAccessory ? (
               <div className={modalStyles.formGrid} style={{ gridTemplateColumns: "1fr 1fr" }}>
                 <div className={modalStyles.formGroup}>
+                  <label htmlFor="accessory-sku">
+                    SKU <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    id="accessory-sku"
+                    type="text"
+                    className={modalStyles.formInput}
+                    placeholder="e.g. RAM-ACC-001"
+                    value={accessoryForm.sku}
+                    required
+                    onChange={(e) => {
+                      setAccessoryForm((prev) => ({ ...prev, sku: e.target.value }));
+                      if (errors.sku) setErrors((prev) => ({ ...prev, sku: "" }));
+                    }}
+                  />
+                  {errors.sku && (
+                    <span style={{ fontSize: "0.8rem", color: "#ef4444", fontWeight: 600 }}>
+                      {errors.sku}
+                    </span>
+                  )}
+                </div>
+
+                <div className={modalStyles.formGroup}>
                   <label htmlFor="accessory-name">
                     Name <span style={{ color: "#ef4444" }}>*</span>
                   </label>
@@ -395,7 +444,7 @@ export function ProductFormModal({
                   )}
                 </div>
 
-                <div className={modalStyles.formGroup}>
+                <div className={modalStyles.formGroup} style={{ gridColumn: "1 / -1" }}>
                   <label htmlFor="accessory-type">
                     Type <span style={{ color: "#ef4444" }}>*</span>
                   </label>

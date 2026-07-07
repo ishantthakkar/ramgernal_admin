@@ -142,14 +142,14 @@ export function isAdminUser(): boolean {
   return role === "admin";
 }
 
-/** Workflow survey Verify — Super Admin, Admin, or Sales Manager only */
+/** Workflow survey Verify — Super Admin or Sales Manager only */
 export function canVerifyWorkflowSurvey(): boolean {
-  return isSuperAdmin() || isAdminUser() || isSalesManagerUser();
+  return isSuperAdmin() || isSalesManagerUser();
 }
 
-/** Workflow survey Reopen — Super Admin, Admin, or Sales Manager only */
+/** Workflow survey Reopen — Super Admin or Sales Manager only */
 export function canReopenWorkflowSurvey(): boolean {
-  return isSuperAdmin() || isAdminUser() || isSalesManagerUser();
+  return isSuperAdmin() || isSalesManagerUser();
 }
 
 /** Workflow Quotations tab / list — Workflow › Quotations view permission */
@@ -167,14 +167,14 @@ export function canManageWorkflowQuotation(): boolean {
   return canGenerateQuotation();
 }
 
-/** Approve / verify quotation — Super Admin or Admin only */
+/** Approve / verify quotation — Super Admin only */
 export function canApproveQuotation(): boolean {
-  return isSuperAdmin() || isAdminUser();
+  return isSuperAdmin();
 }
 
-/** Proposed Fixtures SKU table on quotation page — Super Admin or Admin only */
+/** Proposed Fixtures SKU table on quotation page — Super Admin only */
 export function canViewQuotationFixtureTable(): boolean {
-  return isSuperAdmin() || isAdminUser();
+  return isSuperAdmin();
 }
 
 export function canViewDashboardRecentActivities(): boolean {
@@ -191,11 +191,11 @@ export function getCurrentUserId(): string | null {
   return id ? String(id) : null;
 }
 
-/** Site Details area reorder — super admin, Admin role, or Sales Person only */
+/** Site Details area reorder — super admin or Sales Person only */
 export function canReorderSiteDetails(): boolean {
   if (isSuperAdmin()) return true;
   const role = normalizeUserRole((getUserInfo()?.userRole as string | undefined) ?? undefined);
-  return role === "sales person" || role === "admin";
+  return role === "sales person";
 }
 
 export function canCreateCustomerSurvey(): boolean {
