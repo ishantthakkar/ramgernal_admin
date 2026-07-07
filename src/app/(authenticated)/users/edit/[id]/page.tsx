@@ -32,6 +32,7 @@ import {
   scheduleFromUser,
   scheduleToApiPayload,
   validateWorkingSchedule,
+  requiresAdminPanelLogin,
 } from "../../user-form-utils";
 import type { DayScheduleEntry } from "../../user-form-utils";
 import { WorkingScheduleEditor } from "../../components/WorkingScheduleEditor";
@@ -89,7 +90,8 @@ export default function EditUserPage() {
     ? selectedRoleObj.roleName?.toLowerCase()
     : "";
 
-  const isPasswordRequired = selectedRoleName !== "contractor";
+  const needsAdminPanelLogin = requiresAdminPanelLogin(selectedRoleName);
+  const showPasswordField = needsAdminPanelLogin || selectedRoleName !== "contractor";
 
   const supervisorTarget = getSupervisorTargetRole(selectedRoleName);
   const supervisorLabel = getSupervisorLabel(supervisorTarget);
@@ -233,15 +235,9 @@ export default function EditUserPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name === "userRole") {
-      const selectedRole = roles.find((r) => r._id === value);
-      const roleName = selectedRole?.roleName?.toLowerCase() || "";
       preserveSupervisorRef.current = false;
       setReportsToId("");
-      if (roleName === "contractor") {
-        setFormData((prev) => ({ ...prev, [name]: value, password: "" }));
-      } else {
-        setFormData((prev) => ({ ...prev, [name]: value }));
-      }
+      setFormData((prev) => ({ ...prev, [name]: value }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -533,7 +529,7 @@ export default function EditUserPage() {
                 required
               />
             </div>
-            {isPasswordRequired && (
+            {showPasswordField && (
               <div className={styles.formGroup}>
                 <label>New Password</label>
                 <input
