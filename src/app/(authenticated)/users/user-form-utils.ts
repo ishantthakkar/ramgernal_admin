@@ -276,3 +276,9 @@ export function getSupervisorFieldLabel(roleName?: string): string | null {
   }
   return null;
 }
+
+/** Roles that use email + password to sign in to the admin panel (and may also use mobile). */
+export function requiresAdminPanelLogin(roleName?: string): boolean {
+  const role = normalizeRoleName(roleName);
+  return role === "sales person" || role === "contractor";
+}

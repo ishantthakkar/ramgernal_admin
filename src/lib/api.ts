@@ -39,8 +39,8 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
       localStorage.removeItem("user_permissions");
       localStorage.removeItem("user_info");
       localStorage.removeItem("is_super_admin");
-      if (window.location.pathname !== "/") {
-        window.location.href = "/";
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
     }
 
@@ -87,7 +87,7 @@ export async function apiBlobRequest(endpoint: string, options: RequestInit = {}
     if (response.status === 401) {
       localStorage.removeItem("auth_token");
       if (typeof window !== "undefined") {
-        window.location.href = "/";
+        window.location.href = "/login";
       }
     }
     throw new ApiError(message, response.status);
