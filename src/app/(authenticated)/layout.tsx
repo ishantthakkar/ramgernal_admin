@@ -70,7 +70,7 @@ export default function DashboardLayout({
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
     if (!token) {
-      router.push("/");
+      router.push("/login");
     } else {
       setIsAuthChecking(false);
       const savedInfo = localStorage.getItem("user_info");
@@ -158,7 +158,7 @@ export default function DashboardLayout({
               localStorage.removeItem("user_permissions");
               localStorage.removeItem("is_super_admin");
               toast.success("Logout successful. See you soon!");
-              router.push("/");
+              router.push("/login");
             }}
             title={isSidebarCollapsed ? "Logout" : ""}
           >

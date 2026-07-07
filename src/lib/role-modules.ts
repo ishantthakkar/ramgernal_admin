@@ -13,10 +13,7 @@ export interface PermissionTabDefinition {
   scopes?: PermissionScopeDefinition[];
 }
 
-export const SYSTEM_ROLE_NAMES = ["Admin", "Sales Manager", "Project Manager", "Sales Person"] as const;
-
-/** Mobile-only roles — hidden from admin Roles & Permissions table */
-export const MOBILE_USER_ROLE_NAMES = ["Contractor", "Contractors"] as const;
+export const SYSTEM_ROLE_NAMES = ["Admin", "Sales Manager", "Project Manager", "Sales Person", "Contractor"] as const;
 
 export const USER_SCOPE_NAMES = [
   "All Users",
@@ -288,12 +285,6 @@ export function isSystemRoleName(roleName: string): boolean {
   return SYSTEM_ROLE_NAMES.some(
     (name) => name.toLowerCase() === roleName.trim().toLowerCase()
   );
-}
-
-export function isMobileUserRoleName(roleName: string): boolean {
-  const normalized = roleName.trim().toLowerCase().replace(/_/g, " ");
-  const hidden = new Set(["contractor", "contractors"]);
-  return hidden.has(normalized);
 }
 
 /** @deprecated Use PERMISSION_TABS — kept for any stale imports */

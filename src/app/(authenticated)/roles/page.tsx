@@ -18,7 +18,6 @@ import {
 import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { useRequireSuperAdmin } from "@/hooks/use-require-super-admin";
-import { isMobileUserRoleName } from "@/lib/role-modules";
 
 interface RoleRow {
   _id: string;
@@ -46,8 +45,7 @@ export default function RolesPermissionsPage() {
       setLoading(true);
       const data = await adminApi.getRoles();
       const allRoles = (data.roles || []) as RoleRow[];
-      const visibleRoles = allRoles.filter((role) => !isMobileUserRoleName(role.roleName || ""));
-      setRoles(visibleRoles);
+      setRoles(allRoles);
     } catch (error: any) {
       toast.error(error.message || "Failed to fetch roles");
     } finally {

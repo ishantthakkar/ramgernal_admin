@@ -15,7 +15,7 @@ import { adminApi } from "@/lib/api";
 import { toast } from "react-toastify";
 import { canViewModule, canEditUserByRole, hasPermission, isSalesManagerUser, getCurrentUserId } from "@/lib/permissions";
 import { getUserScopeFromRole } from "@/lib/role-modules";
-import { normalizeRoleName, getSupervisorTargetRole, getSupervisorLabel, createDefaultSchedule, scheduleToApiPayload, validateWorkingSchedule } from "../user-form-utils";
+import { normalizeRoleName, getSupervisorTargetRole, getSupervisorLabel, createDefaultSchedule, scheduleToApiPayload, validateWorkingSchedule, requiresAdminPanelLogin } from "../user-form-utils";
 import type { DayScheduleEntry } from "../user-form-utils";
 import { WorkingScheduleEditor } from "../components/WorkingScheduleEditor";
 import { ProfilePictureUpload } from "@/components/users/profile-picture-upload";
@@ -61,8 +61,9 @@ export default function AddUserPage() {
     ? selectedRoleObj.roleName?.toLowerCase()
     : formData.userRole?.toLowerCase();
 
-  const isPasswordRequired = selectedRoleName !== "contractor";
-  const isEmailRequired = selectedRoleName === "sales person";
+  const needsAdminPanelLogin = requiresAdminPanelLogin(selectedRoleName);
+  const isPasswordRequired = needsAdminPanelLogin;
+  const isEmailRequired = needsAdminPanelLogin;
 
   const supervisorTarget = getSupervisorTargetRole(selectedRoleName);
   const supervisorLabel = getSupervisorLabel(supervisorTarget);
@@ -165,14 +166,8 @@ export default function AddUserPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name === "userRole") {
-      const selectedRole = roles.find((r) => r._id === value);
-      const roleName = selectedRole?.roleName?.toLowerCase() || "";
       setReportsToId("");
-      if (roleName === "contractor") {
-        setFormData((prev) => ({ ...prev, [name]: value, password: "" }));
-      } else {
-        setFormData((prev) => ({ ...prev, [name]: value }));
-      }
+      setFormData((prev) => ({ ...prev, [name]: value }));
     } else if (name === "mobileNumber") {
       setFormData((prev) => ({ ...prev, mobileNumber: formatUsPhone(value) }));
     } else {
@@ -199,7 +194,7 @@ export default function AddUserPage() {
     }
 
     if (isEmailRequired && !formData.email.trim()) {
-      toast.error("Email is required for sales person admin panel login.");
+      toast.error("Email is required for admin panel login.");
       return;
     }
 
